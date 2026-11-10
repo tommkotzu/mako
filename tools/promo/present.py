@@ -54,6 +54,33 @@ def C(cmd, wait=0.0):
         time.sleep(wait)
 
 
+def shell_eval(js):
+    ok, out = call('org.gnome.Shell', '/org/gnome/Shell', 'org.gnome.Shell', 'Eval', '(s)', (js,)).unpack()
+    if not ok:
+        raise SystemExit('shell eval failed: ' + out)
+    return out
+
+
+# The window floats (rounded corners, shadow) in the middle of the screen.
+FRAME = (40, TOP + 24, 1200, 672)   # x, y, width, height (logical px)
+origin = [0, 0]                     # the window frame on screen (widget coordinates start there)
+
+
+def place_window():
+    x, y, w, h = FRAME
+    js = ("let w = global.display.get_focus_window() || global.get_window_actors().map(a => a.meta_window)"
+          ".find(m => m.get_wm_class() && m.get_wm_class().includes('Nautilus'));"
+          "if (w.is_maximized ? w.is_maximized() : w.get_maximized()) { try { w.unmaximize(); } catch (e) { w.unmaximize(3); } }"
+          "w.move_resize_frame(false, %d, %d, %d, %d);" % (x, y, w, h))
+    shell_eval(js)
+    time.sleep(0.8)
+    r = json.loads(shell_eval("let w = global.display.get_focus_window(); let b = w.get_frame_rect();"
+                              "JSON.stringify([b.x, b.y])"))
+    if isinstance(r, str):          # Eval hands back the value JSON-encoded once more
+        r = json.loads(r)
+    origin[0], origin[1] = r
+
+
 def start_app(location, prep=None):
     global app_proc
     stop_app()
@@ -66,7 +93,8 @@ def start_app(location, prep=None):
     env = dict(os.environ, HOME=HOME, XDG_CONFIG_HOME=HOME + '/.config',
                XDG_DATA_HOME=HOME + '/.local/share', XDG_CACHE_HOME=HOME + '/.cache',
                GSETTINGS_BACKEND='memory', GSETTINGS_SCHEMA_DIR=REPO + '/_build/data',
-               FLIER_CAPTURE='1', FLIER_CAPTURE_PRESET='1', FLIER_CAPTURE_ANIMATE='1')
+               FLIER_CAPTURE='1', FLIER_CAPTURE_PRESET='1', FLIER_CAPTURE_ANIMATE='1',
+               FLIER_CAPTURE_ICON_THEME=os.environ.get('PRESENT_ICONS') or 'Adwaita')
     app_proc = subprocess.Popen([REPO + '/_build/src/nautilus', '--new-window', location], env=env,
                                 cwd=HOME, stdout=open(WORK + '/app.log', 'a'), stderr=subprocess.STDOUT)
     for _ in range(80):
@@ -80,7 +108,7 @@ def start_app(location, prep=None):
     else:
         sys.exit('Mako did not start')
     time.sleep(1)
-    C('act:window.toggle-maximized', 1.5)
+    place_window()
 
 
 def stop_app():
@@ -108,7 +136,7 @@ def locate(text, tries=20):
             time.sleep(0.02)
         if os.path.exists(path) and open(path).read().strip():
             x, y, w, h = map(float, open(path).read().split())
-            return x, y + TOP, w, h
+            return x + origin[0], y + origin[1], w, h
         time.sleep(0.15)
     shot('not-found')
     raise SystemExit('not found: ' + text)
@@ -170,8 +198,8 @@ def move(x, y, dur=None):
 
 
 def W(fx, fy):
-    """A point of the window (maximized under the top bar), as fractions of it."""
-    return (round(fx * 1280), round(TOP + fy * 720))
+    """A point of the window, as fractions of it."""
+    return (round(FRAME[0] + fx * FRAME[2]), round(FRAME[1] + fy * FRAME[3]))
 
 
 def to(target, dx=0, dy=0, dur=None):
@@ -220,8 +248,16 @@ def drag(src, dst, hold=0.5, dur=1.0, mods=(), snap=None, **kw):
     time.sleep(0.4)
 
 
-KEYS = {'esc': 1, 'enter': 28, 'alt': 56, 'ctrl': 29, 'shift': 42, 'space': 57,
+KEYS = {'esc': 1, 'enter': 28, 'alt': 56, 'ctrl': 29, 'shift': 42, 'space': 57, 'backspace': 14,
         'up': 103, 'down': 108, 'left': 105, 'right': 106, 'tab': 15}
+# Letters, digits and F keys (Linux input codes).
+for i, row in enumerate(('qwertyuiop', 'asdfghjkl', 'zxcvbnm')):
+    for j, c in enumerate(row):
+        KEYS[c] = (16, 30, 44)[i] + j
+for i in range(10):
+    KEYS[str((i + 1) % 10)] = 2 + i
+for i in range(10):
+    KEYS['f%d' % (i + 1)] = 59 + i
 
 
 def key_down(k):
@@ -239,6 +275,12 @@ def key(*ks):
     for k in reversed(ks):
         key_up(k)
     time.sleep(0.2)
+
+
+def type_text(text):
+    for c in text:
+        key('shift', c.lower()) if c.isupper() else key(' ' if False else ('space' if c == ' ' else c))
+        time.sleep(0.05)
 
 
 def scroll(steps, dy=1):
@@ -346,8 +388,17 @@ def menu(item, opener='View (Alt'):
     click(item, pause=0.3)
 
 
+def press(k, label=None, pause=0.55):
+    """A key or combo ("ctrl+alt+4"), marked for the keycaps ("key:Ctrl+Alt+4")."""
+    keys = k.split('+')
+    mark('key:' + (label or '+'.join(x.upper() if len(x) == 1 or x[0] == 'f' and x[1:].isdigit() else x.capitalize()
+                                     for x in keys)))
+    key(*keys)
+    s(pause)
+
+
 def scene_columns():
-    """Miller columns: picked from the View menu, clicked through, edges dragged."""
+    """Miller columns: picked from the View menu, walked with the arrow keys, edges dragged."""
     start_app(HOME)
     C('act:win.view-mode(uint32 4)', 0.5)
     move(*W(.57, .5), 0.1)
@@ -357,28 +408,41 @@ def scene_columns():
     mark('view menu: columns')
     menu('Columns')
     s(0.8)
-    for name in ('Pictures', 'Deep Sea', 'Sharks'):
-        mark('click: ' + name)
-        click('nautilus-columns>' + name, pause=0.9)
-    mark('click: mako-shark.jpg')
-    click('nautilus-columns>mako-shark.jpg', pause=1.2)
+    mark('click: Pictures')
+    click('nautilus-columns>Pictures', pause=0.8)
+    move(*W(.62, .62))                  # the hand leaves the mouse for the keys
+    s(0.4)
+    press('right', pause=0.8)           # into Pictures: Deep Sea
+    press('right', pause=0.8)           # into Deep Sea: Bettas
+    for _ in range(3):
+        press('down')                   # Moodboard, Reef, Sharks
+    s(0.3)
+    press('right', pause=0.8)           # into Sharks
+    for _ in range(2):
+        press('down')                   # hammerhead, mako-shark
+    s(0.6)
+    press('up')
+    s(0.4)
+    press('left', pause=0.8)            # back to Deep Sea
+    press('up')                         # Reef
+    press('right', pause=0.8)           # into Reef
+    for _ in range(3):
+        press('down')
+    s(0.5)
     x, y, w, h = locate('.miller-parent')
     mark('drag edge: one column')
-    drag((x + w / 2 - 2, y), (x + w / 2 + 140, y + 10), hold=0.3, dur=0.9)
+    drag((x + w / 2 - 2, y), (x + w / 2 + 90, y + 10), hold=0.3, dur=0.9)
     s(0.6)
     x, y, w, h = locate('.miller-parent')
     mark('alt+drag edge: all columns')
-    drag((x + w / 2 - 2, y + 60), (x + w / 2 - 90, y + 70), hold=0.3, dur=0.9, mods=('alt',))
-    s(0.8)
-    mark('click: Documents')
-    click('nautilus-columns>Documents', pause=0.9)
-    for name in ('Expedition', 'Dives'):
-        mark('click: ' + name)
-        click('nautilus-columns>' + name, pause=0.9)
-    move(*W(.78, .6))
-    s(1.2)
+    drag((x + w / 2 - 2, y + 60), (x + w / 2 - 40, y + 70), hold=0.3, dur=0.9, mods=('alt',))
+    s(0.6)
+    move(*W(.62, .62))
+    press('left', pause=0.8)
+    press('left', pause=0.8)
+    press('down')
+    press('right', pause=1.2)
     stop(path)
-
 
 def scene_density():
     """Density from the bottom bar's View menu, and the sidebar's from its menu."""
@@ -476,7 +540,7 @@ def scene_files():
     s(0.5)
     mark('drag: into Reef in the other tile')
     # A short hover: a longer one opens the folder (spring-loaded).
-    drag(locate('dive-0414.jpg')[:2], 'nautilus-grid-view>Reef', dy=-40, hold=0.45, dur=1.2)
+    drag(locate('dive-0414.jpg')[:2], 'nautilus-grid-view>Reef', dy=-40, hold=0.1, dur=1.0)
     s(1.2)
     mark('drag folder: onto the sidebar for a bookmark')
     drag('nautilus-grid-view>Reef', 'placessidebar>Places', dy=-18, hold=1.2, dur=1.3)
@@ -486,6 +550,132 @@ def scene_files():
     move(*W(.57, .6))            # off the row before its tooltip (a path) shows
     s(2)
     stop(path)
+
+def scene_quicklook():
+    """Quick Look on four photos: picked with the mouse, looked at with the keys."""
+    start_app(P(*DEEP, 'Moodboard'))
+    C('act:win.view-mode(uint32 4)', 0.5)
+    move(*W(.6, .7), 0.1)
+    s(1)
+    path = rec('quicklook')
+    s(0.6)
+    mark('click, ctrl+click: four photos')
+    click('mako-shark.jpg', dy=-40, pause=0.3)
+    key_down('ctrl')
+    for name in ('jellyfish.jpg', 'nautilus-octopus.jpg', 'coral.jpg'):
+        click(name, dy=-40, pause=0.2)
+    key_up('ctrl')
+    move(*W(.6, .75))
+    s(0.5)
+    press('space', pause=2.0)
+    mark('point: jellyfish')
+    move(*W(.5, .3))                    # Quick Look is its own window
+    s(0.4)
+    press('w', pause=0.6)               # zoom in where the pointer is
+    press('w', pause=0.9)
+    press('right', pause=0.6)
+    press('right', pause=0.8)
+    press('q', pause=1.0)               # fit all four again
+    press('5', pause=1.0)               # rate all four
+    press('tab', pause=1.6)             # full screen
+    press('tab', pause=1.0)
+    press('space', pause=1.2)
+    stop(path)
+
+
+def scene_inspector():
+    """The inspector: Alt+E, follows the selection, its grip dragged to another side."""
+    start_app(P(*DEEP, 'Reef'))
+    C('act:win.view-mode(uint32 4)', 0.5)
+    move(*W(.6, .7), 0.1)
+    s(1)
+    path = rec('inspector')
+    s(0.6)
+    mark('click: coral.jpg')
+    click('coral.jpg', dy=-40, pause=0.4)
+    press('alt+e', pause=1.4)
+    for name in ('jellyfish.jpg', 'crab-taxi.jpg', 'plankton-chart.jpg'):
+        mark('click: ' + name)
+        click(name, dy=-40, pause=1.2)
+    mark('drag grip: to the bottom')
+    drag('.inspector-grip', W(.6, .9), hold=0.8, dur=1.2)
+    s(1.4)
+    mark('drag grip: to the left')
+    drag('.inspector-grip', W(.3, .5), hold=0.8, dur=1.2)
+    s(1.4)
+    mark('drag grip: back to the right')
+    drag('.inspector-grip', W(.95, .5), hold=0.8, dur=1.2)
+    s(1.2)
+    move(*W(.5, .7))
+    press('alt+e', pause=1.2)
+    stop(path)
+
+
+def scene_marks():
+    """Ratings and tags: a shortcut, the right-click stars, Alt to see them, a tag, the tag's files."""
+    start_app(P(*DEEP, 'Bettas'))
+    C('act:win.view-mode(uint32 4)', 0.5)
+    move(*W(.6, .7), 0.1)
+    s(1)
+    path = rec('marks')
+    s(0.6)
+    mark('click: betta-red.jpg')
+    click('betta-red.jpg', dy=-40, pause=0.4)
+    press('ctrl+alt+4', pause=1.4)
+    mark('right-click: 5 stars')
+    click('betta-lilac.jpg', which='right', dy=-40, pause=0.8)
+    click('5 stars', pause=0.4)
+    s(1)
+    mark('hold Alt: stars on every tile')
+    key_down('alt')
+    s(2.2)
+    key_up('alt')
+    s(0.5)
+    mark('click: betta-violet.jpg')
+    click('betta-violet.jpg', dy=-40, pause=0.4)
+    press('ctrl+alt+a', pause=1.2)
+    mark('click: tag Print')
+    click('dialog>Print', pause=0.8)
+    press('esc', pause=1.0)
+    mark('click sidebar tag: Print')
+    click('placessidebar>Print', pause=0.2)
+    move(*W(.6, .7))
+    s(2.5)
+    stop(path)
+
+
+def scene_tiles():
+    """Tiles from the keyboard, folders from the sidebar, a file dragged across, the command list."""
+    start_app(P(*DEEP, 'Sharks'))
+    C('act:win.view-mode(uint32 4)', 0.5)
+    move(*W(.6, .7), 0.1)
+    s(1)
+    path = rec('tiles')
+    s(0.6)
+    press('f3', pause=1.0)
+    mark('click sidebar: Videos')
+    click('placessidebar>Videos', pause=0.2)
+    move(*W(.6, .4))                    # away, before the path tooltip
+    s(0.8)
+    press('shift+f3', pause=1.0)
+    mark('click sidebar: Documents')
+    click('placessidebar>Documents', pause=0.2)
+    move(*W(.6, .85))
+    s(0.8)
+    mark('drag: a video into Documents')
+    drag(locate('sardine-school.mp4')[:2], W(.6, .85), dy=-30, hold=0.6, dur=1.2)
+    s(1)
+    press('alt+t', pause=0.9)
+    press('alt+t', pause=0.9)
+    press('alt+3', pause=1.2)
+    press('ctrl+k', pause=1.0)
+    mark('type: insp')
+    type_text('insp')
+    s(1.0)
+    press('enter', pause=1.6)
+    press('alt+e', pause=1.2)
+    stop(path)
+
 
 def scene_probe():
     """Not a clip: a screenshot and some locations, to aim the others."""

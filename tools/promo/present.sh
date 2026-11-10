@@ -20,9 +20,21 @@ cat > "$WORK/shell/.config/glib-2.0/settings/keyfile" <<'K'
 [org/gnome/desktop/interface]
 cursor-size=32
 
+enable-hot-corners=false
+
 [org/gnome/desktop/notifications]
 show-banners=false
+
+[org/gnome/desktop/background]
+picture-uri=''
+picture-uri-dark=''
+picture-options='none'
+color-shading-type='vertical'
+primary-color='#2b2640'
+secondary-color='#15131c'
 K
+# The icons you use (orange Yaru folders otherwise, on Ubuntu).
+export PRESENT_ICONS=${PRESENT_ICONS:-$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")}
 export PRESENT_OUT=$OUT PRESENT_WORK=$WORK PRESENT_SRC=$SRC PRESENT_REPO=$REPO
 export HOME=$WORK/shell XDG_CONFIG_HOME=$WORK/shell/.config XDG_DATA_HOME=$WORK/shell/.local/share \
        XDG_CACHE_HOME=$WORK/shell/.cache

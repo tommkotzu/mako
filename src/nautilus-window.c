@@ -1844,14 +1844,20 @@ capture_write_location (NautilusWindow *window,
         g_file_set_contents (file, "", 0, NULL);
         return;
     }
-    /* Up through the popovers to the window. */
-    for (GtkNative *native = gtk_widget_get_native (found); GTK_IS_POPOVER (native);
-         native = gtk_widget_get_native (gtk_widget_get_parent (GTK_WIDGET (native))))
+    /* Up through the popovers to the window. A popup's position is from its
+     * parent's surface, which takes in the shadow of a window not maximized;
+     * widget coordinates start inside the shadows. */
+    for (GtkNative *native = gtk_widget_get_native (found); GTK_IS_POPOVER (native);)
     {
         GdkSurface *surface = gtk_native_get_surface (native);
+        GtkNative *parent = gtk_widget_get_native (gtk_widget_get_parent (GTK_WIDGET (native)));
+        double sx, sy, px, py;
 
-        x += gdk_popup_get_position_x (GDK_POPUP (surface));
-        y += gdk_popup_get_position_y (GDK_POPUP (surface));
+        gtk_native_get_surface_transform (native, &sx, &sy);
+        gtk_native_get_surface_transform (parent, &px, &py);
+        x += gdk_popup_get_position_x (GDK_POPUP (surface)) + sx - px;
+        y += gdk_popup_get_position_y (GDK_POPUP (surface)) + sy - py;
+        native = parent;
     }
     {
         g_autofree char *line = g_strdup_printf ("%.0f %.0f %.0f %.0f\n",
@@ -2309,6 +2315,13 @@ nautilus_window_initialize_actions (NautilusWindow *window)
             if (g_getenv ("FLIER_CAPTURE_ANIMATE") == NULL)
             {
                 g_object_set (gtk_settings_get_default (), "gtk-enable-animations", FALSE, NULL);
+            }
+            /* The icons of the person making the recording (the demo's
+             * settings are in memory, with the distribution's default). */
+            if (g_getenv ("FLIER_CAPTURE_ICON_THEME") != NULL)
+            {
+                g_object_set (gtk_settings_get_default (), "gtk-icon-theme-name",
+                              g_getenv ("FLIER_CAPTURE_ICON_THEME"), NULL);
             }
             g_settings_set_boolean (flier, "file-flier-imported", TRUE);
             g_settings_set_boolean (flier, "sidebar-groups", TRUE);
