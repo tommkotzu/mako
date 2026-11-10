@@ -63,12 +63,18 @@ it. Drag a column's edge to resize it, or
 hold `Alt` while dragging to resize all columns at once. A double click on
 an edge resets that column, and `Alt` + double click resets them all.
 
-![Miller columns](docs/media/columns.png)
+![Miller columns, walked with the arrow keys](docs/media/columns.gif)
 
 **Grouping:** `Ctrl+G` steps through grouping by date, first letter,
 rating and kind. **Flat view:** `Alt+R` lists every file in all subfolders.
 
 ![List grouped by first letter](docs/media/list.png)
+
+**Density:** four steps from Comfortable (as GNOME Files has it) to Extra
+Dense, in the View menu of the bottom bar. The denser steps also draw the
+icons smaller, and the sidebar has its own density in its right-click menu.
+
+![Density of the files and of the sidebar](docs/media/density.gif)
 
 ## Tiles and tabs
 
@@ -77,6 +83,14 @@ tabs, and the active tab is filled with the accent color. `Alt+T` moves to
 the next tile, and `Ctrl+Tab` goes through all tabs in all tiles.
 
 ![Splitting into tiles with tabs](docs/media/tiles.gif)
+
+Drag a tab to reorder it, or onto another tile to move it there. Drag files
+from one tile into a folder in another, and drop a folder on the sidebar to
+bookmark it.
+
+![Dragging tabs between tiles](docs/media/tabs.gif)
+
+![Dragging photos between tiles, and a folder onto the sidebar](docs/media/files.gif)
 
 ## Quick Look
 
@@ -88,6 +102,13 @@ json, yaml and code are shown as text. The keys are listed at the bottom of
 the panel.
 
 ![Quick Look on several photos](docs/media/quicklook.gif)
+
+## Inspector
+
+`Alt+E` shows the inspector: a preview, the rating, tags and details of the
+selection, updated as you select. Drag its grip to dock it on another side.
+
+![The inspector, dragged to the bottom and the left](docs/media/inspector.gif)
 
 ## Sidebar
 
@@ -101,7 +122,7 @@ Walk the sidebar from the keyboard with `Ctrl+↑` and `Ctrl+↓`. Group
 headers are stops too, so this works even when every group is folded.
 `Ctrl+←` and `Ctrl+→` fold and unfold the group you're in.
 
-![Walking and folding the sidebar from the keyboard](docs/media/sidebar.gif)
+![Sidebar groups, colors and order from the right-click menus](docs/media/sidebar.gif)
 
 ## Ratings, tags and colors
 
@@ -112,6 +133,8 @@ headers are stops too, so this works even when every group is folded.
 Ratings and tags are written to the files themselves (extended attributes),
 so they move with the files and other apps such as Dolphin can read them.
 Tag names and colors are kept in `~/.config/nautilus/tags.json`.
+
+![Rating and tagging files, then finding them by tag](docs/media/marks.gif)
 
 ![Rainbow folder colors in five schemes](docs/media/colors.gif)
 
