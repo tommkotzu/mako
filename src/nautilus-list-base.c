@@ -281,8 +281,9 @@ on_item_click_pressed (GtkGestureClick *gesture,
     else if (button == GDK_BUTTON_PRIMARY && n_press == 2 &&
              (modifiers & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
     {
-        /* Ctrl+double-click: open in a new tab, like a middle click. */
-        select_single_item_if_not_selected (self, cell);
+        /* Ctrl+double-click: open in a new tab, like a middle click. Just
+         * the item clicked: its first Ctrl+click added it to the selection. */
+        nautilus_list_base_set_cursor (self, nautilus_view_cell_get_position (cell), TRUE, FALSE);
         nautilus_list_base_activate_selection (self, TRUE);
         gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
     }

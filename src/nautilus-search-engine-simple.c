@@ -100,7 +100,7 @@ visit_directory (NautilusSearchEngineSimple *self,
     gboolean flat_view = nautilus_query_get_flat (query);
     /* Flat view reads what the view needs right here, in this thread, rather
      * than having each file asked again afterwards, one at a time. */
-    const char *attributes = flat_view ? NAUTILUS_FILE_DEFAULT_ATTRIBUTES :
+    const char *attributes = flat_view ? NAUTILUS_FILE_DEFAULT_ATTRIBUTES "," G_FILE_ATTRIBUTE_ID_FILE :
                              nautilus_query_has_mime_types (query)
                              ? STD_ATTRIBUTES_WITH_CONTENT_TYPE : STD_ATTRIBUTES;
     GCancellable *cancellable = nautilus_search_provider_get_cancellable (self);
@@ -108,7 +108,9 @@ visit_directory (NautilusSearchEngineSimple *self,
     g_autoptr (GFileEnumerator) enumerator = g_file_enumerate_children (
         dir,
         attributes,
-        G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
+        /* Flat view keeps the info it reads: a link's should be its target's,
+         * as everywhere else in Nautilus. Links aren't walked into below. */
+        flat_view ? G_FILE_QUERY_INFO_NONE : G_FILE_QUERY_INFO_NOFOLLOW_SYMLINKS,
         cancellable, NULL);
 
     if (enumerator == NULL)
@@ -245,6 +247,7 @@ visit_directory (NautilusSearchEngineSimple *self,
 
         if (recursion_enabled &&
             g_file_info_get_file_type (info) == G_FILE_TYPE_DIRECTORY &&
+            !(flat && g_file_info_get_is_symlink (info)) &&
             (!per_location_recursive_check || !file_is_remote (child)))
         {
             const char *id = g_file_info_get_attribute_string (info, G_FILE_ATTRIBUTE_ID_FILE);

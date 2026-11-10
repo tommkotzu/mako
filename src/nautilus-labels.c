@@ -268,12 +268,10 @@ set_or_remove_xattr (GFile      *location,
 }
 
 static void
-write_marks_thread (GTask        *task,
-                    gpointer      source_object,
-                    gpointer      task_data,
-                    GCancellable *cancellable)
+write_marks_thread (gpointer data,
+                    gpointer user_data)
 {
-    GPtrArray *writes = task_data;
+    g_autoptr (GPtrArray) writes = data;
 
     for (guint i = 0; i < writes->len; i++)
     {
@@ -297,8 +295,6 @@ write_marks_thread (GTask        *task,
             set_or_remove_xattr (write->location, "xattr::xdg.tags", value);
         }
     }
-
-    g_task_return_boolean (task, TRUE);
 }
 
 static void
@@ -310,10 +306,14 @@ write_marks (GPtrArray *writes)
         return;
     }
 
-    g_autoptr (GTask) task = g_task_new (NULL, NULL, NULL, NULL);
+    /* One thread, so the writes land in the order they were made. */
+    static GThreadPool *pool = NULL;
 
-    g_task_set_task_data (task, writes, (GDestroyNotify) g_ptr_array_unref);
-    g_task_run_in_thread (task, write_marks_thread);
+    if (pool == NULL)
+    {
+        pool = g_thread_pool_new (write_marks_thread, NULL, 1, FALSE, NULL);
+    }
+    g_thread_pool_push (pool, writes, NULL);
 }
 
 static gboolean
@@ -895,7 +895,19 @@ icon_luminance (GdkPaintable *icon)
     }
     if (file == NULL)
     {
-        return measure_luminance (icon);
+        /* Not from the theme (a custom icon): kept on the icon itself. */
+        gpointer cached = g_object_get_data (G_OBJECT (icon), "nautilus-tint-luminance");
+
+        if (cached != NULL)
+        {
+            return GPOINTER_TO_INT (cached) / 1000.0f;
+        }
+
+        float luminance = measure_luminance (icon);
+
+        g_object_set_data (G_OBJECT (icon), "nautilus-tint-luminance",
+                           GINT_TO_POINTER ((int) (luminance * 1000)));
+        return luminance;
     }
 
     if (cache == NULL)

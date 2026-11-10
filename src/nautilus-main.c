@@ -171,6 +171,31 @@ host_settings_bind (GApplication *application)
     }
 }
 
+static char *saved_gdk_debug;
+static char *saved_adw_disable_portal;
+
+static void
+restore_variable (const char *name,
+                  char       *value)
+{
+    if (value != NULL)
+    {
+        g_setenv (name, value, TRUE);
+    }
+    else
+    {
+        g_unsetenv (name);
+    }
+    g_free (value);
+}
+
+static void
+restore_portal_environment (gpointer user_data)
+{
+    restore_variable ("GDK_DEBUG", g_steal_pointer (&saved_gdk_debug));
+    restore_variable ("ADW_DISABLE_PORTAL", g_steal_pointer (&saved_adw_disable_portal));
+}
+
 int
 main (int   argc,
       char *argv[])
@@ -194,7 +219,7 @@ main (int   argc,
 
         if (getrlimit (RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur < limit.rlim_max)
         {
-            limit.rlim_cur = MIN (limit.rlim_max, (rlim_t) 65536);
+            limit.rlim_cur = MIN (limit.rlim_max, (rlim_t) 8192);
             setrlimit (RLIMIT_NOFILE, &limit);
         }
     }
@@ -207,6 +232,12 @@ main (int   argc,
      * the same data. */
     {
         const char *gdk_debug = g_getenv ("GDK_DEBUG");
+
+        saved_gdk_debug = g_strdup (gdk_debug);
+        saved_adw_disable_portal = g_strdup (g_getenv ("ADW_DISABLE_PORTAL"));
+        /* GDK and libadwaita read them while the application starts up;
+         * apps started from Mako get the environment as it was. */
+        g_idle_add_once (restore_portal_environment, NULL);
 
         if (gdk_debug == NULL || *gdk_debug == '\0')
         {

@@ -439,13 +439,6 @@ nautilus_ql_canvas_move_hovered (NautilusQlCanvas *self,
         return;
     }
 
-    gboolean rtl = gtk_widget_get_direction (GTK_WIDGET (self)) == GTK_TEXT_DIR_RTL;
-
-    if (rtl && (direction == GTK_DIR_LEFT || direction == GTK_DIR_RIGHT))
-    {
-        direction = direction == GTK_DIR_LEFT ? GTK_DIR_RIGHT : GTK_DIR_LEFT;
-    }
-
     if (!spatial)
     {
         i += (direction == GTK_DIR_LEFT || direction == GTK_DIR_UP) ? -1 : 1;

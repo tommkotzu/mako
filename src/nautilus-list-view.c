@@ -620,13 +620,15 @@ bind_group_header (GtkSignalListItemFactory *factory,
     guint n = gtk_list_header_get_n_items (header);
 
     /* The section's first row; its folder, if it's inside an expanded one. */
-    while (row != NULL && gtk_tree_list_row_get_parent (row) != NULL)
-    {
-        g_autoptr (GtkTreeListRow) parent = gtk_tree_list_row_get_parent (row);
+    g_autoptr (GtkTreeListRow) top = row != NULL ? g_object_ref (row) : NULL;
+    GtkTreeListRow *parent;
 
-        row = parent;
+    while (top != NULL && (parent = gtk_tree_list_row_get_parent (top)) != NULL)
+    {
+        g_object_unref (top);
+        top = parent;
     }
-    item = row != NULL ? gtk_tree_list_row_get_item (row) : NULL;
+    item = top != NULL ? gtk_tree_list_row_get_item (top) : NULL;
     if (item == NULL)
     {
         return;

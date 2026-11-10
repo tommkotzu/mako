@@ -506,6 +506,12 @@ open_shown (NautilusQuickLook *self)
         return;
     }
 
+    /* On the canvas: the highlighted item, else the whole selection. */
+    if (file == NULL)
+    {
+        file = nautilus_ql_canvas_get_hovered (self->canvas);
+    }
+
     if (file != NULL)
     {
         nautilus_files_view_activate_file (self->view, file, 0);
