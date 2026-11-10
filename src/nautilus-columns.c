@@ -615,6 +615,16 @@ update_child (NautilusColumns *self)
     GList *selection = nautilus_window_slot_get_selection (self->slot);
     NautilusFile *file = selection != NULL && selection->next == NULL ? selection->data : NULL;
     g_autoptr (GFile) item = file != NULL ? nautilus_file_get_location (file) : NULL;
+    GFile *location = nautilus_window_slot_get_location (self->slot);
+
+    /* Right after a new location, the selection can still be the old
+     * folder's: no child column for it. */
+    if (item != NULL && location != NULL && !g_file_has_parent (item, location))
+    {
+        g_clear_object (&item);
+        file = NULL;
+    }
+
     gboolean folder = file != NULL && nautilus_file_is_directory (file);
 
     if ((item == NULL && self->child_item == NULL) ||
@@ -744,6 +754,15 @@ schedule_update (NautilusColumns *self)
     {
         self->update_id = g_timeout_add (60, update, self);
     }
+}
+
+/* A new location lays the columns out at once: waiting would show the new
+ * folder's files for a moment under the old columns. */
+static void
+update_now (NautilusColumns *self)
+{
+    g_clear_handle_id (&self->update_id, g_source_remove);
+    update (self);
 }
 
 static NautilusFilesView *
@@ -1693,7 +1712,7 @@ nautilus_columns_new (NautilusWindowSlot *slot)
     g_set_weak_pointer (&self->slot, slot);
     g_signal_connect_object (slot, "notify::location", G_CALLBACK (on_location_for_root), self,
                              G_CONNECT_SWAPPED);
-    g_signal_connect_object (slot, "notify::location", G_CALLBACK (schedule_update), self,
+    g_signal_connect_object (slot, "notify::location", G_CALLBACK (update_now), self,
                              G_CONNECT_SWAPPED);
     g_signal_connect_object (slot, "notify::location", G_CALLBACK (update_flat), self,
                              G_CONNECT_SWAPPED);
