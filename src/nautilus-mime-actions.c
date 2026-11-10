@@ -732,7 +732,13 @@ get_activation_action (NautilusFile *file)
         if (app_info != NULL)
         {
             const gchar *app_id = g_app_info_get_id (app_info);
-            gboolean handles_extract = g_strcmp0 (app_id, NAUTILUS_DESKTOP_ID) == 0;
+            /* Any Nautilus profile (stable, Devel, this fork) counts: the
+             * system default is usually org.gnome.Nautilus.desktop while
+             * this build runs as a different application ID. */
+            gboolean handles_extract = g_strcmp0 (app_id, NAUTILUS_DESKTOP_ID) == 0 ||
+                                       (app_id != NULL &&
+                                        g_str_has_prefix (app_id, "org.gnome.Nautilus") &&
+                                        g_str_has_suffix (app_id, ".desktop"));
 
             if (handles_extract)
             {

@@ -99,8 +99,13 @@ Select files and press `Space`. Several files open on one canvas: zoom with
 move between files with the arrow keys (or `A` and `D`), as in the view
 you came from; `Enter` opens the highlighted one. Videos play with `K`, `J` and `L`, and `Shift+A` and
 `Shift+D` (or `,` and `.`) step one frame at a time. Text files such as txt,
-json, yaml and code are shown as text. The keys are listed at the bottom of
-the panel.
+json, yaml and code are shown as text. PDFs show all their pages: scroll
+with the arrow keys, zoom with `W` and `S` or `Ctrl`+scroll, fit with `Q`
+(this uses Poppler when it's installed, as it is on Ubuntu). The keys are
+listed at the bottom of the panel.
+
+Double-clicking an archive (zip, tar, 7z, rar and so on) extracts it into
+the folder it's in.
 
 ![Quick Look on several photos](docs/media/quicklook.gif)
 

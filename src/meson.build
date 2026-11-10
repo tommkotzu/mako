@@ -245,6 +245,8 @@ libnautilus_sources = [
   'nautilus-inspector.c',
   'nautilus-inspector.h',
   'nautilus-marks-cell.c',
+  'nautilus-pdf-preview.c',
+  'nautilus-pdf-preview.h',
   'nautilus-ql-canvas.c',
   'nautilus-ql-canvas.h',
   'nautilus-quick-look.c',

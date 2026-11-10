@@ -34,6 +34,7 @@
 #include "nautilus-labels.h"
 #include "nautilus-labels-ui.h"
 #include "nautilus-mime-actions.h"
+#include "nautilus-pdf-preview.h"
 #include "nautilus-ql-canvas.h"
 #include "nautilus-text-preview.h"
 #include "nautilus-view-info.h"
@@ -73,6 +74,7 @@ struct _NautilusQuickLook
     GtkMediaStream *media;
 
     NautilusTextPreview *text;
+    NautilusPdfPreview *pdf;
 
     GtkWidget *info_image;
     GtkLabel *info_name;
@@ -391,6 +393,10 @@ update_keys_hint (NautilusQuickLook *self)
     {
         text = _("W/S zoom · Q fit · Z actual size · arrows move · N names · T marks · Enter open · Tab full screen · Space close");
     }
+    else if (g_strcmp0 (page, "pdf") == 0)
+    {
+        text = _("W/S or Ctrl+scroll zoom · Q fit · Z actual size · ↑/↓ scroll · A/D previous/next · 1–5 rate · Enter open · Tab full screen · Space close");
+    }
     else if (g_strcmp0 (page, "canvas") == 0)
     {
         text = _("W/S zoom · Q fit · Z actual size · A/D previous/next · 1–5 rate · Enter open · Tab full screen · Space close");
@@ -408,6 +414,7 @@ show_current (NautilusQuickLook *self)
     NautilusFile *file = shown_file (self);
 
     nautilus_text_preview_set_file (self->text, NULL);
+    nautilus_pdf_preview_set_file (self->pdf, NULL);
 
     if (file == NULL)
     {
@@ -429,6 +436,12 @@ show_current (NautilusQuickLook *self)
         else if (regular && (g_str_has_prefix (mime, "video/") || g_str_has_prefix (mime, "audio/")))
         {
             show_media (self, file, g_str_has_prefix (mime, "audio/"));
+        }
+        else if (regular && nautilus_pdf_preview_handles (mime))
+        {
+            stop_media (self);
+            nautilus_pdf_preview_set_file (self->pdf, file);
+            gtk_stack_set_visible_child_name (self->stack, "pdf");
         }
         else if (regular && nautilus_text_preview_handles (mime))
         {
@@ -571,6 +584,7 @@ on_key_pressed (GtkEventControllerKey *controller,
 {
     GdkModifierType mods = state & gtk_accelerator_get_default_mod_mask ();
     gboolean on_text = g_strcmp0 (gtk_stack_get_visible_child_name (self->stack), "text") == 0;
+    gboolean on_pdf = g_strcmp0 (gtk_stack_get_visible_child_name (self->stack), "pdf") == 0;
     guint key = gdk_keyval_to_lower (keyval);
 
     if (mods == GDK_CONTROL_MASK && key == GDK_KEY_o)
@@ -608,6 +622,37 @@ on_key_pressed (GtkEventControllerKey *controller,
         if (frames != 0)
         {
             step_frame (self, frames);
+            return GDK_EVENT_STOP;
+        }
+    }
+
+    /* Scrolling through a document; left and right only when it's wider
+     * than the view, otherwise they go to the previous or next item. */
+    if (on_pdf && mods == 0)
+    {
+        double dx = 0, dy = 0;
+        int pages = 0;
+
+        switch (keyval)
+        {
+            case GDK_KEY_Up: dy = -80; break;
+            case GDK_KEY_Down: dy = 80; break;
+            case GDK_KEY_Left: dx = -80; break;
+            case GDK_KEY_Right: dx = 80; break;
+            case GDK_KEY_Page_Up: pages = -1; break;
+            case GDK_KEY_Page_Down: pages = 1; break;
+            case GDK_KEY_Home: dy = -G_MAXINT / 2; break;
+            case GDK_KEY_End: dy = G_MAXINT / 2; break;
+            default: break;
+        }
+        if (dx != 0 && !nautilus_pdf_preview_is_wider (self->pdf))
+        {
+            dx = 0;
+        }
+        else if (dx != 0 || dy != 0 || pages != 0)
+        {
+            nautilus_pdf_preview_scroll (self->pdf, dx, dy);
+            nautilus_pdf_preview_page (self->pdf, pages);
             return GDK_EVENT_STOP;
         }
     }
@@ -675,7 +720,14 @@ on_key_pressed (GtkEventControllerKey *controller,
         case GDK_KEY_equal:
         case GDK_KEY_KP_Add:
         {
-            nautilus_ql_canvas_zoom (self->canvas, 1.25);
+            if (on_pdf)
+            {
+                nautilus_pdf_preview_zoom (self->pdf, 1.25);
+            }
+            else
+            {
+                nautilus_ql_canvas_zoom (self->canvas, 1.25);
+            }
         }
         break;
 
@@ -683,19 +735,40 @@ on_key_pressed (GtkEventControllerKey *controller,
         case GDK_KEY_minus:
         case GDK_KEY_KP_Subtract:
         {
-            nautilus_ql_canvas_zoom (self->canvas, 0.8);
+            if (on_pdf)
+            {
+                nautilus_pdf_preview_zoom (self->pdf, 0.8);
+            }
+            else
+            {
+                nautilus_ql_canvas_zoom (self->canvas, 0.8);
+            }
         }
         break;
 
         case GDK_KEY_q:
         {
-            nautilus_ql_canvas_fit (self->canvas);
+            if (on_pdf)
+            {
+                nautilus_pdf_preview_fit (self->pdf);
+            }
+            else
+            {
+                nautilus_ql_canvas_fit (self->canvas);
+            }
         }
         break;
 
         case GDK_KEY_z:
         {
-            nautilus_ql_canvas_actual_size (self->canvas);
+            if (on_pdf)
+            {
+                nautilus_pdf_preview_actual_size (self->pdf);
+            }
+            else
+            {
+                nautilus_ql_canvas_actual_size (self->canvas);
+            }
         }
         break;
 
@@ -1109,6 +1182,8 @@ nautilus_quick_look_init (NautilusQuickLook *self)
     gtk_stack_add_named (self->stack, build_media_page (self), "media");
     self->text = NAUTILUS_TEXT_PREVIEW (nautilus_text_preview_new (TEXT_LIMIT));
     gtk_stack_add_named (self->stack, GTK_WIDGET (self->text), "text");
+    self->pdf = NAUTILUS_PDF_PREVIEW (nautilus_pdf_preview_new ());
+    gtk_stack_add_named (self->stack, GTK_WIDGET (self->pdf), "pdf");
     gtk_stack_add_named (self->stack, build_info_page (self), "info");
     adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar), GTK_WIDGET (self->stack));
     self->card = toolbar;
