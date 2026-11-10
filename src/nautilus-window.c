@@ -1703,6 +1703,166 @@ capture_find_popover (GtkWidget *widget)
     return NULL;
 }
 
+/* For "locate:": whether @widget shows @text, as its label, the start of
+ * its tooltip (which may go on with the keys), its icon or its name, or
+ * has the CSS class .CLASS. */
+static gboolean
+capture_shows (GtkWidget  *widget,
+               const char *text)
+{
+    const char *tooltip = gtk_widget_get_tooltip_text (widget);
+
+    if (GTK_IS_LABEL (widget) && g_strcmp0 (gtk_label_get_text (GTK_LABEL (widget)), text) == 0)
+    {
+        return TRUE;
+    }
+    if (tooltip != NULL && g_str_has_prefix (tooltip, text))
+    {
+        return TRUE;
+    }
+    if (GTK_IS_BUTTON (widget) && g_strcmp0 (gtk_button_get_icon_name (GTK_BUTTON (widget)), text) == 0)
+    {
+        return TRUE;
+    }
+    if (GTK_IS_MENU_BUTTON (widget) && g_strcmp0 (gtk_menu_button_get_icon_name (GTK_MENU_BUTTON (widget)), text) == 0)
+    {
+        return TRUE;
+    }
+    if (GTK_IS_IMAGE (widget) && g_strcmp0 (gtk_image_get_icon_name (GTK_IMAGE (widget)), text) == 0)
+    {
+        return TRUE;
+    }
+    if (text[0] == '.' && gtk_widget_has_css_class (widget, text + 1))
+    {
+        return TRUE;
+    }
+    return g_strcmp0 (gtk_widget_get_name (widget), text) == 0;
+}
+
+static const char *capture_scope;
+
+static gboolean
+capture_in_scope (GtkWidget *widget)
+{
+    if (capture_scope == NULL)
+    {
+        return TRUE;
+    }
+    for (GtkWidget *w = widget; w != NULL; w = gtk_widget_get_parent (w))
+    {
+        if (g_strcmp0 (G_OBJECT_TYPE_NAME (w), capture_scope) == 0 ||
+            g_strcmp0 (gtk_widget_get_css_name (w), capture_scope) == 0 ||
+            gtk_widget_has_css_class (w, capture_scope))
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+/* The @n-th (from 0) mapped widget under @widget that shows @text. */
+static GtkWidget *
+capture_locate (GtkWidget  *widget,
+                const char *text,
+                int        *n)
+{
+    if (!gtk_widget_get_mapped (widget))
+    {
+        return NULL;
+    }
+    if (capture_shows (widget, text) && capture_in_scope (widget) && (*n)-- == 0)
+    {
+        return widget;
+    }
+    for (GtkWidget *child = gtk_widget_get_first_child (widget); child != NULL;
+         child = gtk_widget_get_next_sibling (child))
+    {
+        GtkWidget *found = capture_locate (child, text, n);
+
+        if (found != NULL)
+        {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+/* "locate:[SCOPE>]TEXT[@N]:FILE" writes the centre and size of what shows TEXT, in
+ * the window's surface coordinates ("x y width height"), or nothing.
+ * Menus are searched first; a popover's place comes from its surface. */
+static void
+capture_write_location (NautilusWindow *window,
+                        const char     *spec)
+{
+    g_autofree char *text = g_strdup (spec);
+    char *file = strrchr (text, ':');
+    char *at;
+    int n = 0;
+    GtkWidget *popover;
+    GtkWidget *found = NULL;
+    const char *text_start;
+    graphene_rect_t bounds;
+    double x = 0, y = 0;
+
+    if (file == NULL)
+    {
+        return;
+    }
+    *file++ = '\0';
+    text_start = text;
+    at = strrchr (text, '@');
+    if (at != NULL && g_ascii_isdigit (at[1]))
+    {
+        *at = '\0';
+        n = atoi (at + 1);
+    }
+    /* "SCOPE>TEXT": only what is inside a SCOPE (a type, CSS name or class). */
+    {
+        char *gt = strchr (text, '>');
+
+        if (gt != NULL)
+        {
+            *gt = '\0';
+            capture_scope = text;
+            text_start = gt + 1;
+        }
+        popover = capture_find_popover (GTK_WIDGET (window));
+        if (popover != NULL)
+        {
+            int m = n;
+
+            found = capture_locate (popover, text_start, &m);
+        }
+        if (found == NULL)
+        {
+            found = capture_locate (GTK_WIDGET (window), text_start, &n);
+        }
+        capture_scope = NULL;
+    }
+    if (found == NULL || !gtk_widget_compute_bounds (found, GTK_WIDGET (gtk_widget_get_native (found)), &bounds))
+    {
+        g_file_set_contents (file, "", 0, NULL);
+        return;
+    }
+    /* Up through the popovers to the window. */
+    for (GtkNative *native = gtk_widget_get_native (found); GTK_IS_POPOVER (native);
+         native = gtk_widget_get_native (gtk_widget_get_parent (GTK_WIDGET (native))))
+    {
+        GdkSurface *surface = gtk_native_get_surface (native);
+
+        x += gdk_popup_get_position_x (GDK_POPUP (surface));
+        y += gdk_popup_get_position_y (GDK_POPUP (surface));
+    }
+    {
+        g_autofree char *line = g_strdup_printf ("%.0f %.0f %.0f %.0f\n",
+                                                 x + bounds.origin.x + bounds.size.width / 2,
+                                                 y + bounds.origin.y + bounds.size.height / 2,
+                                                 bounds.size.width, bounds.size.height);
+
+        g_file_set_contents (file, line, -1, NULL);
+    }
+}
+
 static void
 capture_to_png (GtkWidget  *widget,
                 const char *path)
@@ -1970,6 +2130,10 @@ action_flier_capture (GSimpleAction *action,
     {
         capture_to_png (GTK_WIDGET (window), command + 5);
     }
+    else if (g_str_has_prefix (command, "locate:"))
+    {
+        capture_write_location (window, command + 7);
+    }
     else if (g_str_has_prefix (command, "popover:"))
     {
         /* The open menu, which has its own surface and isn't in "shot:". */
@@ -2140,8 +2304,12 @@ nautilus_window_initialize_actions (NautilusWindow *window)
             const char *hidden[] = { "devices", "cloud", NULL };
 
             /* A window behind others gets few frames; without animations
-             * dialogs and previews show at once in the recording. */
-            g_object_set (gtk_settings_get_default (), "gtk-enable-animations", FALSE, NULL);
+             * dialogs and previews show at once in the recording. Screen
+             * recordings (present.sh) keep them, with FLIER_CAPTURE_ANIMATE. */
+            if (g_getenv ("FLIER_CAPTURE_ANIMATE") == NULL)
+            {
+                g_object_set (gtk_settings_get_default (), "gtk-enable-animations", FALSE, NULL);
+            }
             g_settings_set_boolean (flier, "file-flier-imported", TRUE);
             g_settings_set_boolean (flier, "sidebar-groups", TRUE);
             g_settings_set_strv (flier, "sidebar-collapsed", collapsed);

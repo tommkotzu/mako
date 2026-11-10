@@ -99,6 +99,7 @@ struct _NautilusColumns
     gboolean dragging;
     GFile *previous_location;
     gboolean select_first;      /* went into a folder: select its first item once loaded */
+    gboolean revealing;         /* going to a folder to select a clicked item there */
     int drag_depth;
     int drag_start;             /* the column's width when the drag began */
     double drag_left;           /* the column's left edge then */
@@ -299,6 +300,8 @@ reveal_info (Column    *column,
         nautilus_files_view_set_selection (nautilus_window_slot_get_current_view (self->slot), selection, FALSE);
         return;
     }
+    /* The clicked item gets selected there, not the first one. */
+    self->revealing = TRUE;
     nautilus_window_slot_open_location_full (self->slot, column->directory, selection);
 }
 
@@ -722,8 +725,9 @@ on_location_for_root (NautilusColumns *self)
 
     /* Going into a folder within the columns: like Finder, its first item
      * gets selected, so the highlight is there without pressing Down. */
-    self->select_first = inside && self->previous_location != NULL &&
+    self->select_first = inside && !self->revealing && self->previous_location != NULL &&
                          g_file_has_parent (location, self->previous_location);
+    self->revealing = FALSE;
     g_set_object (&self->previous_location, location);
 
     if (!inside || self->root == NULL ||
