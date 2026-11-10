@@ -96,7 +96,8 @@ bookmark it.
 
 Select files and press `Space`. Several files open on one canvas: zoom with
 `W` and `S`, fit with `Q`, see real size with `Z`, rate with `1` to `5` and
-step with `A` and `D`. Videos play with `K`, `J` and `L`, and `Shift+A` and
+move between files with the arrow keys (or `A` and `D`), as in the view
+you came from; `Enter` opens the highlighted one. Videos play with `K`, `J` and `L`, and `Shift+A` and
 `Shift+D` (or `,` and `.`) step one frame at a time. Text files such as txt,
 json, yaml and code are shown as text. The keys are listed at the bottom of
 the panel.
