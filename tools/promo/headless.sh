@@ -7,5 +7,5 @@ exec dbus-run-session --config-file="$(dirname "$(readlink -f "$0")")/headless-b
   SHELL_PID=$!
   for i in $(seq 1 60); do [ -S "$XDG_RUNTIME_DIR/mako-headless" ] && break; sleep 0.25; done
   sleep 2
-  WAYLAND_DISPLAY=mako-headless GDK_BACKEND=wayland "$@"; rc=$?
+  MAKO_HEADLESS=1 WAYLAND_DISPLAY=mako-headless GDK_BACKEND=wayland "$@"; rc=$?
   kill $SHELL_PID; wait $SHELL_PID 2>/dev/null; exit $rc' headless "$@"
