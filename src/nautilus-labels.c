@@ -31,7 +31,7 @@ static const Scheme schemes[] =
     {
         N_("Pastel"),
         { N_("Red"), N_("Orange"), N_("Yellow"), N_("Green"), N_("Teal"), N_("Blue"), N_("Purple"), N_("Pink") },
-        { 0xF4A6A6, 0xF7C59F, 0xF6E3A1, 0xB8E0B0, 0xA8DDD6, 0xA9C8F0, 0xC9B5EC, 0xF2B5D4 },
+        { 0xFFA3A3, 0xFFC396, 0xFAE394, 0xB2E2A9, 0xA0DFD7, 0xA4C9F9, 0xCBB3F5, 0xFBB2D7 },
     },
     {
         N_("Vibrant"),
@@ -801,6 +801,7 @@ struct _NautilusTintPaintable
 
     GdkPaintable *icon;
     int slot;
+    float luminance;
 };
 
 static void nautilus_tint_paintable_iface_init (GdkPaintableInterface *iface);
@@ -809,8 +810,111 @@ G_DEFINE_FINAL_TYPE_WITH_CODE (NautilusTintPaintable, nautilus_tint_paintable, G
                                G_IMPLEMENT_INTERFACE (GDK_TYPE_PAINTABLE, nautilus_tint_paintable_iface_init))
 
 /* Maps the icon's lightness onto the slot color, so the folder keeps its
- * shading: a mid-tone folder (luminance ~0.45) comes out as the color. */
+ * shading: the lightness of the folder's front comes out as the color. It
+ * is measured, since themes differ: Adwaita's folders are mid-tone, Yaru's
+ * light. */
 #define TINT_MID_LUMINANCE 0.45f
+#define TINT_PROBE_SIZE 32
+
+static int
+compare_floats (const void *a,
+                const void *b)
+{
+    float x = *(const float *) a, y = *(const float *) b;
+
+    return (x > y) - (x < y);
+}
+
+static float
+measure_luminance (GdkPaintable *icon)
+{
+    g_autoptr (GtkSnapshot) snapshot = gtk_snapshot_new ();
+    g_autoptr (GskRenderNode) node = NULL;
+    cairo_surface_t *surface;
+    cairo_t *cr;
+
+    gdk_paintable_snapshot (icon, GDK_SNAPSHOT (snapshot), TINT_PROBE_SIZE, TINT_PROBE_SIZE);
+    node = gtk_snapshot_free_to_node (g_steal_pointer (&snapshot));
+    if (node == NULL)
+    {
+        return TINT_MID_LUMINANCE;
+    }
+
+    surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, TINT_PROBE_SIZE, TINT_PROBE_SIZE);
+    cr = cairo_create (surface);
+    gsk_render_node_draw (node, cr);
+    cairo_destroy (cr);
+    cairo_surface_flush (surface);
+
+    const guchar *data = cairo_image_surface_get_data (surface);
+    int stride = cairo_image_surface_get_stride (surface);
+    float values[TINT_PROBE_SIZE * TINT_PROBE_SIZE];
+    guint n = 0;
+
+    for (int y = 0; y < TINT_PROBE_SIZE; y++)
+    {
+        const guint32 *row = (const guint32 *) (data + y * stride);
+
+        for (int x = 0; x < TINT_PROBE_SIZE; x++)
+        {
+            guint32 p = row[x];
+            guint a = p >> 24;
+
+            /* Only the solid part; the channels are premultiplied. */
+            if (a > 200)
+            {
+                values[n++] = (0.2126f * ((p >> 16) & 0xff) + 0.7152f * ((p >> 8) & 0xff) +
+                               0.0722f * (p & 0xff)) / a;
+            }
+        }
+    }
+    cairo_surface_destroy (surface);
+
+    if (n < 16)
+    {
+        return TINT_MID_LUMINANCE;
+    }
+
+    /* The front of the folder, its biggest and lightest part, is what should
+     * come out as the color; the tab and the shading darker. */
+    qsort (values, n, sizeof (float), compare_floats);
+    return CLAMP (values[n * 7 / 10], 0.2f, 0.95f);
+}
+
+/* The lightness of each icon file, measured once. */
+static float
+icon_luminance (GdkPaintable *icon)
+{
+    static GHashTable *cache = NULL;
+    g_autoptr (GFile) file = NULL;
+    g_autofree char *key = NULL;
+
+    if (GTK_IS_ICON_PAINTABLE (icon))
+    {
+        file = gtk_icon_paintable_get_file (GTK_ICON_PAINTABLE (icon));
+    }
+    if (file == NULL)
+    {
+        return measure_luminance (icon);
+    }
+
+    if (cache == NULL)
+    {
+        cache = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    }
+    key = g_file_get_uri (file);
+
+    gpointer value;
+    if (g_hash_table_lookup_extended (cache, key, NULL, &value))
+    {
+        return GPOINTER_TO_INT (value) / 1000.0f;
+    }
+
+    float luminance = measure_luminance (icon);
+
+    g_hash_table_insert (cache, g_steal_pointer (&key), GINT_TO_POINTER ((int) (luminance * 1000)));
+    return luminance;
+}
 
 static void
 tint_snapshot (GdkPaintable *paintable,
@@ -821,7 +925,7 @@ tint_snapshot (GdkPaintable *paintable,
     NautilusTintPaintable *self = NAUTILUS_TINT_PAINTABLE (paintable);
     GdkRGBA c;
     graphene_matrix_t matrix;
-    const float k = 1.0f / TINT_MID_LUMINANCE;
+    const float k = 1.0f / self->luminance;
 
     nautilus_labels_get_slot_color (self->slot, &c);
 
@@ -894,6 +998,7 @@ nautilus_labels_tint_paintable (GdkPaintable *icon,
 
     self->icon = g_object_ref (icon);
     self->slot = CLAMP (slot, 0, NAUTILUS_FOLDER_COLOR_SLOTS - 1);
+    self->luminance = icon_luminance (icon);
 
     /* Redraw in the new color when the scheme or the accent changes. */
     g_signal_connect_object (nautilus_labels_get (), "colors-changed",

@@ -35,6 +35,7 @@
 #include <gio/gdesktopappinfo.h>
 
 #include <locale.h>
+#include <sys/resource.h>
 #ifdef HAVE_MALLOC_H
 #include <malloc.h>
 #endif
@@ -183,6 +184,20 @@ main (int   argc,
     textdomain (GETTEXT_PACKAGE);
 
     g_set_prgname (APPLICATION_ID);
+
+    /* The Vulkan renderer on NVIDIA holds a few file descriptors per window,
+     * popover and texture, so a busy session can pass the default soft limit
+     * of 1024 and lose its windows. Raise it toward the hard limit, as
+     * browsers do. */
+    {
+        struct rlimit limit;
+
+        if (getrlimit (RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur < limit.rlim_max)
+        {
+            limit.rlim_cur = MIN (limit.rlim_max, (rlim_t) 65536);
+            setrlimit (RLIMIT_NOFILE, &limit);
+        }
+    }
 
     /* Mako can be the desktop portal's FileChooser backend. At login the
      * portal starts Mako and waits for it, while GTK and libadwaita in Mako

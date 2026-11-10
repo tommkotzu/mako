@@ -38,6 +38,10 @@ void          nautilus_ql_canvas_pan          (NautilusQlCanvas *self,
                                                double            dy);
 /* The item under the pointer, or the only one. */
 NautilusFile *nautilus_ql_canvas_get_hovered  (NautilusQlCanvas *self);
+gboolean      nautilus_ql_canvas_get_at_fit   (NautilusQlCanvas *self);
+void          nautilus_ql_canvas_move_hovered (NautilusQlCanvas *self,
+                                               GtkDirectionType  direction,
+                                               gboolean          spatial);
 /* Width x height of the picture shown alone, once loaded; 0 otherwise. */
 void          nautilus_ql_canvas_get_picture_size (NautilusQlCanvas *self,
                                                    int              *width,

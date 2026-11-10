@@ -33,6 +33,10 @@ color-shading-type='vertical'
 primary-color='#2b2640'
 secondary-color='#15131c'
 K
+if [ -n "${PRESENT_SCALE:-}" ]; then
+  printf '\n[org/gnome/mutter]\nexperimental-features=["scale-monitor-framebuffer"]\n' \
+    >> "$WORK/shell/.config/glib-2.0/settings/keyfile"
+fi
 # The icons you use (orange Yaru folders otherwise, on Ubuntu).
 export PRESENT_ICONS=${PRESENT_ICONS:-$(gsettings get org.gnome.desktop.interface icon-theme 2>/dev/null | tr -d "'")}
 export PRESENT_OUT=$OUT PRESENT_WORK=$WORK PRESENT_SRC=$SRC PRESENT_REPO=$REPO

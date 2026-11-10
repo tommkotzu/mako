@@ -36,6 +36,7 @@
 #include "nautilus-mime-actions.h"
 #include "nautilus-ql-canvas.h"
 #include "nautilus-text-preview.h"
+#include "nautilus-view-info.h"
 
 /* Text files are shown up to this much. */
 #define TEXT_LIMIT (512 * 1024)
@@ -526,6 +527,27 @@ move_selection (NautilusQuickLook *self,
     }
 }
 
+/* The arrows on the canvas of several files: from item to item while it
+ * shows them all (in two dimensions when opened from the grid view), around
+ * it when zoomed in. */
+static void
+move_on_canvas (NautilusQuickLook *self,
+                GtkDirectionType   direction,
+                double             dx,
+                double             dy)
+{
+    if (!nautilus_ql_canvas_get_at_fit (self->canvas))
+    {
+        nautilus_ql_canvas_pan (self->canvas, dx, dy);
+        return;
+    }
+
+    gboolean spatial = self->view == NULL ||
+                       nautilus_files_view_get_view_id (self->view) == NAUTILUS_VIEW_GRID_ID;
+
+    nautilus_ql_canvas_move_hovered (self->canvas, direction, spatial);
+}
+
 static void
 toggle_setting (const char *key)
 {
@@ -681,7 +703,7 @@ on_key_pressed (GtkEventControllerKey *controller,
             }
             else
             {
-                nautilus_ql_canvas_pan (self->canvas, 80, 0);
+                move_on_canvas (self, GTK_DIR_LEFT, 80, 0);
             }
         }
         break;
@@ -695,7 +717,7 @@ on_key_pressed (GtkEventControllerKey *controller,
             }
             else
             {
-                nautilus_ql_canvas_pan (self->canvas, -80, 0);
+                move_on_canvas (self, GTK_DIR_RIGHT, -80, 0);
             }
         }
         break;
@@ -713,7 +735,8 @@ on_key_pressed (GtkEventControllerKey *controller,
             }
             else
             {
-                nautilus_ql_canvas_pan (self->canvas, 0, key == GDK_KEY_Up ? 80 : -80);
+                move_on_canvas (self, key == GDK_KEY_Up ? GTK_DIR_UP : GTK_DIR_DOWN,
+                                0, key == GDK_KEY_Up ? 80 : -80);
             }
         }
         break;

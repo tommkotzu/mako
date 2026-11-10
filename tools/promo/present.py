@@ -16,7 +16,7 @@ SRC = os.environ['PRESENT_SRC']
 REPO = os.environ['PRESENT_REPO']
 HOME = os.path.join(WORK, 'home')
 TOP = 32                      # the shell's top bar (logical px), cropped from the clips
-SCALE = 2                     # the monitor's scale: 2560x1440 pixels, 1280x720 logical
+SCALE = float(os.environ.get('PRESENT_SCALE', 2))  # the monitor's scale: 2 gives 2560x1440 px, 1280x720 logical
 APP = 'org.gnome.Nautilus.Devel'
 
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
@@ -34,7 +34,8 @@ def set_scale():
     (connector, *_), modes = monitors[0][0], monitors[0][1]
     mode = next(m for m in modes if m[6].get('is-current')) if any(m[6].get('is-current') for m in modes) else modes[0]
     call(*D, 'ApplyMonitorsConfig', '(uua(iiduba(ssa{sv}))a{sv})',
-         (serial, 1, [(0, 0, float(SCALE), 0, True, [(connector, mode[0], {})])], {}))
+         (serial, 1, [(0, 0, min(mode[5], key=lambda x: abs(x - SCALE)), 0, True,
+                       [(connector, mode[0], {})])], {}))
     time.sleep(1)
 
 

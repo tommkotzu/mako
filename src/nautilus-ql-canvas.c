@@ -96,6 +96,7 @@ static GParamSpec *properties[N_PROPS];
 static guint signals[N_SIGNALS];
 
 static void schedule_full_loads (NautilusQlCanvas *self);
+static void set_hovered (NautilusQlCanvas *self, int hovered);
 static void snapshot_text_page (NautilusQlCanvas *self, GtkSnapshot *snapshot, Item *item, const graphene_rect_t *pic);
 
 static void
@@ -408,6 +409,86 @@ nautilus_ql_canvas_pan (NautilusQlCanvas *self,
     self->at_fit = FALSE;
     gtk_widget_queue_allocate (GTK_WIDGET (self));
     schedule_full_loads (self);
+}
+
+gboolean
+nautilus_ql_canvas_get_at_fit (NautilusQlCanvas *self)
+{
+    return self->at_fit;
+}
+
+/* Moves the highlighted item with the arrow keys: on a grid like the grid
+ * view's (SPATIAL), else back (left, up) and forward (right, down) as in a
+ * list. */
+void
+nautilus_ql_canvas_move_hovered (NautilusQlCanvas *self,
+                                 GtkDirectionType  direction,
+                                 gboolean          spatial)
+{
+    int n = self->items->len;
+    int i = self->hovered;
+    guint cols, rows;
+
+    if (n < 2)
+    {
+        return;
+    }
+    if (i < 0 || i >= n)
+    {
+        set_hovered (self, 0);
+        return;
+    }
+
+    gboolean rtl = gtk_widget_get_direction (GTK_WIDGET (self)) == GTK_TEXT_DIR_RTL;
+
+    if (rtl && (direction == GTK_DIR_LEFT || direction == GTK_DIR_RIGHT))
+    {
+        direction = direction == GTK_DIR_LEFT ? GTK_DIR_RIGHT : GTK_DIR_LEFT;
+    }
+
+    if (!spatial)
+    {
+        i += (direction == GTK_DIR_LEFT || direction == GTK_DIR_UP) ? -1 : 1;
+    }
+    else
+    {
+        grid_shape (self, &cols, &rows);
+        switch (direction)
+        {
+            case GTK_DIR_LEFT:
+            {
+                i -= (i % (int) cols) > 0 ? 1 : 0;
+            }
+            break;
+
+            case GTK_DIR_RIGHT:
+            {
+                i += (i % (int) cols) < (int) cols - 1 ? 1 : 0;
+            }
+            break;
+
+            case GTK_DIR_UP:
+            {
+                i -= i >= (int) cols ? (int) cols : 0;
+            }
+            break;
+
+            case GTK_DIR_DOWN:
+            {
+                /* Into a shorter last row: its last item, as the grid view does. */
+                if (i / (int) cols < (n - 1) / (int) cols)
+                {
+                    i = MIN (i + (int) cols, n - 1);
+                }
+            }
+            break;
+
+            default:
+            break;
+        }
+    }
+
+    set_hovered (self, CLAMP (i, 0, n - 1));
 }
 
 /* ----------------------------------------------------- Full pictures */

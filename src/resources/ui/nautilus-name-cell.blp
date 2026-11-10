@@ -59,6 +59,20 @@ template $NautilusNameCell: $NautilusViewCell {
             label: bind template.item as <$NautilusViewItem>.file as <$NautilusFile>.display-name;
           }
 
+          Label path {
+            visible: false;
+            ellipsize: start;
+            hexpand: true;
+            halign: fill;
+            xalign: 0.0;
+            attributes: "0 -1 insert-hyphens false";
+
+            styles [
+              "dim-label",
+              "name-cell-path",
+            ]
+          }
+
           Box emblems_box {
             orientation: horizontal;
             halign: start;
@@ -74,20 +88,6 @@ template $NautilusNameCell: $NautilusViewCell {
             halign: center;
             valign: center;
           }
-        }
-
-        Label path {
-          visible: false;
-          ellipsize: start;
-          justify: left;
-          halign: fill;
-          xalign: 0.0;
-          attributes: "0 -1 insert-hyphens false";
-
-          styles [
-            "caption",
-            "dim-label",
-          ]
         }
       }
 
