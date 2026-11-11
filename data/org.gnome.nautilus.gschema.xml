@@ -83,7 +83,7 @@
       <description>If set to true, Files will always use a textual input entry for the location toolbar, instead of the pathbar.</description>
     </key>
     <key name="recursive-search" enum="org.gnome.nautilus.SpeedTradeoff">
-      <default>'local-only'</default>
+      <default>'always'</default>
       <summary>Where to perform recursive search</summary>
       <description>Locations in which Files should search subfolders. Available values are “local-only”, “always”, “never”.</description>
     </key>
