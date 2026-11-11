@@ -3479,6 +3479,72 @@ update_density (NautilusWindow *window)
     }
 }
 
+/* The sidebar slides twice as fast as libadwaita's default. Its split
+ * view keeps the animation to itself, so it's caught when it first ends
+ * ("done" is emitted even when it's skipped) and its spring stiffened:
+ * four times the stiffness, with the same damping ratio, settles in half
+ * the time. */
+#define SIDEBAR_SPEEDUP 2.0
+
+static gboolean
+on_animation_done (GSignalInvocationHint *hint,
+                   guint                  n_values,
+                   const GValue          *values,
+                   gpointer               user_data)
+{
+    AdwAnimation *animation = g_value_get_object (&values[0]);
+    GtkWidget *widget = adw_animation_get_widget (animation);
+    static GQuark tuned;
+
+    if (tuned == 0)
+    {
+        tuned = g_quark_from_static_string ("nautilus-sidebar-tuned");
+    }
+    if (!ADW_IS_OVERLAY_SPLIT_VIEW (widget) ||
+        g_object_get_qdata (G_OBJECT (animation), tuned) != NULL)
+    {
+        return TRUE;
+    }
+    g_object_set_qdata (G_OBJECT (animation), tuned, GINT_TO_POINTER (1));
+
+    if (ADW_IS_SPRING_ANIMATION (animation))
+    {
+        AdwSpringParams *params = adw_spring_animation_get_spring_params (ADW_SPRING_ANIMATION (animation));
+        double mass = adw_spring_params_get_mass (params);
+        double stiffness = adw_spring_params_get_stiffness (params) * SIDEBAR_SPEEDUP * SIDEBAR_SPEEDUP;
+        g_autoptr (AdwSpringParams) faster = adw_spring_params_new (adw_spring_params_get_damping_ratio (params),
+                                                                    mass, stiffness);
+
+        adw_spring_animation_set_spring_params (ADW_SPRING_ANIMATION (animation), faster);
+    }
+    else if (ADW_IS_TIMED_ANIMATION (animation))
+    {
+        AdwTimedAnimation *timed = ADW_TIMED_ANIMATION (animation);
+
+        adw_timed_animation_set_duration (timed, adw_timed_animation_get_duration (timed) / SIDEBAR_SPEEDUP);
+    }
+    return TRUE;
+}
+
+static void
+speed_up_sidebar (NautilusWindow *window)
+{
+    static gboolean hooked;
+    AdwOverlaySplitView *split_view = ADW_OVERLAY_SPLIT_VIEW (window->split_view);
+    gboolean shown = adw_overlay_split_view_get_show_sidebar (split_view);
+
+    if (!hooked)
+    {
+        g_type_ensure (ADW_TYPE_ANIMATION);
+        g_signal_add_emission_hook (g_signal_lookup ("done", ADW_TYPE_ANIMATION), 0,
+                                    on_animation_done, NULL, NULL);
+        hooked = TRUE;
+    }
+    /* Not mapped yet: these finish at once, and so meet the hook. */
+    adw_overlay_split_view_set_show_sidebar (split_view, !shown);
+    adw_overlay_split_view_set_show_sidebar (split_view, shown);
+}
+
 static void
 nautilus_window_init (NautilusWindow *window)
 {
@@ -3493,6 +3559,7 @@ nautilus_window_init (NautilusWindow *window)
     g_type_ensure (NAUTILUS_TYPE_PROGRESS_INDICATOR);
     g_type_ensure (NAUTILUS_TYPE_SHORTCUT_MANAGER);
     gtk_widget_init_template (GTK_WIDGET (window));
+    speed_up_sidebar (window);
 
     g_signal_connect (window, "notify::maximized",
                       G_CALLBACK (on_is_maximized_changed), NULL);
