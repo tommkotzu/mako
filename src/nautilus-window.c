@@ -3479,12 +3479,12 @@ update_density (NautilusWindow *window)
     }
 }
 
-/* The sidebar slides twice as fast as libadwaita's default. Its split
- * view keeps the animation to itself, so it's caught when it first ends
- * ("done" is emitted even when it's skipped) and its spring stiffened:
- * four times the stiffness, with the same damping ratio, settles in half
- * the time. */
-#define SIDEBAR_SPEEDUP 2.0
+/* The sidebar shows and hides at once, like the inspector. Its split view
+ * keeps the animation to itself, so it's caught when it first ends
+ * ("done" is emitted even when it's skipped) and its spring stiffened so
+ * much (the same damping ratio, 100 times the speed) that it settles
+ * within a frame. */
+#define SIDEBAR_SPEEDUP 100.0
 
 static gboolean
 on_animation_done (GSignalInvocationHint *hint,
