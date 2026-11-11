@@ -953,6 +953,90 @@ nautilus_window_on_undo_changed (NautilusFileUndoManager *manager,
     }
 }
 
+typedef struct
+{
+    NautilusBookmarkList *list;
+    GFile *location;
+    char *name;
+    int position;
+} RemovedBookmark;
+
+static void
+removed_bookmark_free (RemovedBookmark *removed)
+{
+    g_object_unref (removed->list);
+    g_object_unref (removed->location);
+    g_free (removed->name);
+    g_free (removed);
+}
+
+static void
+on_undo_remove_bookmark (AdwToast        *toast,
+                         RemovedBookmark *removed)
+{
+    NautilusBookmark *bookmark;
+
+    if (nautilus_bookmark_list_contains (removed->list, removed->location))
+    {
+        return;
+    }
+    nautilus_bookmark_list_add (removed->list, removed->location, removed->position);
+    bookmark = nautilus_bookmark_list_get_bookmark (removed->list, removed->location);
+    if (bookmark != NULL && removed->name != NULL)
+    {
+        nautilus_bookmark_set_name (bookmark, removed->name);
+    }
+}
+
+/* Removing a bookmark takes one key (Delete, with the sidebar focused)
+ * or one click, so it can be undone. */
+void
+nautilus_window_remove_bookmark (NautilusWindow *window,
+                                 GFile          *location)
+{
+    NautilusBookmarkList *list = nautilus_application_get_bookmarks (NAUTILUS_APPLICATION (g_application_get_default ()));
+    NautilusBookmark *bookmark = nautilus_bookmark_list_get_bookmark (list, location);
+    GList *all;  /* the list's own */
+    RemovedBookmark *removed;
+    g_autoptr (AdwToast) toast = NULL;
+    g_autofree char *title = NULL;
+
+    if (bookmark == NULL)
+    {
+        return;
+    }
+
+    removed = g_new0 (RemovedBookmark, 1);
+    removed->list = g_object_ref (list);
+    removed->location = g_object_ref (location);
+    removed->name = g_strdup (nautilus_bookmark_get_name (bookmark));
+    all = nautilus_bookmark_list_get_all (list);
+    for (GList *l = all; l != NULL; l = l->next)
+    {
+        if (g_file_equal (nautilus_bookmark_get_location (l->data), location))
+        {
+            break;
+        }
+        removed->position++;
+    }
+
+    title = g_strdup_printf (_("“%s” removed from bookmarks"), removed->name);
+    toast = adw_toast_new (title);
+    adw_toast_set_button_label (toast, _("_Undo"));
+    adw_toast_set_priority (toast, ADW_TOAST_PRIORITY_HIGH);
+    g_signal_connect_data (toast, "button-clicked", G_CALLBACK (on_undo_remove_bookmark),
+                           removed, (GClosureNotify) removed_bookmark_free, 0);
+    nautilus_bookmark_list_remove (list, location);
+    nautilus_window_show_toast (window, toast);
+}
+
+void
+nautilus_window_show_toast (NautilusWindow *window,
+                            AdwToast       *toast)
+{
+    adw_toast_overlay_add_toast (window->toast_overlay, g_object_ref (toast));
+}
+
 void
 nautilus_window_show_operation_notification (NautilusWindow *window,
                                              gchar          *main_label,

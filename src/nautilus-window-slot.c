@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include "nautilus-window-slot.h"
+#include "nautilus-window.h"
 
 #include "nautilus-application.h"
 #include "nautilus-bookmark.h"
@@ -1225,7 +1226,16 @@ action_unbookmark_current_directory (GSimpleAction *action,
     NautilusWindowSlot *self = NAUTILUS_WINDOW_SLOT (user_data);
     NautilusApplication *app = NAUTILUS_APPLICATION (g_application_get_default ());
 
-    nautilus_bookmark_list_remove (nautilus_application_get_bookmarks (app), self->location);
+    GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (self));
+
+    if (NAUTILUS_IS_WINDOW (root))
+    {
+        nautilus_window_remove_bookmark (NAUTILUS_WINDOW (root), self->location);
+    }
+    else
+    {
+        nautilus_bookmark_list_remove (nautilus_application_get_bookmarks (app), self->location);
+    }
 }
 
 static void

@@ -79,6 +79,10 @@ nautilus_window_get_locations (NautilusWindow *self);
 
 void     nautilus_window_show_about_dialog    (NautilusWindow *window);
 
+void nautilus_window_remove_bookmark (NautilusWindow *window,
+                                      GFile          *location);
+void nautilus_window_show_toast (NautilusWindow *window,
+                                 AdwToast       *toast);
 void nautilus_window_show_operation_notification (NautilusWindow *window,
                                                   gchar          *main_label,
                                                   GFile          *folder_to_open,

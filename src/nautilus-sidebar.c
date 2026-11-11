@@ -40,6 +40,7 @@
 #include "nautilus-trash-monitor.h"
 #include "nautilus-ui-utilities.h"
 #include "nautilus-window-slot.h"
+#include "nautilus-window.h"
 
 #ifdef GDK_WINDOWING_X11
 #include <gdk/x11/gdkx.h>
@@ -3470,7 +3471,16 @@ remove_bookmark (NautilusSidebarRow *row)
     if (type == NAUTILUS_SIDEBAR_ROW_BOOKMARK)
     {
         g_autoptr (GFile) location = nautilus_file_get_location (file);
-        nautilus_bookmark_list_remove (sidebar->bookmark_list, location);
+        GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (sidebar));
+
+        if (NAUTILUS_IS_WINDOW (root))
+        {
+            nautilus_window_remove_bookmark (NAUTILUS_WINDOW (root), location);
+        }
+        else
+        {
+            nautilus_bookmark_list_remove (sidebar->bookmark_list, location);
+        }
     }
 
     g_object_unref (sidebar);
