@@ -45,6 +45,11 @@
       <summary>Show ratings and tags on grid tiles</summary>
       <description>Draw the stars of rated files and the dots of tagged files on their icons in the grid view.</description>
     </key>
+    <key type="b" name="columns-stars">
+      <default>false</default>
+      <summary>Stars in column view</summary>
+      <description>Show the star for starring files on every row in column view, as in the list view.</description>
+    </key>
     <key type="b" name="ratings">
       <default>true</default>
       <summary>Ratings</summary>

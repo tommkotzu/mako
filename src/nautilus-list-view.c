@@ -173,9 +173,14 @@ apply_columns_settings (NautilusListView  *self,
     /* always show name column */
     g_hash_table_insert (visible_columns_hash, g_strdup ("name"), g_strdup ("name"));
 
-    /* always show star column if supported */
-    if (nautilus_tag_manager_can_star_contents (nautilus_tag_manager_get (), location) ||
-        g_file_has_uri_scheme (location, SCHEME_STARRED))
+    /* always show star column if supported; in column view only if asked */
+    GtkWidget *columns_widget = gtk_widget_get_ancestor (GTK_WIDGET (self), NAUTILUS_TYPE_COLUMNS);
+    gboolean names_only = columns_widget != NULL &&
+                          nautilus_columns_get_names_only (NAUTILUS_COLUMNS (columns_widget));
+
+    if ((!names_only || g_settings_get_boolean (nautilus_flier_settings (), "columns-stars")) &&
+        (nautilus_tag_manager_can_star_contents (nautilus_tag_manager_get (), location) ||
+         g_file_has_uri_scheme (location, SCHEME_STARRED)))
     {
         g_hash_table_insert (visible_columns_hash, g_strdup ("starred"), g_strdup ("starred"));
     }
@@ -1405,6 +1410,9 @@ nautilus_list_view_init (NautilusListView *self)
     g_signal_connect_object (nautilus_flier_settings (), "changed::density",
                              G_CALLBACK (on_density_changed), self, G_CONNECT_SWAPPED);
 
+    g_signal_connect_object (nautilus_flier_settings (), "changed::columns-stars",
+                             G_CALLBACK (update_columns_settings_from_metadata_and_preferences),
+                             self, G_CONNECT_SWAPPED);
     g_signal_connect_object (nautilus_list_view_preferences,
                              "changed::" NAUTILUS_PREFERENCES_LIST_VIEW_DEFAULT_VISIBLE_COLUMNS,
                              G_CALLBACK (update_columns_settings_from_metadata_and_preferences),

@@ -3333,6 +3333,7 @@ setup_inspector (NautilusWindow *window)
     g_autoptr (GAction) bottom_bar = g_settings_create_action (nautilus_flier_settings (), "bottom-bar");
     g_autoptr (GAction) hints = g_settings_create_action (nautilus_flier_settings (), "shortcut-hints");
     g_autoptr (GAction) groups = g_settings_create_action (nautilus_flier_settings (), "sidebar-groups");
+    g_autoptr (GAction) columns_stars = g_settings_create_action (nautilus_flier_settings (), "columns-stars");
     static const GActionEntry entries[] =
     {
         { .name = "inspector-side-next", .activate = action_inspector_side_next },
@@ -3385,6 +3386,7 @@ setup_inspector (NautilusWindow *window)
     g_action_map_add_action (G_ACTION_MAP (window), bottom_bar);
     g_action_map_add_action (G_ACTION_MAP (window), hints);
     g_action_map_add_action (G_ACTION_MAP (window), groups);
+    g_action_map_add_action (G_ACTION_MAP (window), columns_stars);
     g_action_map_add_action_entries (G_ACTION_MAP (window), entries, G_N_ELEMENTS (entries), window);
     g_signal_connect (window, "notify::active-slot", G_CALLBACK (on_active_slot_for_view_mode), NULL);
 
