@@ -3,13 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Every Mako shortcut on a German QWERTZ keyboard, colour-coded by kind.">
+<meta name="description" content="Every Mako shortcut on a German QWERTZ or US QWERTY keyboard, colour-coded by kind.">
 <title>Mako Keyboard Map</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
 html{color-scheme:light}:root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}
-
 /* Layout: a QWERTZ board drawn to scale (1u = one key) on a desk-coloured ground; layer tabs above, key details beside, the full list below. */
 :root {
   --bg: #eef0f4;
@@ -34,7 +33,6 @@ html{color-scheme:light}:root{padding-block:env(safe-area-inset-top,0px) env(saf
   --mix: 16%;
   --font-ui: "Manrope", "Segoe UI", system-ui, sans-serif;
   --font-key: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
-  --u: max(46px, min(62px, calc((100vw - 56px) / 18.6)));
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -63,7 +61,7 @@ body {
 header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
 h1 { font-size: 28px; line-height: 1.15; margin: 0; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
 .sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
-.meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
 kbd { font-family: var(--font-key); font-size: 0.86em; font-weight: 700; background: var(--cap); border: 1px solid var(--cap-edge); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; white-space: nowrap; color: var(--fg); }
 
@@ -85,12 +83,25 @@ kbd { font-family: var(--font-key); font-size: 0.86em; font-weight: 700; backgro
 /* Board */
 .stage { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; align-items: start; }
 @media (max-width: 1100px) { .stage { grid-template-columns: minmax(0, 1fr); } }
-.boardscroll { overflow-x: auto; border-radius: 16px; }
+.boardscroll { min-width: 0; }
+.board.compact .act { display: none; }
+.board.compact .key { justify-content: center; align-items: center; padding: 2px; }
+.board.compact .key .lg { font-size: calc(var(--u) * .3); }
+.board.compact .key.wide .lg { font-size: calc(var(--u) * .2); }
+.board.tiny .key { margin: 1px; border-radius: 4px; border-bottom-width: 2px; }
+.board.tiny .key .lg { font-size: calc(var(--u) * .36); }
+.board.tiny .key.wide .lg { font-size: 0; }
+[hidden] { display: none !important; }
+.switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; background: var(--surface); }
+.switch button { font: 700 12px/1 var(--font-ui); color: var(--muted); background: none; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.switch button[aria-pressed="true"] { background: var(--fg); color: var(--surface); }
+.switch button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .board {
   --q: calc(var(--u) / 4);
   display: grid; grid-template-columns: repeat(74, var(--q));
   grid-template-rows: var(--u) calc(var(--u) * .3) repeat(5, var(--u));
-  background: var(--board); padding: calc(var(--u) * .22); border-radius: 16px; width: max-content;
+  --u: 48px;
+  background: var(--board); padding: calc(var(--u) * .22); border-radius: 16px; width: max-content; max-width: 100%;
 }
 .key {
   position: relative; margin: 2px; border-radius: 7px; background: var(--cap);
@@ -163,20 +174,18 @@ kbd { font-family: var(--font-key); font-size: 0.86em; font-weight: 700; backgro
 section > h2 { font-size: 18px; margin: 6px 0 10px; letter-spacing: -0.01em; }
 .foot { color: var(--muted); font-size: 12.5px; max-width: 80ch; }
 </style>
-</head>
-<body>
-
 
 <div class="wrap">
   <header>
     <div>
       <h1>Mako Keyboard Map</h1>
-      <p class="sub">Every shortcut on your keyboard, coloured by what it does. Pick a layer, or hold Ctrl, Alt and Shift on your own keyboard to switch.</p>
+      <p class="sub">Every shortcut on the keyboard, coloured by what it does. Pick a layer, or hold Ctrl, Alt and Shift on your own keyboard to switch.</p>
     </div>
     <div class="meta">
-      <span class="pill">German QWERTZ · pc105</span>
-      <span class="pill" data-personal>Mako 0.1.1 · your custom keys included</span>
-      <span class="pill" data-public>Mako 0.1.1 · default keys</span>
+      <span class="switch" id="layout" role="group" aria-label="Keyboard layout"></span>
+      <span class="pill" id="layout-pill">German QWERTZ · pc105</span>
+      <span class="pill" data-personal>Mako 0.1.2 · your custom keys included</span>
+      <span class="pill" data-public>Mako 0.1.2 · default keys</span>
     </div>
   </header>
 
@@ -192,7 +201,7 @@ section > h2 { font-size: 18px; margin: 6px 0 10px; letter-spacing: -0.01em; }
   <div class="legend" id="legend"></div>
   <div class="flags">
     <span data-personal><i class="mine"></i> a key you set yourself</span>
-    <span><b class="warn">!</b> defined in Mako, but a dead key on QWERTZ, so it never fires</span>
+    <span class="dead-note"><b class="warn">!</b> defined in Mako, but a dead key on QWERTZ, so it never fires</span>
     <span>Click a colour to show only that kind of command</span>
   </div>
 
@@ -232,7 +241,7 @@ const LAYERS = [
 ];
 
 /* [layer, key, short label, full name, category, flags]   flags: m = you set it, x = dead key on QWERTZ, note */
-const B = [
+const RAW = [
   // Navigate
   ["alt","a","Back","Back","nav"], ["alt","Left","Back","Back","nav"],
   ["alt","d","Forward","Forward","nav"], ["alt","Right","Forward","Forward","nav"],
@@ -259,7 +268,8 @@ const B = [
   ["ctrl","Tab","Next tab","Next tab (all tiles)","tabs"], ["ctrl","Page_Down","Next tab","Next tab (all tiles)","tabs"],
   ["ctrl+shift","Tab","Prev tab","Previous tab (all tiles)","tabs"], ["ctrl","Page_Up","Prev tab","Previous tab (all tiles)","tabs"],
   ["","F6","Next tile","Next tile","tabs"], ["alt","t","Next tile","Next tile","tabs"],
-  ["ctrl","asciicircum","Next tile","Next tile","tabs",{x:1, note:"Mako binds Ctrl+` here; on QWERTZ ` is a dead key, so use Alt+T or F6."}],
+  ["ctrl","grave","Next tile","Next tile","tabs"],
+  ["ctrl","asciitilde","Prev tile","Previous tile","tabs"],
   ["shift","F6","Prev tile","Previous tile","tabs"], ["alt+shift","t","Prev tile","Previous tile","tabs"],
   ["ctrl","n","New window","New window","tabs"],
   // Open
@@ -304,13 +314,13 @@ const B = [
   ["ctrl+alt","3","★★★","Rate 3 stars","rate"], ["ctrl+alt","4","★★★★","Rate 4 stars","rate"],
   ["ctrl+alt","5","★★★★★","Rate 5 stars","rate"],
   ["ctrl+alt","0","No rating","Remove rating","rate"],
-  ["ctrl+alt","asciicircum","No rating","Remove rating","rate",{x:1, note:"Mako binds Ctrl+Alt+` here; on QWERTZ ` is a dead key, so use Ctrl+Alt+0."}],
+  ["ctrl+alt","grave","No rating","Remove rating","rate"],
   ["ctrl+alt","a","Tags","Edit tags","rate"],
   ["ctrl+shift","r","Marks","Ratings and tags on grid items","rate"],
   // App
   ["","F1","Commands","Commands and shortcuts","app"], ["ctrl","k","Commands","Commands and shortcuts","app"],
   ["ctrl+shift","p","Commands","Commands and shortcuts","app"],
-  ["ctrl+shift","ssharp","Commands","Commands and shortcuts","app",{note:"Mako binds Ctrl+?, which is Ctrl+Shift+ß on QWERTZ."}],
+  ["ctrl","question","Commands","Commands and shortcuts","app"],
   ["shift","F1","Help","Help","app"],
   ["ctrl","comma","Settings","Preferences","app"],
   ["","F10","Menu","Main menu","app"],
@@ -323,8 +333,8 @@ const B = [
   ["ql","Tab","Full screen","Full screen","view"], ["ql","F11","Full screen","Full screen","view"],
   ["ql","Return","Open","Open the shown or highlighted item","open",{note:"Ctrl+O also opens it."}],
   ["ql","1","★","Rate 1 star","rate"], ["ql","2","★★","Rate 2 stars","rate"], ["ql","3","★★★","Rate 3 stars","rate"],
-  ["ql","4","★★★★","Rate 4 stars","rate"], ["ql","5","★★★★★","Rate 5 stars","rate"], ["ql","0","No rating","Remove rating","rate"],
-  ["ql","w","Zoom in","Zoom in (pictures, PDFs, canvas)","view"], ["ql","plus","Zoom in","Zoom in","view"],
+  ["ql","4","★★★★","Rate 4 stars","rate"], ["ql","5","★★★★★","Rate 5 stars","rate"], ["ql","0","No rating","Remove rating","rate"], ["ql","grave","No rating","Remove rating","rate"],
+  ["ql","w","Zoom in","Zoom in (pictures, PDFs, canvas)","view"], ["ql","plus","Zoom in","Zoom in","view"], ["ql","equal","Zoom in","Zoom in","view"],
   ["ql","s","Zoom out","Zoom out","view"], ["ql","minus","Zoom out","Zoom out","view"],
   ["ql","q","Fit","Fit to the window","view"],
   ["ql","z","Real size","Actual size","view"],
@@ -339,7 +349,7 @@ const B = [
   ["ql","k","Play","Play / pause","media"],
   ["ql","j","−5 s","Back 5 seconds","media"], ["ql","l","+5 s","Ahead 5 seconds","media"],
   ["ql","comma","Frame −","One frame back","media"], ["ql","period","Frame +","One frame ahead","media"],
-  ["ql","less","Frame −","One frame back (Shift+< goes ahead)","media"],
+  ["ql","less","Frame −","One frame back","media"],
   ["ql","f","Frame −","One frame back","media"], ["ql","e","Frame +","One frame ahead","media"],
   ["ql","m","Mute","Mute","media"],
   ["ql","n","Names","Show names on the canvas","view"],
@@ -353,27 +363,53 @@ const B = [
 ];
 
 if (!PERSONAL) {
-  for (let i = B.length - 1; i >= 0; i--) {
-    const f = B[i][5];
-    if (f && f.only) B.splice(i, 1);
+  for (let i = RAW.length - 1; i >= 0; i--) {
+    const f = RAW[i][5];
+    if (f && f.only) RAW.splice(i, 1);
     else if (f && f.m) { delete f.m; delete f.note; }
   }
 } else {
-  for (let i = B.length - 1; i >= 0; i--) if (B[i][5] && B[i][5].pub) B.splice(i, 1);
+  for (let i = RAW.length - 1; i >= 0; i--) if (RAW[i][5] && RAW[i][5].pub) RAW.splice(i, 1);
 }
 document.querySelectorAll("[data-personal]").forEach(el => { el.hidden = !PERSONAL; });
 document.querySelectorAll("[data-public]").forEach(el => { el.hidden = PERSONAL; });
 
-/* Board: [id, legend, width in u]; null id = gap */
-const MAIN = [
-  [["Escape","Esc",1],[null,"",1],["F1","F1",1],["F2","F2",1],["F3","F3",1],["F4","F4",1],[null,"",.5],
-   ["F5","F5",1],["F6","F6",1],["F7","F7",1],["F8","F8",1],[null,"",.5],["F9","F9",1],["F10","F10",1],["F11","F11",1],["F12","F12",1]],
-  [["asciicircum","^",1],["1","1",1],["2","2",1],["3","3",1],["4","4",1],["5","5",1],["6","6",1],["7","7",1],["8","8",1],["9","9",1],["0","0",1],["ssharp","ß",1],["acute","´",1],["BackSpace","⟵",2]],
-  [["Tab","Tab",1.5],["q","Q",1],["w","W",1],["e","E",1],["r","R",1],["t","T",1],["z","Z",1],["u","U",1],["i","I",1],["o","O",1],["p","P",1],["udiaeresis","Ü",1],["plus","+",1],[null,"",.25]],
-  [["Caps_Lock","Caps",1.75],["a","A",1],["s","S",1],["d","D",1],["f","F",1],["g","G",1],["h","H",1],["j","J",1],["k","K",1],["l","L",1],["odiaeresis","Ö",1],["adiaeresis","Ä",1],["numbersign","#",1]],
-  [["Shift_L","Shift",1.25],["less","<",1],["y","Y",1],["x","X",1],["c","C",1],["v","V",1],["b","B",1],["n","N",1],["m","M",1],["comma",",",1],["period",".",1],["minus","-",1],["Shift_R","Shift",2.75]],
-  [["Control_L","Ctrl",1.25],["Super_L","Super",1.25],["Alt_L","Alt",1.25],["space","",6.25],["AltGr","AltGr",1.25],["Super_R","Super",1.25],["Menu","Menu",1.25],["Control_R","Ctrl",1.25]],
-];
+/* Board: [id, legend, width in u]; null id = gap. Ids are the keysym each key types without Shift. */
+const FROW = [["Escape","Esc",1],[null,"",1],["F1","F1",1],["F2","F2",1],["F3","F3",1],["F4","F4",1],[null,"",.5],
+  ["F5","F5",1],["F6","F6",1],["F7","F7",1],["F8","F8",1],[null,"",.5],["F9","F9",1],["F10","F10",1],["F11","F11",1],["F12","F12",1]];
+const BOTTOM = [["Control_L","Ctrl",1.25],["Super_L","Super",1.25],["Alt_L","Alt",1.25],["space","",6.25],["AltGr","AltGr",1.25],["Super_R","Super",1.25],["Menu","Menu",1.25],["Control_R","Ctrl",1.25]];
+const L1 = c => [c, c.toUpperCase(), 1];
+const LAYOUTS = {
+  de: {
+    name: "QWERTZ", long: "German QWERTZ · pc105", iso: true,
+    rows: [FROW,
+      [["asciicircum","^",1],...[1,2,3,4,5,6,7,8,9,0].map(n => [String(n), String(n), 1]),["ssharp","ß",1],["acute","´",1],["BackSpace","⟵",2]],
+      [["Tab","Tab",1.5],..."qwertzuiop".split("").map(L1),["udiaeresis","Ü",1],["plus","+",1],[null,"",.25]],
+      [["Caps_Lock","Caps",1.75],..."asdfghjkl".split("").map(L1),["odiaeresis","Ö",1],["adiaeresis","Ä",1],["numbersign","#",1]],
+      [["Shift_L","Shift",1.25],["less","<",1],..."yxcvbnm".split("").map(L1),["comma",",",1],["period",".",1],["minus","-",1],["Shift_R","Shift",2.75]],
+      BOTTOM],
+    /* keysyms typed with Shift or a dead key here */
+    sym: { grave: { key: "acute", shift: 1, dead: 1 }, asciitilde: { key: "plus", dead: 1 }, question: { key: "ssharp", shift: 1 },
+           equal: { key: "0", shift: 1 } },
+    dead: "On QWERTZ ` and ~ are dead keys, so this never fires.",
+    code: { Backquote:"asciicircum", Minus:"ssharp", Equal:"acute", BracketLeft:"udiaeresis", BracketRight:"plus",
+            Semicolon:"odiaeresis", Quote:"adiaeresis", Backslash:"numbersign", IntlBackslash:"less", Slash:"minus",
+            KeyY:"z", KeyZ:"y" },
+  },
+  us: {
+    name: "QWERTY", long: "US QWERTY · pc104", iso: false,
+    rows: [FROW,
+      [["grave","`",1],...[1,2,3,4,5,6,7,8,9,0].map(n => [String(n), String(n), 1]),["minus","-",1],["equal","=",1],["BackSpace","⟵",2]],
+      [["Tab","Tab",1.5],..."qwertyuiop".split("").map(L1),["bracketleft","[",1],["bracketright","]",1],["backslash","\\",1.5]],
+      [["Caps_Lock","Caps",1.75],..."asdfghjkl".split("").map(L1),["semicolon",";",1],["apostrophe","'",1],["Return","Enter",2.25]],
+      [["Shift_L","Shift",2.25],..."zxcvbnm".split("").map(L1),["comma",",",1],["period",".",1],["slash","/",1],["Shift_R","Shift",2.75]],
+      BOTTOM.map(k => k[0] === "AltGr" ? ["AltGr","Alt",1.25] : k)],
+    sym: { asciitilde: { key: "grave", shift: 1 }, question: { key: "slash", shift: 1 }, plus: { key: "equal", shift: 1 },
+           less: { key: "comma", shift: 1 } },
+    code: { Backquote:"grave", Minus:"minus", Equal:"equal", BracketLeft:"bracketleft", BracketRight:"bracketright",
+            Semicolon:"semicolon", Quote:"apostrophe", Backslash:"backslash", Slash:"slash" },
+  },
+};
 const NAV = [ // [id, legend, col (u from nav start), row index (0..5)]
   ["Insert","Ins",0,1],["Home","Home",1,1],["Page_Up","PgUp",2,1],
   ["Delete","Del",0,2],["End","End",1,2],["Page_Down","PgDn",2,2],
@@ -381,25 +417,44 @@ const NAV = [ // [id, legend, col (u from nav start), row index (0..5)]
 ];
 const NAME = { Escape:"Esc", Return:"Enter", space:"Space", BackSpace:"Backspace", asciicircum:"^", ssharp:"ß", acute:"´",
   udiaeresis:"Ü", odiaeresis:"Ö", adiaeresis:"Ä", numbersign:"#", plus:"+", minus:"-", comma:",", period:".", less:"<",
+  grave:"`", equal:"=", bracketleft:"[", bracketright:"]", backslash:"\\", semicolon:";", apostrophe:"'", slash:"/",
   Page_Up:"Page Up", Page_Down:"Page Down", Left:"←", Right:"→", Up:"↑", Down:"↓", Delete:"Delete", Insert:"Insert",
   Home:"Home", End:"End", Menu:"Menu", Tab:"Tab" };
 const MODKEYS = { ctrl:["Control_L","Control_R"], alt:["Alt_L"], shift:["Shift_L","Shift_R"] };
-const CODE = { Escape:"Escape", Backquote:"asciicircum", Minus:"ssharp", Equal:"acute", Backspace:"BackSpace", Tab:"Tab",
-  BracketLeft:"udiaeresis", BracketRight:"plus", Enter:"Return", CapsLock:"Caps_Lock", Semicolon:"odiaeresis",
-  Quote:"adiaeresis", Backslash:"numbersign", IntlBackslash:"less", Comma:"comma", Period:"period", Slash:"minus",
-  ShiftLeft:"Shift_L", ShiftRight:"Shift_R", ControlLeft:"Control_L", ControlRight:"Control_R", AltLeft:"Alt_L",
+const BASECODE = { Escape:"Escape", Backspace:"BackSpace", Tab:"Tab", Enter:"Return", CapsLock:"Caps_Lock", Comma:"comma",
+  Period:"period", ShiftLeft:"Shift_L", ShiftRight:"Shift_R", ControlLeft:"Control_L", ControlRight:"Control_R", AltLeft:"Alt_L",
   AltRight:"AltGr", MetaLeft:"Super_L", MetaRight:"Super_R", ContextMenu:"Menu", Space:"space", Insert:"Insert",
   Home:"Home", PageUp:"Page_Up", Delete:"Delete", End:"End", PageDown:"Page_Down", ArrowUp:"Up", ArrowDown:"Down",
-  ArrowLeft:"Left", ArrowRight:"Right", KeyY:"z", KeyZ:"y" };
-for (let i = 1; i <= 12; i++) CODE["F" + i] = "F" + i;
-for (let i = 0; i <= 9; i++) CODE["Digit" + i] = String(i);
-"abcdefghijklmnopqrstuvwx".split("").forEach(c => { if (!CODE["Key" + c.toUpperCase()]) CODE["Key" + c.toUpperCase()] = c; });
+  ArrowLeft:"Left", ArrowRight:"Right" };
+for (let i = 1; i <= 12; i++) BASECODE["F" + i] = "F" + i;
+for (let i = 0; i <= 9; i++) BASECODE["Digit" + i] = String(i);
+"abcdefghijklmnopqrstuvwxyz".split("").forEach(c => BASECODE["Key" + c.toUpperCase()] = c);
 
-const legendOf = {};
-MAIN.forEach(r => r.forEach(([id, lg]) => { if (id) legendOf[id] = lg; }));
-NAV.forEach(([id, lg]) => legendOf[id] = lg);
+let layoutId = "de";
+try { const s = JSON.parse(localStorage.getItem("mako-keymap") || "{}"); if (LAYOUTS[s.layout]) layoutId = s.layout; } catch (e) {}
+let B = [], CODE = {}, legendOf = {};
+
+/* Each binding onto this layout's keys: a keysym typed with Shift moves to its key on the Shift layer. */
+function resolve() {
+  const lay = LAYOUTS[layoutId];
+  const out = [];
+  RAW.forEach(b => {
+    const m = lay.sym[b[1]];
+    if (!m) { if (legendOf[b[1]] || ["Return"].includes(b[1])) out.push(b); return; }
+    let layer = b[0];
+    if (m.shift) {
+      if (layer === "ql" || layer === "cols") return;
+      layer = layer === "" ? "shift" : layer.includes("shift") ? layer : layer + "+shift";
+      if (!LAYERS.some(l => l.id === layer)) return;
+    }
+    const f = Object.assign({}, b[5] || {});
+    if (m.dead) { f.x = 1; f.note = lay.dead; }
+    out.push([layer, m.key, b[2], b[3], b[4], f]);
+  });
+  return out;
+}
+
 const keyName = id => NAME[id] || legendOf[id] || id;
-
 const layerName = id => LAYERS.find(l => l.id === id).name;
 const combo = (layer, key) => {
   const k = keyName(key);
@@ -409,7 +464,7 @@ const combo = (layer, key) => {
 
 let state = { layer: "alt", cat: null, sel: null, held: null };
 try { const s = JSON.parse(localStorage.getItem("mako-keymap") || "{}"); if (s.layer !== undefined && LAYERS.some(l => l.id === s.layer)) state.layer = s.layer; } catch (e) {}
-const save = () => { try { localStorage.setItem("mako-keymap", JSON.stringify({ layer: state.layer })); } catch (e) {} };
+const save = () => { try { localStorage.setItem("mako-keymap", JSON.stringify({ layer: state.layer, layout: layoutId })); } catch (e) {} };
 
 const shownLayer = () => state.held !== null ? state.held : state.layer;
 const bindingsFor = (layer, key) => B.filter(b => b[0] === layer && b[1] === key);
@@ -420,22 +475,30 @@ LAYERS.forEach((l, i) => {
   if (l.ctx && !LAYERS[i - 1].ctx) { const s = document.createElement("span"); s.className = "tabsep"; tabsEl.append(s); }
   const t = document.createElement("button");
   t.className = "tab"; t.setAttribute("role", "tab"); t.id = "tab-" + (l.id || "plain").replace(/\+/g, "-");
-  t.innerHTML = `${l.name}<span class="n">${B.filter(b => b[0] === l.id).length}</span>`;
+  t.innerHTML = `${l.name}<span class="n"></span>`;
   t.addEventListener("click", () => { state.layer = l.id; state.sel = null; save(); render(); });
   tabsEl.append(t);
 });
 
+/* --- Layout switch --- */
+const switchEl = document.getElementById("layout");
+Object.entries(LAYOUTS).forEach(([id, lay]) => {
+  const bt = document.createElement("button");
+  bt.type = "button"; bt.id = "layout-" + id; bt.textContent = lay.name;
+  bt.addEventListener("click", () => { if (layoutId !== id) { layoutId = id; save(); build(); } });
+  switchEl.append(bt);
+});
+
 /* --- Board --- */
 const board = document.getElementById("board");
-const keyEls = {};
+let keyEls = {};
 function addKey(id, lg, col, span, row, rowspan) {
-  const el = document.createElement(id ? "button" : "div");
-  if (!id) { el.style.cssText = `grid-column:${col + 1}/span ${span};grid-row:${row + 1}`; board.append(el); return; }
+  const el = document.createElement("button");
   el.className = "key" + (span >= 5 ? " wide" : "") + (lg.length > 2 ? " wide" : "");
   el.type = "button";
   el.style.gridColumn = `${col + 1} / span ${span}`;
   el.style.gridRow = `${row + 1} / span ${rowspan || 1}`;
-  el.innerHTML = `<span class="lg">${lg}</span><span class="act"></span>`;
+  el.innerHTML = `<span class="lg">${lg.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</span><span class="act"></span>`;
   el.addEventListener("mouseenter", () => { if (!state.pinned) { state.sel = id; renderDetail(); markSel(); } });
   el.addEventListener("focus", () => { state.sel = id; renderDetail(); markSel(); });
   el.addEventListener("click", () => { state.sel = id; state.pinned = true; renderDetail(); markSel(); });
@@ -443,24 +506,45 @@ function addKey(id, lg, col, span, row, rowspan) {
   keyEls[id] = el;
 }
 const ROWMAP = [0, 2, 3, 4, 5, 6]; // grid rows (row 1 is the spacer)
-MAIN.forEach((r, ri) => {
-  let x = 0;
-  r.forEach(([id, lg, w]) => { const q = Math.round(w * 4); if (id) addKey(id, lg, x, q, ROWMAP[ri]); x += q; });
-});
-addKey("Return", "Enter", Math.round(13.75 * 4), 5, ROWMAP[2], 2);
-NAV.forEach(([id, lg, c, r]) => addKey(id, lg, 62 + c * 4, 4, ROWMAP[r]));
+function buildBoard() {
+  const lay = LAYOUTS[layoutId];
+  board.innerHTML = ""; keyEls = {}; legendOf = {};
+  lay.rows.forEach(r => r.forEach(([id, lg]) => { if (id) legendOf[id] = lg; }));
+  NAV.forEach(([id, lg]) => legendOf[id] = lg);
+  legendOf.Return = "Enter";
+  lay.rows.forEach((r, ri) => {
+    let x = 0;
+    r.forEach(([id, lg, w]) => { const q = Math.round(w * 4); if (id) addKey(id, lg, x, q, ROWMAP[ri]); x += q; });
+  });
+  if (lay.iso) addKey("Return", "Enter", Math.round(13.75 * 4), 5, ROWMAP[2], 2);
+  NAV.forEach(([id, lg, c, r]) => addKey(id, lg, 62 + c * 4, 4, ROWMAP[r]));
+  CODE = Object.assign({}, BASECODE, lay.code);
+  document.getElementById("layout-pill").textContent = lay.long;
+  document.querySelectorAll("#layout button").forEach(bt => bt.setAttribute("aria-pressed", String(bt.id === "layout-" + layoutId)));
+  document.querySelectorAll(".dead-note").forEach(el => { el.hidden = !lay.dead; });
+}
 board.addEventListener("mouseleave", () => { if (!state.pinned) { state.sel = null; renderDetail(); markSel(); } });
+
+/* The whole board always fits: 1u is set from the width there is. */
+const boardWrap = document.querySelector(".boardscroll");
+function fit() {
+  const w = boardWrap.clientWidth;
+  const u = Math.max(14, Math.min(64, Math.floor(w / 18.95)));
+  board.style.setProperty("--u", u + "px");
+  board.classList.toggle("compact", u < 40);
+  board.classList.toggle("tiny", u < 26);
+}
+new ResizeObserver(fit).observe(boardWrap);
 
 function markSel() { Object.entries(keyEls).forEach(([id, el]) => el.classList.toggle("sel", id === state.sel)); }
 
 /* --- Legend --- */
 const legendEl = document.getElementById("legend");
 Object.entries(CATS).forEach(([c, d]) => {
-  const n = new Set(B.filter(b => b[4] === c).map(b => b[3] + "|" + (b[0] === "ql" || b[0] === "cols" ? b[0] : ""))).size;
   const ch = document.createElement("button");
   ch.className = "chip"; ch.type = "button"; ch.id = "cat-" + c;
   ch.style.setProperty("--k", `var(${d.v})`);
-  ch.innerHTML = `<span class="sw"></span>${d.name}<span class="n">${n}</span>`;
+  ch.innerHTML = `<span class="sw"></span>${d.name}<span class="n"></span>`;
   ch.addEventListener("click", () => { state.cat = state.cat === c ? null : c; render(); });
   legendEl.append(ch);
 });
@@ -530,8 +614,15 @@ function renderLists() {
 /* --- Board render --- */
 function render() {
   const L = shownLayer();
-  document.querySelectorAll(".tab").forEach((t, i) => {});
-  LAYERS.forEach(l => { const t = document.getElementById("tab-" + (l.id || "plain").replace(/\+/g, "-")); t.setAttribute("aria-selected", String(l.id === L)); });
+  LAYERS.forEach(l => {
+    const t = document.getElementById("tab-" + (l.id || "plain").replace(/\+/g, "-"));
+    t.setAttribute("aria-selected", String(l.id === L));
+    t.querySelector(".n").textContent = B.filter(b => b[0] === l.id).length;
+  });
+  Object.keys(CATS).forEach(c => {
+    document.querySelector("#cat-" + c + " .n").textContent =
+      new Set(B.filter(b => b[4] === c).map(b => b[3] + "|" + (b[0] === "ql" || b[0] === "cols" ? b[0] : ""))).size;
+  });
   document.querySelectorAll(".chip").forEach(ch => ch.setAttribute("aria-pressed", String(ch.id === "cat-" + state.cat)));
   const held = new Set();
   L.split("+").forEach(m => (MODKEYS[m] || []).forEach(k => held.add(k)));
@@ -548,7 +639,7 @@ function render() {
       el.style.setProperty("--k", `var(${CATS[b[4]].v})`);
       act.textContent = b[2];
       if (f.m) el.insertAdjacentHTML("beforeend", '<i class="mine" aria-label="your key"></i>');
-      if (f.x) el.insertAdjacentHTML("beforeend", '<b class="warn" title="Dead key on QWERTZ">!</b>');
+      if (f.x) el.insertAdjacentHTML("beforeend", '<b class="warn" title="A dead key on this layout">!</b>');
       if (state.cat && b[4] !== state.cat) el.classList.add("dim");
       el.setAttribute("aria-label", `${keyName(id)}: ${b[3]}`);
     } else {
@@ -593,8 +684,14 @@ document.addEventListener("keyup", e => {
 });
 window.addEventListener("blur", () => { state.held = null; render(); });
 
-renderLists();
-render();
+function build() {
+  buildBoard();
+  B = resolve();
+  fit();
+  renderLists();
+  render();
+}
+build();
 </script>
 
 </body>
