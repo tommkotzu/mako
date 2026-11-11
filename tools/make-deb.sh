@@ -72,7 +72,7 @@ Architecture: amd64
 Maintainer: tommkotzu <tommkotzu@users.noreply.github.com>
 Installed-Size: $(du -sk "$ROOT" | cut -f1)
 Depends: $DEPS, gsettings-desktop-schemas, gstreamer1.0-plugins-good
-Recommends: gstreamer1.0-libav, localsearch
+Recommends: gstreamer1.0-libav, localsearch, libpoppler-glib8t64
 Section: gnome
 Priority: optional
 Homepage: https://github.com/tommkotzu/mako
