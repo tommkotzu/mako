@@ -148,6 +148,10 @@ Tag names and colors are kept in `~/.config/nautilus/tags.json`.
 
 Every common command has a key on the left side of the keyboard, so you can
 keep your right hand on the mouse. GNOME's usual keys still work as well.
+
+**[Keyboard map](https://tommkotzu.github.io/mako/keymap/)**: every shortcut
+on a keyboard, coloured by what it does, with a layer for each modifier and
+for Quick Look and column view.
 The layout follows a few simple rules:
 
 - **`Alt` + WASD moves:** `W` goes up, `A` back, `D` forward, `S` opens (goes in). `Alt+Shift+W` goes all the way up, to your home folder.

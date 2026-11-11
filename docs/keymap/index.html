@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Every Mako shortcut on a German QWERTZ keyboard, colour-coded by kind.">
+<title>Mako Keyboard Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+html{color-scheme:light}:root{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}
+
+/* Layout: a QWERTZ board drawn to scale (1u = one key) on a desk-coloured ground; layer tabs above, key details beside, the full list below. */
+:root {
+  --bg: #eef0f4;
+  --surface: #ffffff;
+  --board: #d9dce4;
+  --cap: #f9fafc;
+  --cap-edge: #c3c8d3;
+  --fg: #1b1f2a;
+  --muted: #5f6678;
+  --faint: #9aa1b2;
+  --line: #d4d8e1;
+  --accent: #5b4bd6;
+  --c-nav: #2f73e0;
+  --c-tabs: #8a4fd8;
+  --c-open: #0f9a8a;
+  --c-edit: #e0671f;
+  --c-select: #b8930c;
+  --c-view: #3c9a3a;
+  --c-rate: #d63f86;
+  --c-app: #6b7488;
+  --c-media: #d8443a;
+  --mix: 16%;
+  --font-ui: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-key: "JetBrains Mono", ui-monospace, "DejaVu Sans Mono", monospace;
+  --u: max(46px, min(62px, calc((100vw - 56px) / 18.6)));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161c; --surface: #1c1f27; --board: #0d0f14; --cap: #262a34; --cap-edge: #0a0b0f;
+    --fg: #e7e9f0; --muted: #a2a9ba; --faint: #646b7c; --line: #2c303b; --accent: #9d90ff;
+    --c-nav: #5b9bff; --c-tabs: #b386ff; --c-open: #34c7b4; --c-edit: #ff8a45; --c-select: #e4c032;
+    --c-view: #6cc767; --c-rate: #ff6eae; --c-app: #98a2b8; --c-media: #ff6b60; --mix: 24%;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161c; --surface: #1c1f27; --board: #0d0f14; --cap: #262a34; --cap-edge: #0a0b0f;
+  --fg: #e7e9f0; --muted: #a2a9ba; --faint: #646b7c; --line: #2c303b; --accent: #9d90ff;
+  --c-nav: #5b9bff; --c-tabs: #b386ff; --c-open: #34c7b4; --c-edit: #ff8a45; --c-select: #e4c032;
+  --c-view: #6cc767; --c-rate: #ff6eae; --c-app: #98a2b8; --c-media: #ff6b60; --mix: 24%;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
+.meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+kbd { font-family: var(--font-key); font-size: 0.86em; font-weight: 700; background: var(--cap); border: 1px solid var(--cap-edge); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; white-space: nowrap; color: var(--fg); }
+
+/* Layer tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab {
+  font: 600 13px/1 var(--font-ui); color: var(--muted); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  display: inline-flex; gap: 8px; align-items: center;
+}
+.tab .n { font-family: var(--font-key); font-size: 11px; color: var(--faint); }
+.tab:hover { color: var(--fg); }
+.tab[aria-selected="true"] { color: var(--surface); background: var(--fg); border-color: var(--fg); }
+.tab[aria-selected="true"] .n { color: var(--surface); opacity: .7; }
+.tab:focus-visible, .chip:focus-visible, .key:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tabsep { width: 1px; background: var(--line); margin: 2px 4px; }
+.hint { color: var(--muted); font-size: 12.5px; margin: 0; }
+
+/* Board */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 18px; align-items: start; }
+@media (max-width: 1100px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.boardscroll { overflow-x: auto; border-radius: 16px; }
+.board {
+  --q: calc(var(--u) / 4);
+  display: grid; grid-template-columns: repeat(74, var(--q));
+  grid-template-rows: var(--u) calc(var(--u) * .3) repeat(5, var(--u));
+  background: var(--board); padding: calc(var(--u) * .22); border-radius: 16px; width: max-content;
+}
+.key {
+  position: relative; margin: 2px; border-radius: 7px; background: var(--cap);
+  border: 1px solid var(--cap-edge); border-bottom-width: 3px;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 4px 5px 4px; cursor: default; overflow: hidden; min-width: 0; text-align: left;
+  font: inherit; color: inherit;
+  transition: transform .08s ease, background-color .12s ease;
+}
+.key .lg { font-family: var(--font-key); font-weight: 700; font-size: calc(var(--u) * .22); line-height: 1; color: var(--muted); }
+.key.wide .lg { font-size: calc(var(--u) * .17); }
+.key .act {
+  font-size: calc(var(--u) * .158); line-height: 1.12; font-weight: 700; color: var(--fg);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.key.on { cursor: pointer; background: color-mix(in srgb, var(--k) var(--mix), var(--cap)); border-bottom-color: var(--k); }
+.key.on .lg { color: var(--fg); }
+.key.mod-held { background: var(--fg); border-color: var(--fg); }
+.key.mod-held .lg { color: var(--surface); }
+.key.off .lg { color: var(--faint); }
+.key.dim { opacity: .28; }
+.key.sel { outline: 2px solid var(--fg); outline-offset: 1px; z-index: 1; }
+.key.pressed { transform: translateY(2px); }
+.key .mine { position: absolute; top: 4px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.key .warn { position: absolute; top: 2px; right: 4px; font: 700 10px/1 var(--font-key); color: var(--c-media); }
+@media (prefers-reduced-motion: reduce) { .key { transition: none; } }
+
+/* Detail panel */
+.detail { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.detail h2 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
+.dkey { display: flex; align-items: center; gap: 10px; }
+.dkey .big { font: 700 22px/1 var(--font-key); min-width: 46px; height: 46px; padding: 0 8px; display: grid; place-items: center; background: var(--cap); border: 1px solid var(--cap-edge); border-bottom-width: 3px; border-radius: 8px; }
+.dkey .name { font-weight: 700; }
+.dlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dlist li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 8px; align-items: start; }
+.dot { width: 10px; height: 10px; border-radius: 3px; margin-top: 5px; background: var(--k); }
+.dlist .combo { font-family: var(--font-key); font-size: 12px; color: var(--muted); }
+.dlist .what { font-weight: 600; }
+.dlist .note { font-size: 12.5px; color: var(--muted); }
+.empty { color: var(--muted); margin: 0; }
+
+/* Legend */
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1 var(--font-ui);
+  padding: 7px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface);
+  color: var(--fg); cursor: pointer;
+}
+.chip .sw { width: 11px; height: 11px; border-radius: 3px; background: var(--k); }
+.chip .n { font-family: var(--font-key); font-size: 11px; color: var(--muted); }
+.chip[aria-pressed="true"] { border-color: var(--k); background: color-mix(in srgb, var(--k) var(--mix), var(--surface)); }
+.flags { display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-size: 12.5px; }
+.flags span { display: inline-flex; align-items: center; gap: 6px; }
+.flags .mine { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+.flags .warn { font: 700 11px/1 var(--font-key); color: var(--c-media); }
+
+/* Full list */
+.lists { columns: 340px; column-gap: 16px; }
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 10px; min-width: 0; break-inside: avoid; margin-bottom: 16px; display: block; }
+.group h3 { margin: 0 0 8px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.group h3 .sw { width: 12px; height: 12px; border-radius: 3px; background: var(--k); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 6px 0; border-top: 1px solid var(--line); align-items: baseline; }
+.row:first-of-type { border-top: 0; }
+.row .what { min-width: 0; }
+.row .keys { display: flex; flex-wrap: wrap; gap: 4px 6px; justify-content: end; }
+.row .keys .alt { color: var(--faint); font-size: 12px; align-self: center; }
+.row .ctx { font-size: 11.5px; color: var(--muted); display: block; }
+.row .mine-tag { font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 6px; }
+.row s { color: var(--faint); }
+section > h2 { font-size: 18px; margin: 6px 0 10px; letter-spacing: -0.01em; }
+.foot { color: var(--muted); font-size: 12.5px; max-width: 80ch; }
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Mako Keyboard Map</h1>
+      <p class="sub">Every shortcut on your keyboard, coloured by what it does. Pick a layer, or hold Ctrl, Alt and Shift on your own keyboard to switch.</p>
+    </div>
+    <div class="meta">
+      <span class="pill">German QWERTZ · pc105</span>
+      <span class="pill" data-personal>Mako 0.1.1 · your custom keys included</span>
+      <span class="pill" data-public>Mako 0.1.1 · default keys</span>
+    </div>
+  </header>
+
+  <div>
+    <div class="tabs" role="tablist" id="tabs"></div>
+  </div>
+
+  <div class="stage">
+    <div class="boardscroll"><div class="board" id="board" aria-label="Keyboard"></div></div>
+    <aside class="detail" id="detail" aria-live="polite"></aside>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="flags">
+    <span data-personal><i class="mine"></i> a key you set yourself</span>
+    <span><b class="warn">!</b> defined in Mako, but a dead key on QWERTZ, so it never fires</span>
+    <span>Click a colour to show only that kind of command</span>
+  </div>
+
+  <section>
+    <h2>All shortcuts</h2>
+    <div class="lists" id="lists"></div>
+  </section>
+
+  <p class="foot">Mako is a fork of GNOME Files: <a href="https://github.com/tommkotzu/mako">github.com/tommkotzu/mako</a>. Change any key in Mako's command list: press <kbd>F1</kbd>, search for the command, click its key and press a new one. Keys in Quick Look and column view work while that part has the focus and need no modifier.</p>
+</div>
+
+<script>
+/* true: this copy shows your own keys; false: Mako's defaults (the copy on GitHub). */
+const PERSONAL = false;
+const CATS = {
+  nav:    { name: "Navigate",        v: "--c-nav" },
+  tabs:   { name: "Tabs and tiles",  v: "--c-tabs" },
+  open:   { name: "Open",            v: "--c-open" },
+  edit:   { name: "Edit",            v: "--c-edit" },
+  select: { name: "Select",          v: "--c-select" },
+  view:   { name: "View and panels", v: "--c-view" },
+  rate:   { name: "Rate and tag",    v: "--c-rate" },
+  media:  { name: "Play",            v: "--c-media" },
+  app:    { name: "App",             v: "--c-app" },
+};
+
+const LAYERS = [
+  { id: "",           name: "No modifier" },
+  { id: "shift",      name: "Shift" },
+  { id: "ctrl",       name: "Ctrl" },
+  { id: "ctrl+shift", name: "Ctrl+Shift" },
+  { id: "alt",        name: "Alt" },
+  { id: "alt+shift",  name: "Alt+Shift" },
+  { id: "ctrl+alt",   name: "Ctrl+Alt" },
+  { id: "ql",         name: "In Quick Look", ctx: true },
+  { id: "cols",       name: "In column view", ctx: true },
+];
+
+/* [layer, key, short label, full name, category, flags]   flags: m = you set it, x = dead key on QWERTZ, note */
+const B = [
+  // Navigate
+  ["alt","a","Back","Back","nav"], ["alt","Left","Back","Back","nav"],
+  ["alt","d","Forward","Forward","nav"], ["alt","Right","Forward","Forward","nav"],
+  ["alt","w","Parent","Parent folder","nav"], ["alt","Up","Parent","Parent folder","nav"],
+  ["alt","Home","Home","Home folder","nav",{m:1, note:"You set Home to Alt+Home only (Mako's default also had Alt+Shift+W)."}],
+  ["alt+shift","w","Home","Home folder","nav",{pub:1}],
+  ["ctrl","e","Location","Enter a location","nav"], ["ctrl","l","Location","Enter a location","nav"],
+  ["ctrl","f","Search","Search here","nav"],
+  ["ctrl+shift","f","Search all","Search everywhere","nav"],
+  ["","F5","Reload","Reload","nav"], ["ctrl","r","Reload","Reload","nav"],
+  ["ctrl","d","Bookmark","Bookmark this folder","nav"],
+  ["ctrl","Down","Next place","Next place in the sidebar","nav"],
+  ["ctrl","Up","Prev place","Previous place in the sidebar","nav"],
+  ["ctrl","Left","Fold","Fold the sidebar group","nav"],
+  ["ctrl","Right","Unfold","Unfold the sidebar group","nav"],
+  // Tabs and tiles
+  ["ctrl","t","New tab","New tab","tabs"],
+  ["ctrl","w","Close tab","Close tab","tabs"],
+  ["ctrl+shift","t","Reopen tab","Reopen closed tab","tabs"],
+  ["ctrl+shift","Page_Up","Tab left","Move tab left","tabs"],
+  ["ctrl+shift","Page_Down","Tab right","Move tab right","tabs"],
+  ["","F3","Split right","Split right","tabs"],
+  ["shift","F3","Split down","Split down","tabs"],
+  ["ctrl","Tab","Next tab","Next tab (all tiles)","tabs"], ["ctrl","Page_Down","Next tab","Next tab (all tiles)","tabs"],
+  ["ctrl+shift","Tab","Prev tab","Previous tab (all tiles)","tabs"], ["ctrl","Page_Up","Prev tab","Previous tab (all tiles)","tabs"],
+  ["","F6","Next tile","Next tile","tabs"], ["alt","t","Next tile","Next tile","tabs"],
+  ["ctrl","asciicircum","Next tile","Next tile","tabs",{x:1, note:"Mako binds Ctrl+` here; on QWERTZ ` is a dead key, so use Alt+T or F6."}],
+  ["shift","F6","Prev tile","Previous tile","tabs"], ["alt+shift","t","Prev tile","Previous tile","tabs"],
+  ["ctrl","n","New window","New window","tabs"],
+  // Open
+  ["","Return","Open","Open","open"], ["ctrl","o","Open","Open","open"], ["alt","s","Open","Open","open"],
+  ["ctrl","Return","New tab","Open in new tab","open"], ["alt+shift","s","In new tab","Open in new tab","open"],
+  ["shift","Return","New window","Open in new window","open"],
+  ["ctrl+alt","o","Item location","Open item location","open"],
+  ["","space","Quick Look","Quick Look","open"],
+  ["ctrl","period","Terminal","Open in console","open"],
+  // Edit
+  ["ctrl","c","Copy","Copy","edit"], ["ctrl","x","Cut","Cut","edit"], ["ctrl","v","Paste","Paste","edit"],
+  ["ctrl","z","Undo","Undo","edit"], ["ctrl+shift","z","Redo","Redo","edit"],
+  ["","F2","Rename","Rename","edit"],
+  ["ctrl+shift","n","New folder","New folder","edit"], ["ctrl+shift","d","New folder","New folder","edit"],
+  ["","Delete","Trash","Move to trash","edit"], ["alt","x","Trash","Move to trash","edit"],
+  ["shift","Delete","Delete","Delete permanently","edit"], ["alt+shift","x","Delete","Delete permanently","edit"],
+  ["ctrl","m","Link","Create link","edit"],
+  ["ctrl","i","Properties","Properties","edit"], ["alt","Return","Properties","Properties","edit"], ["alt","g","Properties","Properties (get info)","edit"],
+  // Select
+  ["ctrl","a","Select all","Select all","select"],
+  ["ctrl+shift","i","Invert","Invert selection","select"], ["ctrl+shift","a","Invert","Invert selection","select"],
+  ["ctrl","s","Select…","Select items matching","select"],
+  // View and panels
+  ["ctrl","1","List","List view","view"], ["alt","1","List","List view","view"],
+  ["alt","2","Tree","Tree view","view"],
+  ["alt","3","Columns","Columns view","view"],
+  ["ctrl","2","Grid","Grid view","view"], ["alt","4","Grid","Grid view","view"],
+  ["alt","r","Flat view","Flat view (everything below)","view"],
+  ["alt+shift","q","Bottom bar","Show bottom bar","view"],
+  ["","F9","Sidebar","Show sidebar","view"], ["alt","q","Sidebar","Show sidebar","view"],
+  ["alt","b","Sidebar","Show sidebar","view",{m:1, only:1, note:"You added Alt+B."}],
+  ["ctrl","plus","Zoom in","Zoom in","view"], ["ctrl+alt","w","Zoom in","Zoom in","view"],
+  ["ctrl","minus","Zoom out","Zoom out","view"], ["ctrl+alt","s","Zoom out","Zoom out","view"],
+  ["ctrl","0","Zoom reset","Reset zoom","view"],
+  ["ctrl","h","Hidden","Show hidden files","view"], ["alt","v","Hidden","Show hidden files","view"],
+  ["","F4","Inspector","Show inspector","view"], ["alt","e","Inspector","Show inspector","view"],
+  ["shift","F4","Move insp.","Move inspector clockwise","view"], ["alt+shift","e","Move insp.","Move inspector clockwise","view"],
+  ["ctrl+shift","F4","Insp. back","Move inspector counterclockwise","view"],
+  ["ctrl","g","Grouping","Next grouping","view"],
+  // Rate and tag
+  ["ctrl+alt","1","★","Rate 1 star","rate"], ["ctrl+alt","2","★★","Rate 2 stars","rate"],
+  ["ctrl+alt","3","★★★","Rate 3 stars","rate"], ["ctrl+alt","4","★★★★","Rate 4 stars","rate"],
+  ["ctrl+alt","5","★★★★★","Rate 5 stars","rate"],
+  ["ctrl+alt","0","No rating","Remove rating","rate"],
+  ["ctrl+alt","asciicircum","No rating","Remove rating","rate",{x:1, note:"Mako binds Ctrl+Alt+` here; on QWERTZ ` is a dead key, so use Ctrl+Alt+0."}],
+  ["ctrl+alt","a","Tags","Edit tags","rate"],
+  ["ctrl+shift","r","Marks","Ratings and tags on grid items","rate"],
+  // App
+  ["","F1","Commands","Commands and shortcuts","app"], ["ctrl","k","Commands","Commands and shortcuts","app"],
+  ["ctrl+shift","p","Commands","Commands and shortcuts","app"],
+  ["ctrl+shift","ssharp","Commands","Commands and shortcuts","app",{note:"Mako binds Ctrl+?, which is Ctrl+Shift+ß on QWERTZ."}],
+  ["shift","F1","Help","Help","app"],
+  ["ctrl","comma","Settings","Preferences","app"],
+  ["","F10","Menu","Main menu","app"],
+  ["shift","F10","Context","Context menu","app"], ["","Menu","Context","Context menu","app"],
+  ["ctrl","q","Quit","Quit","app"],
+
+  // Quick Look (no modifiers)
+  ["ql","space","Close","Close Quick Look","app"],
+  ["ql","Escape","Back / close","Leave the single item, leave full screen, or close","app"],
+  ["ql","Tab","Full screen","Full screen","view"], ["ql","F11","Full screen","Full screen","view"],
+  ["ql","Return","Open","Open the shown or highlighted item","open",{note:"Ctrl+O also opens it."}],
+  ["ql","1","★","Rate 1 star","rate"], ["ql","2","★★","Rate 2 stars","rate"], ["ql","3","★★★","Rate 3 stars","rate"],
+  ["ql","4","★★★★","Rate 4 stars","rate"], ["ql","5","★★★★★","Rate 5 stars","rate"], ["ql","0","No rating","Remove rating","rate"],
+  ["ql","w","Zoom in","Zoom in (pictures, PDFs, canvas)","view"], ["ql","plus","Zoom in","Zoom in","view"],
+  ["ql","s","Zoom out","Zoom out","view"], ["ql","minus","Zoom out","Zoom out","view"],
+  ["ql","q","Fit","Fit to the window","view"],
+  ["ql","z","Real size","Actual size","view"],
+  ["ql","a","Previous","Previous item","nav",{note:"Shift+A steps one frame back in a video."}],
+  ["ql","d","Next","Next item","nav",{note:"Shift+D steps one frame ahead in a video."}],
+  ["ql","Left","Previous","Previous item, or move on the canvas; scrolls a wide PDF","nav"],
+  ["ql","Right","Next","Next item, or move on the canvas; scrolls a wide PDF","nav"],
+  ["ql","Up","Up","Move up on the canvas; scrolls a PDF or text","nav"],
+  ["ql","Down","Down","Move down on the canvas; scrolls a PDF or text","nav"],
+  ["ql","Page_Up","Page up","PDF: one screen up","nav"], ["ql","Page_Down","Page down","PDF: one screen down","nav"],
+  ["ql","Home","Start","PDF: to the start","nav"], ["ql","End","End","PDF: to the end","nav"],
+  ["ql","k","Play","Play / pause","media"],
+  ["ql","j","−5 s","Back 5 seconds","media"], ["ql","l","+5 s","Ahead 5 seconds","media"],
+  ["ql","comma","Frame −","One frame back","media"], ["ql","period","Frame +","One frame ahead","media"],
+  ["ql","less","Frame −","One frame back (Shift+< goes ahead)","media"],
+  ["ql","f","Frame −","One frame back","media"], ["ql","e","Frame +","One frame ahead","media"],
+  ["ql","m","Mute","Mute","media"],
+  ["ql","n","Names","Show names on the canvas","view"],
+  ["ql","t","Marks","Show ratings and tags on the canvas","view"],
+  // Column view
+  ["cols","Left","Up a level","Go up to the parent folder; columns stay where they are","nav"],
+  ["cols","Right","Go in","Go into the selected folder","nav"],
+  ["cols","Up","Previous","Previous item","nav"], ["cols","Down","Next","Next item","nav"],
+  ["cols","Return","Open","Open","open"],
+  ["cols","space","Quick Look","Quick Look","open"],
+];
+
+if (!PERSONAL) {
+  for (let i = B.length - 1; i >= 0; i--) {
+    const f = B[i][5];
+    if (f && f.only) B.splice(i, 1);
+    else if (f && f.m) { delete f.m; delete f.note; }
+  }
+} else {
+  for (let i = B.length - 1; i >= 0; i--) if (B[i][5] && B[i][5].pub) B.splice(i, 1);
+}
+document.querySelectorAll("[data-personal]").forEach(el => { el.hidden = !PERSONAL; });
+document.querySelectorAll("[data-public]").forEach(el => { el.hidden = PERSONAL; });
+
+/* Board: [id, legend, width in u]; null id = gap */
+const MAIN = [
+  [["Escape","Esc",1],[null,"",1],["F1","F1",1],["F2","F2",1],["F3","F3",1],["F4","F4",1],[null,"",.5],
+   ["F5","F5",1],["F6","F6",1],["F7","F7",1],["F8","F8",1],[null,"",.5],["F9","F9",1],["F10","F10",1],["F11","F11",1],["F12","F12",1]],
+  [["asciicircum","^",1],["1","1",1],["2","2",1],["3","3",1],["4","4",1],["5","5",1],["6","6",1],["7","7",1],["8","8",1],["9","9",1],["0","0",1],["ssharp","ß",1],["acute","´",1],["BackSpace","⟵",2]],
+  [["Tab","Tab",1.5],["q","Q",1],["w","W",1],["e","E",1],["r","R",1],["t","T",1],["z","Z",1],["u","U",1],["i","I",1],["o","O",1],["p","P",1],["udiaeresis","Ü",1],["plus","+",1],[null,"",.25]],
+  [["Caps_Lock","Caps",1.75],["a","A",1],["s","S",1],["d","D",1],["f","F",1],["g","G",1],["h","H",1],["j","J",1],["k","K",1],["l","L",1],["odiaeresis","Ö",1],["adiaeresis","Ä",1],["numbersign","#",1]],
+  [["Shift_L","Shift",1.25],["less","<",1],["y","Y",1],["x","X",1],["c","C",1],["v","V",1],["b","B",1],["n","N",1],["m","M",1],["comma",",",1],["period",".",1],["minus","-",1],["Shift_R","Shift",2.75]],
+  [["Control_L","Ctrl",1.25],["Super_L","Super",1.25],["Alt_L","Alt",1.25],["space","",6.25],["AltGr","AltGr",1.25],["Super_R","Super",1.25],["Menu","Menu",1.25],["Control_R","Ctrl",1.25]],
+];
+const NAV = [ // [id, legend, col (u from nav start), row index (0..5)]
+  ["Insert","Ins",0,1],["Home","Home",1,1],["Page_Up","PgUp",2,1],
+  ["Delete","Del",0,2],["End","End",1,2],["Page_Down","PgDn",2,2],
+  ["Up","↑",1,4],["Left","←",0,5],["Down","↓",1,5],["Right","→",2,5],
+];
+const NAME = { Escape:"Esc", Return:"Enter", space:"Space", BackSpace:"Backspace", asciicircum:"^", ssharp:"ß", acute:"´",
+  udiaeresis:"Ü", odiaeresis:"Ö", adiaeresis:"Ä", numbersign:"#", plus:"+", minus:"-", comma:",", period:".", less:"<",
+  Page_Up:"Page Up", Page_Down:"Page Down", Left:"←", Right:"→", Up:"↑", Down:"↓", Delete:"Delete", Insert:"Insert",
+  Home:"Home", End:"End", Menu:"Menu", Tab:"Tab" };
+const MODKEYS = { ctrl:["Control_L","Control_R"], alt:["Alt_L"], shift:["Shift_L","Shift_R"] };
+const CODE = { Escape:"Escape", Backquote:"asciicircum", Minus:"ssharp", Equal:"acute", Backspace:"BackSpace", Tab:"Tab",
+  BracketLeft:"udiaeresis", BracketRight:"plus", Enter:"Return", CapsLock:"Caps_Lock", Semicolon:"odiaeresis",
+  Quote:"adiaeresis", Backslash:"numbersign", IntlBackslash:"less", Comma:"comma", Period:"period", Slash:"minus",
+  ShiftLeft:"Shift_L", ShiftRight:"Shift_R", ControlLeft:"Control_L", ControlRight:"Control_R", AltLeft:"Alt_L",
+  AltRight:"AltGr", MetaLeft:"Super_L", MetaRight:"Super_R", ContextMenu:"Menu", Space:"space", Insert:"Insert",
+  Home:"Home", PageUp:"Page_Up", Delete:"Delete", End:"End", PageDown:"Page_Down", ArrowUp:"Up", ArrowDown:"Down",
+  ArrowLeft:"Left", ArrowRight:"Right", KeyY:"z", KeyZ:"y" };
+for (let i = 1; i <= 12; i++) CODE["F" + i] = "F" + i;
+for (let i = 0; i <= 9; i++) CODE["Digit" + i] = String(i);
+"abcdefghijklmnopqrstuvwx".split("").forEach(c => { if (!CODE["Key" + c.toUpperCase()]) CODE["Key" + c.toUpperCase()] = c; });
+
+const legendOf = {};
+MAIN.forEach(r => r.forEach(([id, lg]) => { if (id) legendOf[id] = lg; }));
+NAV.forEach(([id, lg]) => legendOf[id] = lg);
+const keyName = id => NAME[id] || legendOf[id] || id;
+
+const layerName = id => LAYERS.find(l => l.id === id).name;
+const combo = (layer, key) => {
+  const k = keyName(key);
+  if (layer === "" || layer === "ql" || layer === "cols") return k;
+  return layer.split("+").map(m => m[0].toUpperCase() + m.slice(1)).join("+") + "+" + k;
+};
+
+let state = { layer: "alt", cat: null, sel: null, held: null };
+try { const s = JSON.parse(localStorage.getItem("mako-keymap") || "{}"); if (s.layer !== undefined && LAYERS.some(l => l.id === s.layer)) state.layer = s.layer; } catch (e) {}
+const save = () => { try { localStorage.setItem("mako-keymap", JSON.stringify({ layer: state.layer })); } catch (e) {} };
+
+const shownLayer = () => state.held !== null ? state.held : state.layer;
+const bindingsFor = (layer, key) => B.filter(b => b[0] === layer && b[1] === key);
+
+/* --- Tabs --- */
+const tabsEl = document.getElementById("tabs");
+LAYERS.forEach((l, i) => {
+  if (l.ctx && !LAYERS[i - 1].ctx) { const s = document.createElement("span"); s.className = "tabsep"; tabsEl.append(s); }
+  const t = document.createElement("button");
+  t.className = "tab"; t.setAttribute("role", "tab"); t.id = "tab-" + (l.id || "plain").replace(/\+/g, "-");
+  t.innerHTML = `${l.name}<span class="n">${B.filter(b => b[0] === l.id).length}</span>`;
+  t.addEventListener("click", () => { state.layer = l.id; state.sel = null; save(); render(); });
+  tabsEl.append(t);
+});
+
+/* --- Board --- */
+const board = document.getElementById("board");
+const keyEls = {};
+function addKey(id, lg, col, span, row, rowspan) {
+  const el = document.createElement(id ? "button" : "div");
+  if (!id) { el.style.cssText = `grid-column:${col + 1}/span ${span};grid-row:${row + 1}`; board.append(el); return; }
+  el.className = "key" + (span >= 5 ? " wide" : "") + (lg.length > 2 ? " wide" : "");
+  el.type = "button";
+  el.style.gridColumn = `${col + 1} / span ${span}`;
+  el.style.gridRow = `${row + 1} / span ${rowspan || 1}`;
+  el.innerHTML = `<span class="lg">${lg}</span><span class="act"></span>`;
+  el.addEventListener("mouseenter", () => { if (!state.pinned) { state.sel = id; renderDetail(); markSel(); } });
+  el.addEventListener("focus", () => { state.sel = id; renderDetail(); markSel(); });
+  el.addEventListener("click", () => { state.sel = id; state.pinned = true; renderDetail(); markSel(); });
+  board.append(el);
+  keyEls[id] = el;
+}
+const ROWMAP = [0, 2, 3, 4, 5, 6]; // grid rows (row 1 is the spacer)
+MAIN.forEach((r, ri) => {
+  let x = 0;
+  r.forEach(([id, lg, w]) => { const q = Math.round(w * 4); if (id) addKey(id, lg, x, q, ROWMAP[ri]); x += q; });
+});
+addKey("Return", "Enter", Math.round(13.75 * 4), 5, ROWMAP[2], 2);
+NAV.forEach(([id, lg, c, r]) => addKey(id, lg, 62 + c * 4, 4, ROWMAP[r]));
+board.addEventListener("mouseleave", () => { if (!state.pinned) { state.sel = null; renderDetail(); markSel(); } });
+
+function markSel() { Object.entries(keyEls).forEach(([id, el]) => el.classList.toggle("sel", id === state.sel)); }
+
+/* --- Legend --- */
+const legendEl = document.getElementById("legend");
+Object.entries(CATS).forEach(([c, d]) => {
+  const n = new Set(B.filter(b => b[4] === c).map(b => b[3] + "|" + (b[0] === "ql" || b[0] === "cols" ? b[0] : ""))).size;
+  const ch = document.createElement("button");
+  ch.className = "chip"; ch.type = "button"; ch.id = "cat-" + c;
+  ch.style.setProperty("--k", `var(${d.v})`);
+  ch.innerHTML = `<span class="sw"></span>${d.name}<span class="n">${n}</span>`;
+  ch.addEventListener("click", () => { state.cat = state.cat === c ? null : c; render(); });
+  legendEl.append(ch);
+});
+
+/* --- Detail --- */
+const detail = document.getElementById("detail");
+function renderDetail() {
+  const id = state.sel;
+  if (!id) {
+    const L = shownLayer();
+    const n = B.filter(b => b[0] === L).length;
+    detail.innerHTML = `<h2>${layerName(L)}</h2>
+      <p class="empty">${n} shortcuts on this layer. Point at a key to see everything it does on every layer; click to keep it here.</p>
+      <p class="empty">On your keyboard, hold <kbd>Ctrl</kbd>, <kbd>Alt</kbd> or <kbd>Shift</kbd> to flip the board to that layer.</p>`;
+    return;
+  }
+  const all = B.filter(b => b[1] === id);
+  const items = all.map(b => {
+    const f = b[5] || {};
+    return `<li style="--k:var(${CATS[b[4]].v})"><span class="dot"></span><div>
+      <div class="combo">${b[0] === "ql" ? "Quick Look · " : b[0] === "cols" ? "Column view · " : ""}${combo(b[0], b[1])}${f.m ? ' <span class="mine-tag" style="color:var(--accent);font-weight:700">yours</span>' : ""}</div>
+      <div class="what">${f.x ? "<s>" + b[3] + "</s>" : b[3]}</div>${f.note ? `<div class="note">${f.note}</div>` : ""}</div></li>`;
+  }).join("");
+  detail.innerHTML = `<h2>Key</h2>
+    <div class="dkey"><span class="big">${legendOf[id] || "␣"}</span><span class="name">${keyName(id)}</span></div>
+    ${all.length ? `<ul class="dlist">${items}</ul>` : '<p class="empty">Nothing in Mako uses this key.</p>'}
+    ${state.pinned ? '<p class="empty" style="font-size:12px">Click another key, or press Esc to let go.</p>' : ""}`;
+}
+
+/* --- Full list --- */
+function renderLists() {
+  const lists = document.getElementById("lists");
+  lists.innerHTML = "";
+  const order = [["", "Everywhere"], ["ql", "In Quick Look"], ["cols", "In column view"]];
+  Object.entries(CATS).forEach(([c, d]) => {
+    const rows = [];
+    order.forEach(([ctx]) => {
+      const seen = new Map();
+      B.filter(b => b[4] === c && ((ctx === "" && b[0] !== "ql" && b[0] !== "cols") || b[0] === ctx)).forEach(b => {
+        const k = b[3];
+        if (!seen.has(k)) seen.set(k, []);
+        seen.get(k).push(b);
+      });
+      seen.forEach((bs, what) => rows.push({ ctx, what, bs }));
+    });
+    if (!rows.length) return;
+    const g = document.createElement("div");
+    g.className = "group"; g.style.setProperty("--k", `var(${d.v})`);
+    g.innerHTML = `<h3><span class="sw"></span>${d.name}</h3>` + rows.map(r => {
+      const keys = r.bs.map(b => { const f = b[5] || {}; const k = `<kbd>${combo(b[0], b[1])}</kbd>`; return f.x ? `<s>${k}</s>` : k + (f.m ? '<span class="mine-tag">yours</span>' : ""); });
+      const ctx = r.ctx === "ql" ? "In Quick Look" : r.ctx === "cols" ? "In column view" : "";
+      return `<div class="row"><span class="what">${r.what}${ctx ? `<span class="ctx">${ctx}</span>` : ""}</span><span class="keys">${keys.join('<span class="alt">or</span>')}</span></div>`;
+    }).join("");
+    lists.append(g);
+  });
+  const mouse = document.createElement("div");
+  mouse.className = "group"; mouse.style.setProperty("--k", "var(--c-app)");
+  mouse.innerHTML = `<h3><span class="sw"></span>With the mouse</h3>
+    <div class="row"><span class="what">Rate an item</span><span class="keys"><kbd>Alt</kbd><span class="alt">+ click its stars</span></span></div>
+    <div class="row"><span class="what">Properties</span><span class="keys"><kbd>Alt</kbd><span class="alt">+ double-click</span></span></div>
+    <div class="row"><span class="what">Open folder in a new tab</span><span class="keys"><kbd>Ctrl</kbd><span class="alt">+ double-click, or middle-click</span></span></div>
+    <div class="row"><span class="what">Zoom a PDF in Quick Look</span><span class="keys"><kbd>Ctrl</kbd><span class="alt">+ scroll, or pinch; drag to pan</span></span></div>
+    <div class="row"><span class="what">Resize a column</span><span class="keys"><span class="alt">drag its edge;</span><kbd>Alt</kbd><span class="alt">+ drag sets all</span></span></div>`;
+  lists.append(mouse);
+}
+
+/* --- Board render --- */
+function render() {
+  const L = shownLayer();
+  document.querySelectorAll(".tab").forEach((t, i) => {});
+  LAYERS.forEach(l => { const t = document.getElementById("tab-" + (l.id || "plain").replace(/\+/g, "-")); t.setAttribute("aria-selected", String(l.id === L)); });
+  document.querySelectorAll(".chip").forEach(ch => ch.setAttribute("aria-pressed", String(ch.id === "cat-" + state.cat)));
+  const held = new Set();
+  L.split("+").forEach(m => (MODKEYS[m] || []).forEach(k => held.add(k)));
+  Object.entries(keyEls).forEach(([id, el]) => {
+    const bs = bindingsFor(L, id);
+    const b = bs[0];
+    el.classList.toggle("mod-held", held.has(id));
+    el.classList.remove("on", "off", "dim");
+    el.querySelector(".mine")?.remove(); el.querySelector(".warn")?.remove();
+    const act = el.querySelector(".act");
+    if (b) {
+      const f = b[5] || {};
+      el.classList.add("on");
+      el.style.setProperty("--k", `var(${CATS[b[4]].v})`);
+      act.textContent = b[2];
+      if (f.m) el.insertAdjacentHTML("beforeend", '<i class="mine" aria-label="your key"></i>');
+      if (f.x) el.insertAdjacentHTML("beforeend", '<b class="warn" title="Dead key on QWERTZ">!</b>');
+      if (state.cat && b[4] !== state.cat) el.classList.add("dim");
+      el.setAttribute("aria-label", `${keyName(id)}: ${b[3]}`);
+    } else {
+      act.textContent = "";
+      if (!held.has(id)) el.classList.add("off");
+      if (state.cat && !held.has(id)) el.classList.add("dim");
+      el.setAttribute("aria-label", keyName(id));
+    }
+  });
+  renderDetail();
+  markSel();
+}
+
+/* --- Your own keyboard --- */
+function heldLayer(e) {
+  const parts = [];
+  if (e.ctrlKey) parts.push("ctrl");
+  if (e.altKey) parts.push("alt");
+  if (e.shiftKey) parts.push("shift");
+  const id = parts.join("+") === "alt+shift" ? "alt+shift" : parts.join("+") === "ctrl+shift" ? "ctrl+shift" : parts.join("+");
+  return LAYERS.some(l => l.id === id) ? id : null;
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && state.pinned) { state.pinned = false; state.sel = null; render(); return; }
+  if (["Control", "Alt", "Shift"].includes(e.key)) {
+    e.preventDefault();
+    const h = heldLayer(e);
+    if (h !== null && h !== "") { state.held = h; render(); }
+  }
+  const id = CODE[e.code];
+  if (id && keyEls[id]) { keyEls[id].classList.add("pressed"); if (!["Control","Alt","Shift"].includes(e.key)) { state.sel = id; renderDetail(); markSel(); } }
+});
+document.addEventListener("keyup", e => {
+  const id = CODE[e.code];
+  if (id && keyEls[id]) keyEls[id].classList.remove("pressed");
+  if (["Control", "Alt", "Shift"].includes(e.key)) {
+    e.preventDefault();
+    const h = heldLayer(e);
+    state.held = h && h !== "" ? h : null;
+    render();
+  }
+});
+window.addEventListener("blur", () => { state.held = null; render(); });
+
+renderLists();
+render();
+</script>
+
+</body>
+</html>
