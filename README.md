@@ -151,6 +151,11 @@ keep your right hand on the mouse. GNOME's usual keys still work as well.
 
 **[Keyboard map](https://tommkotzu.github.io/mako/keymap/)**: every shortcut
 on a keyboard, coloured by what it does, with a layer for each modifier and
+
+
+<img width="1617" height="696" alt="image" src="https://github.com/user-attachments/assets/e41ff420-1ab8-441e-a659-9fc7d8aed9a4" />
+
+
 for Quick Look and column view.
 The layout follows a few simple rules:
 
