@@ -10,7 +10,12 @@ self:
 
 let
   cfg = config.programs.mako-files;
-  inherit (lib) mkEnableOption mkIf mkOption types;
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
 in
 {
   options.programs.mako-files = {
@@ -64,6 +69,23 @@ in
         bookmarks file read-only, so bookmarks can no longer be added in Mako.
       '';
     };
+
+    recursiveSearch = mkOption {
+      type = types.nullOr (
+        types.enum [
+          "always"
+          "local-only"
+          "never"
+        ]
+      );
+      default = null;
+      description = ''
+        Override the recursive search policy. null leaves the default
+        (local-only) untouched. "always" searches all subfolders;
+        "local-only" limits recursion to local filesystems; "never"
+        searches only the current folder. Only written when set.
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -84,13 +106,27 @@ in
     xdg.portal = mkIf cfg.fileChooser {
       enable = true;
       extraPortals = [ cfg.package ];
-      config.common."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [ "mako" "gnome" "gtk" ];
-      config.gnome."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [ "mako" "gnome" ];
+      config.common."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [
+        "mako"
+        "gnome"
+        "gtk"
+      ];
+      config.gnome."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [
+        "mako"
+        "gnome"
+      ];
     };
 
-    dconf.settings = mkIf (cfg.settings != { }) {
-      "org/gnome/nautilus/flier" = cfg.settings;
-    };
+    dconf.settings = lib.mkMerge [
+      (lib.mkIf (cfg.settings != { }) {
+        "org/gnome/nautilus/flier" = cfg.settings;
+      })
+      (lib.mkIf (cfg.recursiveSearch != null) {
+        "org/gnome/nautilus/preferences" = {
+          recursive-search = cfg.recursiveSearch;
+        };
+      })
+    ];
 
     gtk.gtk3.bookmarks = mkIf (cfg.bookmarks != [ ]) cfg.bookmarks;
   };
