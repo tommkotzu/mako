@@ -104,7 +104,24 @@ struct _NautilusColumns
     int drag_start;             /* the column's width when the drag began */
     double drag_left;           /* the column's left edge then */
     gboolean drag_all;
+
+    /* Going up a level keeps everything where it is on screen: the strip
+     * doesn't slide back (unless the folder went off the left edge), the
+     * folder's side column covers the middle until the list view has
+     * read it again, and the folder you were in comes back on the right
+     * from a list read before. */
+    gboolean going_up;
+    GFile *expected_child;      /* going up: the folder you came from, selected once the list has read */
+    gboolean scroll_held;       /* the strip stays at scroll, empty on the right if need be */
+    int held_width;
+    GtkWidget *cover;
+    guint cover_timeout_id;
+    guint cover_tick_id;
+    GPtrArray *recent_lists;    /* GtkDirectoryList, most recent last */
 };
+
+#define RECENT_LISTS 8
+#define COVER_TIMEOUT_MS 600
 
 enum
 {
@@ -117,6 +134,9 @@ enum
 static GParamSpec *properties[N_PROPS];
 
 static void slide_from (NautilusColumns *self, double from);
+static void hold_scroll (NautilusColumns *self, double from);
+static void slide (NautilusColumns *self, double from, double to);
+static double slide_target (NautilusColumns *self, int width);
 
 G_DEFINE_TYPE (NautilusColumns, nautilus_columns, GTK_TYPE_WIDGET)
 
@@ -161,10 +181,64 @@ typedef struct
 static void
 column_free (Column *column)
 {
+    GPtrArray *recent = column->columns != NULL ? column->columns->recent_lists : NULL;
+
+    g_signal_handlers_disconnect_by_data (column->list, column);
+    /* Kept for a while, read and monitored, so that the folder can come
+     * back in a column at once. */
+    if (recent != NULL && !gtk_directory_list_is_loading (column->list) &&
+        gtk_directory_list_get_error (column->list) == NULL)
+    {
+        g_ptr_array_add (recent, g_steal_pointer (&column->list));
+        if (recent->len > RECENT_LISTS)
+        {
+            g_ptr_array_remove_index (recent, 0);
+        }
+    }
     g_object_unref (column->directory);
     g_free (column->highlight);
-    g_object_unref (column->list);
+    g_clear_object (&column->list);
     g_free (column);
+}
+
+static GtkDirectoryList *
+take_recent_list (NautilusColumns *self,
+                  GFile           *directory)
+{
+    for (guint i = self->recent_lists->len; i > 0; i--)
+    {
+        GtkDirectoryList *list = g_ptr_array_index (self->recent_lists, i - 1);
+
+        if (g_file_equal (gtk_directory_list_get_file (list), directory))
+        {
+            return g_ptr_array_steal_index (self->recent_lists, i - 1);
+        }
+    }
+    return NULL;
+}
+
+/* Sorted like the list view: by name as people read it ("file-2" before
+ * "file-10"), so a folder keeps its order going from a side column to the
+ * middle one and back. */
+static const char *
+collation_key (GFileInfo *info)
+{
+    static GQuark quark;
+    const char *key;
+
+    if (quark == 0)
+    {
+        quark = g_quark_from_static_string ("nautilus-columns-collation-key");
+    }
+    key = g_object_get_qdata (G_OBJECT (info), quark);
+    if (key == NULL)
+    {
+        char *new_key = g_utf8_collate_key_for_filename (g_file_info_get_display_name (info), -1);
+
+        g_object_set_qdata_full (G_OBJECT (info), quark, new_key, g_free);
+        key = new_key;
+    }
+    return key;
 }
 
 static int
@@ -182,7 +256,7 @@ compare_infos (gconstpointer a,
         return da ? -1 : 1;
     }
 
-    return g_utf8_collate (g_file_info_get_display_name (ia), g_file_info_get_display_name (ib));
+    return strcmp (collation_key (ia), collation_key (ib));
 }
 
 static gboolean
@@ -479,8 +553,12 @@ column_new (NautilusColumns *self,
     column->columns = self;
     column->directory = g_object_ref (directory);
     column->highlight = g_strdup (highlight_name);
-    column->list = gtk_directory_list_new (ATTRIBUTES, directory);
-    gtk_directory_list_set_monitored (column->list, TRUE);
+    column->list = take_recent_list (self, directory);
+    if (column->list == NULL)
+    {
+        column->list = gtk_directory_list_new (ATTRIBUTES, directory);
+        gtk_directory_list_set_monitored (column->list, TRUE);
+    }
     g_object_ref (column->list);
 
     filtered = gtk_filter_list_model_new (G_LIST_MODEL (column->list), filter);
@@ -514,6 +592,12 @@ column_new (NautilusColumns *self,
     gtk_widget_add_css_class (box, "miller-column-box");
     g_object_set_data_full (G_OBJECT (box), "column", column, (GDestroyNotify) column_free);
 
+    /* Already read: no loading to wait for. */
+    if (!gtk_directory_list_is_loading (column->list))
+    {
+        highlight (column);
+    }
+
     return box;
 }
 
@@ -544,6 +628,64 @@ static Column *
 column_of (GtkWidget *box)
 {
     return g_object_get_data (G_OBJECT (box), "column");
+}
+
+static void
+remove_cover (NautilusColumns *self)
+{
+    g_clear_handle_id (&self->cover_timeout_id, g_source_remove);
+    if (self->cover_tick_id != 0)
+    {
+        gtk_widget_remove_tick_callback (GTK_WIDGET (self), self->cover_tick_id);
+        self->cover_tick_id = 0;
+    }
+    g_clear_pointer (&self->cover, gtk_widget_unparent);
+}
+
+static gboolean
+on_cover_timeout (gpointer user_data)
+{
+    NautilusColumns *self = user_data;
+
+    self->cover_timeout_id = 0;
+    remove_cover (self);
+    return G_SOURCE_REMOVE;
+}
+
+/* At the next frame, when the list view lays out what it read. */
+static gboolean
+on_cover_tick (GtkWidget     *widget,
+               GdkFrameClock *clock,
+               gpointer       user_data)
+{
+    NautilusColumns *self = NAUTILUS_COLUMNS (widget);
+
+    self->cover_tick_id = 0;
+    remove_cover (self);
+    return G_SOURCE_REMOVE;
+}
+
+static void
+on_content_loading (NautilusColumns *self)
+{
+    if (self->cover != NULL && self->cover_tick_id == 0 &&
+        NAUTILUS_IS_FILES_VIEW (self->content) &&
+        !nautilus_files_view_get_loading (NAUTILUS_FILES_VIEW (self->content)))
+    {
+        self->cover_tick_id = gtk_widget_add_tick_callback (GTK_WIDGET (self), on_cover_tick, NULL, NULL);
+    }
+}
+
+/* The side column of the folder now in the middle stays on top of it. */
+static void
+set_cover (NautilusColumns *self,
+           GtkWidget       *box)
+{
+    remove_cover (self);
+    self->cover = box;
+    gtk_widget_set_can_target (box, FALSE);
+    gtk_widget_insert_before (box, GTK_WIDGET (self), NULL);
+    self->cover_timeout_id = g_timeout_add (COVER_TIMEOUT_MS, on_cover_timeout, self);
 }
 
 static void
@@ -605,6 +747,18 @@ update_parents (NautilusColumns *self)
         }
         dir = g_ptr_array_index (chain, i);
     }
+    remove_cover (self);
+    if (self->going_up && self->parents->len > chain->len &&
+        NAUTILUS_IS_FILES_VIEW (self->content))
+    {
+        GtkWidget *box = g_ptr_array_index (self->parents, chain->len);
+
+        if (g_file_equal (column_of (box)->directory, location))
+        {
+            g_ptr_array_remove_index (self->parents, chain->len);
+            set_cover (self, box);
+        }
+    }
     clear_parents (self, chain->len);
     gtk_widget_queue_allocate (GTK_WIDGET (self));
 }
@@ -626,6 +780,19 @@ update_child (NautilusColumns *self)
     }
 
     gboolean folder = file != NULL && nautilus_file_is_directory (file);
+
+    /* Going up, the list view selects the folder you came from once it has
+     * read the folder: show it on the right now, as it was on screen. */
+    if (item == NULL && self->expected_child != NULL && location != NULL &&
+        g_file_has_parent (self->expected_child, location))
+    {
+        item = g_object_ref (self->expected_child);
+        folder = TRUE;
+    }
+    else if (item != NULL)
+    {
+        g_clear_object (&self->expected_child);
+    }
 
     if ((item == NULL && self->child_item == NULL) ||
         (item != NULL && self->child_item != NULL && g_file_equal (item, self->child_item)))
@@ -695,6 +862,9 @@ update (gpointer user_data)
     }
 
     double from = self->scroll;
+    GFile *location = nautilus_window_slot_get_location (self->slot);
+    gboolean new_location = self->shown_location == NULL || location == NULL ||
+                            !g_file_equal (self->shown_location, location);
     gboolean same_root = self->laid_root != NULL && self->root != NULL &&
                          g_file_equal (self->laid_root, self->root);
 
@@ -704,15 +874,32 @@ update (gpointer user_data)
     select_first_item (self);
     update_child (self);
     g_set_object (&self->laid_root, self->root);
-    /* Within the same strip, slide; a new one starts where it belongs. */
-    if (same_root)
+    /* Within the same strip, slide; a new one starts where it belongs.
+     * Going up, the strip stays, unless the folder is off the left edge. */
+    if (same_root && new_location && self->going_up)
+    {
+        hold_scroll (self, from);
+    }
+    else if (same_root && self->scroll_held && !new_location)
+    {
+        /* Still held: only as far as needed to show a column on the right. */
+        int width = gtk_widget_get_width (GTK_WIDGET (self));
+
+        if (width > 0)
+        {
+            slide (self, from, MAX (from, slide_target (self, width)));
+        }
+    }
+    else if (same_root)
     {
         slide_from (self, from);
     }
     else
     {
+        self->scroll_held = FALSE;
         adw_animation_reset (self->scroll_animation);
     }
+    self->going_up = FALSE;
 
     return G_SOURCE_REMOVE;
 }
@@ -737,6 +924,22 @@ on_location_for_root (NautilusColumns *self)
      * gets selected, so the highlight is there without pressing Down. */
     self->select_first = inside && !self->revealing && self->previous_location != NULL &&
                          g_file_has_parent (location, self->previous_location);
+    self->going_up = inside && self->previous_location != NULL &&
+                     g_file_has_prefix (self->previous_location, location);
+    g_clear_object (&self->expected_child);
+    if (self->going_up)
+    {
+        g_autoptr (GFile) step = g_object_ref (self->previous_location);
+
+        while (step != NULL && !g_file_has_parent (step, location))
+        {
+            GFile *up = g_file_get_parent (step);
+
+            g_object_unref (step);
+            step = up;
+        }
+        self->expected_child = g_steal_pointer (&step);
+    }
     self->revealing = FALSE;
     g_set_object (&self->previous_location, location);
 
@@ -1081,6 +1284,8 @@ on_key_pressed (GtkEventControllerKey *controller,
     {
         self->last_input = g_get_monotonic_time ();
     }
+    /* Keys move the selection under it. */
+    remove_cover (self);
 
     if (!columns_on (self) || (state & gtk_accelerator_get_default_mod_mask ()) != 0 ||
         focus == NULL || GTK_IS_EDITABLE (focus) || GTK_IS_TEXT_VIEW (focus) ||
@@ -1127,12 +1332,14 @@ nautilus_columns_set_content (NautilusColumns *self,
         if (NAUTILUS_IS_FILES_VIEW (content))
         {
             g_signal_connect_swapped (content, "notify::loading", G_CALLBACK (select_first_item), self);
+            g_signal_connect_swapped (content, "notify::loading", G_CALLBACK (on_content_loading), self);
         }
         gtk_widget_insert_before (content, GTK_WIDGET (self), self->child_column);
         gtk_widget_set_hexpand (content, TRUE);
     }
 
     g_clear_object (&self->shown_location);
+    remove_cover (self);
     clear_parents (self, 0);
     schedule_update (self);
 }
@@ -1141,6 +1348,7 @@ static void
 on_any_press (NautilusColumns *self)
 {
     self->last_input = g_get_monotonic_time ();
+    remove_cover (self);
 }
 
 static void
@@ -1252,6 +1460,56 @@ on_slide (double           value,
     gtk_widget_queue_allocate (GTK_WIDGET (self));
 }
 
+static void
+slide (NautilusColumns *self,
+       double           from,
+       double           to)
+{
+    if (G_APPROX_VALUE (from, to, 0.5))
+    {
+        self->scroll = to;
+        return;
+    }
+    adw_animation_reset (self->scroll_animation);
+    adw_timed_animation_set_value_from (ADW_TIMED_ANIMATION (self->scroll_animation), from);
+    adw_timed_animation_set_value_to (ADW_TIMED_ANIMATION (self->scroll_animation), to);
+    self->scroll = from;
+    adw_animation_play (self->scroll_animation);
+}
+
+/* Where the middle column starts on the strip. */
+static double
+content_left (NautilusColumns *self,
+              int              width)
+{
+    Layout l;
+    double x = 0;
+
+    compute_layout (self, width, &l);
+    for (guint i = 0; i < self->parents->len; i++)
+    {
+        x += LAYOUT_WIDTH (self, &l, i);
+    }
+    return x;
+}
+
+/* Keeps the strip where it is, sliding only to bring the middle column
+ * back from past the left edge. */
+static void
+hold_scroll (NautilusColumns *self,
+             double           from)
+{
+    int width = gtk_widget_get_width (GTK_WIDGET (self));
+
+    if (width <= 0 || !gtk_widget_get_mapped (GTK_WIDGET (self)))
+    {
+        return;
+    }
+    self->scroll_held = TRUE;
+    self->held_width = width;
+    slide (self, from, MAX (0, MIN (from, content_left (self, width))));
+}
+
 /* Slides the strip from where it was to where it now has to be. */
 static void
 slide_from (NautilusColumns *self,
@@ -1260,6 +1518,7 @@ slide_from (NautilusColumns *self,
     int width = gtk_widget_get_width (GTK_WIDGET (self));
     double to;
 
+    self->scroll_held = FALSE;
     if (width <= 0 || !gtk_widget_get_mapped (GTK_WIDGET (self)))
     {
         return;
@@ -1338,6 +1597,10 @@ nautilus_columns_size_allocate (GtkWidget *widget,
         }
         gtk_widget_set_child_visible (self->content_title, FALSE);
         gtk_widget_set_child_visible (self->child_column, FALSE);
+        if (self->cover != NULL)
+        {
+            gtk_widget_set_child_visible (self->cover, FALSE);
+        }
         if (has_content)
         {
             gtk_widget_size_allocate (self->content, &(GtkAllocation) { 0, 0, width, height }, -1);
@@ -1350,7 +1613,12 @@ nautilus_columns_size_allocate (GtkWidget *widget,
     }
 
     compute_layout (self, width, &l);
-    if (!self->dragging && adw_animation_get_state (self->scroll_animation) != ADW_ANIMATION_PLAYING)
+    if (self->scroll_held && width != self->held_width)
+    {
+        self->scroll_held = FALSE;
+    }
+    if (!self->dragging && !self->scroll_held &&
+        adw_animation_get_state (self->scroll_animation) != ADW_ANIMATION_PLAYING)
     {
         self->scroll = slide_target (self, width);
     }
@@ -1370,6 +1638,10 @@ nautilus_columns_size_allocate (GtkWidget *widget,
     if (has_content)
     {
         place (self->content, x, title_h, l.content, height - title_h, width);
+    }
+    if (self->cover != NULL)
+    {
+        place (self->cover, x, 0, l.content, height, width);
     }
     x += l.content;
     place_handle (self, &n_handles, x, width, height, n_parents, l.content);
@@ -1558,6 +1830,7 @@ nautilus_columns_init (NautilusColumns *self)
     gtk_widget_set_overflow (GTK_WIDGET (self), GTK_OVERFLOW_HIDDEN);
 
     self->parents = g_ptr_array_new ();
+    self->recent_lists = g_ptr_array_new_with_free_func (g_object_unref);
 
     controller = GTK_EVENT_CONTROLLER (gtk_gesture_click_new ());
     gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (controller), 0);
@@ -1663,6 +1936,7 @@ nautilus_columns_dispose (GObject *object)
     GtkWidget *child;
 
     g_clear_handle_id (&self->update_id, g_source_remove);
+    remove_cover (self);
     g_clear_weak_pointer (&self->slot);
     g_clear_object (&self->shown_location);
     g_clear_object (&self->child_shown);
@@ -1670,6 +1944,7 @@ nautilus_columns_dispose (GObject *object)
     g_clear_object (&self->root);
     g_clear_object (&self->laid_root);
     g_clear_object (&self->previous_location);
+    g_clear_object (&self->expected_child);
     if (self->content != NULL)
     {
         g_signal_handlers_disconnect_by_data (self->content, self);
@@ -1682,6 +1957,7 @@ nautilus_columns_dispose (GObject *object)
     {
         gtk_widget_unparent (child);
     }
+    g_clear_pointer (&self->recent_lists, g_ptr_array_unref);
 
     G_OBJECT_CLASS (nautilus_columns_parent_class)->dispose (object);
 }
