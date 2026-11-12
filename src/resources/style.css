@@ -450,6 +450,12 @@ nautilus-inspector preferencesgroup list.boxed-list { background: none; box-shad
 nautilus-inspector preferencesgroup list.boxed-list > row { background: none; border-radius: 0; min-height: 0; padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
 nautilus-inspector preferencesgroup list.boxed-list > row:last-child { border-bottom: none; }
 nautilus-inspector .inspector-detail label { font-size: 8.5pt; }
+nautilus-inspector.density-comfortable .inspector-detail label { font-size: 9.5pt; }
+nautilus-inspector.density-comfortable preferencesgroup list.boxed-list > row { padding: 7px 2px; }
+nautilus-inspector.density-dense .inspector-detail label { font-size: 8pt; }
+nautilus-inspector.density-dense preferencesgroup list.boxed-list > row { padding: 2px 2px; }
+nautilus-inspector.density-dense .inspector-name { font-size: 11pt; }
+nautilus-inspector.density-dense .star { min-height: 24px; }
 nautilus-inspector .inspector-detail-key { color: color-mix(in srgb, var(--window-fg-color) 55%, transparent); }
 
 /* Miller columns */

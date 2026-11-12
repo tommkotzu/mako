@@ -32,6 +32,8 @@ struct _NautilusInspector
 {
     GtkWidget parent_instance;
 
+    GtkWidget *content;        /* the scrolled column: name, preview, details */
+
     NautilusWindowSlot *slot;  /* weak */
     gulong selection_id;
     gulong location_id;
@@ -537,11 +539,103 @@ on_canvas_item_activated (NautilusQlCanvas  *canvas,
     gtk_widget_activate_action (GTK_WIDGET (self), "view.preview-selection", NULL);
 }
 
+/* ----------------------------------------------- Density, and the menu */
+
+static void
+apply_density (NautilusInspector *self)
+{
+    g_autofree char *density = g_settings_get_string (nautilus_flier_settings (), "inspector-density");
+    gboolean comfortable = g_str_equal (density, "comfortable");
+    gboolean dense = g_str_equal (density, "dense");
+
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "density-comfortable");
+    gtk_widget_remove_css_class (GTK_WIDGET (self), "density-dense");
+    if (comfortable || dense)
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (self), comfortable ? "density-comfortable" : "density-dense");
+    }
+    gtk_box_set_spacing (GTK_BOX (self->content), comfortable ? 14 : dense ? 4 : 8);
+    /* Exactly this tall: room left over stays below the details. */
+    gtk_widget_set_vexpand (GTK_WIDGET (self->preview), FALSE);
+    gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, comfortable ? 280 : dense ? 170 : 220);
+}
+
+static void
+on_context_pressed (GtkGestureClick   *click,
+                    int                n_press,
+                    double             x,
+                    double             y,
+                    NautilusInspector *self)
+{
+    g_autoptr (GMenu) menu = g_menu_new ();
+    g_autoptr (GMenu) density = g_menu_new ();
+    g_autoptr (GMenu) show = g_menu_new ();
+    g_autoptr (GMenu) side = g_menu_new ();
+    g_autoptr (GMenu) pop = g_menu_new ();
+    GtkWidget *popover;
+
+    gtk_gesture_set_state (GTK_GESTURE (click), GTK_EVENT_SEQUENCE_CLAIMED);
+
+    g_menu_append (density, _("Comfortable"), "inspector.inspector-density::comfortable");
+    g_menu_append (density, _("Compact"), "inspector.inspector-density::compact");
+    g_menu_append (density, _("Dense"), "inspector.inspector-density::dense");
+    g_menu_append_section (menu, _("Density"), G_MENU_MODEL (density));
+
+    g_menu_append (show, _("Show Ratings"), "inspector.ratings");
+    g_menu_append (show, _("Show Tags"), "inspector.tags");
+    g_menu_append_section (menu, NULL, G_MENU_MODEL (show));
+
+    g_menu_append (side, _("Right"), "win.inspector-side::right");
+    g_menu_append (side, _("Left"), "win.inspector-side::left");
+    g_menu_append (side, _("Bottom"), "win.inspector-side::bottom");
+    g_menu_append (side, _("Top"), "win.inspector-side::top");
+    g_menu_append_section (menu, _("Dock"), G_MENU_MODEL (side));
+
+    g_menu_append (pop, _("Pop Out"), "win.inspector-pop-out");
+    g_menu_append_section (menu, NULL, G_MENU_MODEL (pop));
+
+    popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (menu));
+    gtk_widget_set_parent (popover, GTK_WIDGET (self));
+    gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
+    gtk_widget_set_halign (popover, GTK_ALIGN_START);
+    gtk_popover_set_pointing_to (GTK_POPOVER (popover), &(GdkRectangle) { (int) x, (int) y, 1, 1 });
+    g_signal_connect (popover, "closed", G_CALLBACK (gtk_widget_unparent), NULL);
+    gtk_popover_popup (GTK_POPOVER (popover));
+}
+
+static void
+setup_menu (NautilusInspector *self)
+{
+    GSimpleActionGroup *group = g_simple_action_group_new ();
+    GtkGesture *click = gtk_gesture_click_new ();
+    const char *keys[] = { "inspector-density", "ratings", "tags" };
+
+    /* Settings actions, named after their keys. */
+    for (guint i = 0; i < G_N_ELEMENTS (keys); i++)
+    {
+        g_autoptr (GAction) action = g_settings_create_action (nautilus_flier_settings (), keys[i]);
+
+        g_action_map_add_action (G_ACTION_MAP (group), action);
+    }
+    gtk_widget_insert_action_group (GTK_WIDGET (self), "inspector", G_ACTION_GROUP (group));
+    g_object_unref (group);
+
+    gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), GDK_BUTTON_SECONDARY);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (click), GTK_PHASE_CAPTURE);
+    g_signal_connect (click, "pressed", G_CALLBACK (on_context_pressed), self);
+    gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (click));
+
+    g_signal_connect_object (nautilus_flier_settings (), "changed::inspector-density",
+                             G_CALLBACK (apply_density), self, G_CONNECT_SWAPPED);
+    apply_density (self);
+}
+
 static void
 nautilus_inspector_init (NautilusInspector *self)
 {
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
 
+    self->content = box;
     gtk_widget_add_css_class (GTK_WIDGET (self), "inspector");
     gtk_orientable_set_orientation (GTK_ORIENTABLE (gtk_widget_get_layout_manager (GTK_WIDGET (self))),
                                     GTK_ORIENTATION_VERTICAL);
@@ -576,7 +670,6 @@ nautilus_inspector_init (NautilusInspector *self)
     gtk_widget_add_css_class (GTK_WIDGET (self->preview), "card");
     gtk_widget_add_css_class (GTK_WIDGET (self->preview), "inspector-preview");
     gtk_widget_set_overflow (GTK_WIDGET (self->preview), GTK_OVERFLOW_HIDDEN);
-    gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, 240);
     gtk_stack_set_vhomogeneous (self->preview, TRUE);
 
     self->canvas = NAUTILUS_QL_CANVAS (nautilus_ql_canvas_new ());
@@ -610,11 +703,18 @@ nautilus_inspector_init (NautilusInspector *self)
     gtk_label_set_justify (self->name, GTK_JUSTIFY_CENTER);
     gtk_label_set_selectable (self->name, TRUE);
     gtk_widget_add_css_class (GTK_WIDGET (self->name), "title-4");
+    gtk_widget_add_css_class (GTK_WIDGET (self->name), "inspector-name");
+    /* Selectable with the mouse, but not focused (and so all selected)
+     * when a menu closes over it. */
+    gtk_widget_set_focusable (GTK_WIDGET (self->name), FALSE);
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (self->name));
 
     self->summary = GTK_LABEL (gtk_label_new (NULL));
     gtk_widget_add_css_class (GTK_WIDGET (self->summary), "dim-label");
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (self->summary));
+
+    /* The name and summary go above the preview. */
+    gtk_box_reorder_child_after (GTK_BOX (box), GTK_WIDGET (self->preview), GTK_WIDGET (self->summary));
 
     /* Stars */
     self->rating_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
@@ -647,6 +747,7 @@ nautilus_inspector_init (NautilusInspector *self)
     gtk_widget_set_parent (self->scroller, GTK_WIDGET (self));
     gtk_widget_set_parent (self->header, GTK_WIDGET (self));
 
+    setup_menu (self);
     g_signal_connect (self, "map", G_CALLBACK (on_map), NULL);
     g_signal_connect (self, "unmap", G_CALLBACK (on_unmap), NULL);
     g_signal_connect_object (nautilus_flier_settings (), "changed::ratings",

@@ -182,6 +182,16 @@
       <summary>Inspector side</summary>
       <description>Which side of the window the inspector is docked to.</description>
     </key>
+    <key type="s" name="inspector-density">
+      <choices>
+        <choice value="comfortable"/>
+        <choice value="compact"/>
+        <choice value="dense"/>
+      </choices>
+      <default>'compact'</default>
+      <summary>Inspector density</summary>
+      <description>How much room the inspector gives its preview and details.</description>
+    </key>
     <key type="i" name="sidebar-width">
       <range min="0" max="600"/>
       <default>0</default>
