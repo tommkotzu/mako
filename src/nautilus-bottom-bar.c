@@ -20,6 +20,7 @@
 #include "nautilus-columns.h"
 #include "nautilus-file.h"
 #include "nautilus-labels.h"
+#include "nautilus-progress-popup.h"
 #include "nautilus-query-editor.h"
 #include "nautilus-toolbar-menu-sections.h"
 #include "nautilus-view-item.h"
@@ -510,6 +511,8 @@ nautilus_bottom_bar_init (NautilusBottomBar *self)
     gtk_widget_set_valign (linked, GTK_ALIGN_CENTER);
     gtk_box_append (GTK_BOX (linked), self->stack);
     gtk_box_append (GTK_BOX (self->box), linked);
+    /* The minimized file operations card. */
+    gtk_box_append (GTK_BOX (self->box), nautilus_progress_mini_new ());
     /* A plain icon like the buttons after it, not a pill joined to the entry. */
     gtk_widget_add_css_class (self->sort_button, "flat");
     gtk_box_append (GTK_BOX (self->box), self->sort_button);

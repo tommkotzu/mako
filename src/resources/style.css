@@ -614,3 +614,18 @@ window.mako-translucent * {
   padding: 6px 8px;
   color: color-mix(in srgb, currentColor 85%, transparent);
 }
+
+/* The minimized file operations card, in the bottom bar */
+.progress-mini {
+  padding: 0 8px;
+  min-height: 0;
+}
+.progress-mini progressbar,
+.progress-mini progressbar > trough {
+  min-width: 64px;
+}
+.progress-mini progressbar > trough,
+.progress-mini progressbar > trough > progress {
+  min-height: 4px;
+  border-radius: 2px;
+}

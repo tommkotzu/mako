@@ -14,4 +14,8 @@ G_BEGIN_DECLS
 
 G_DECLARE_FINAL_TYPE (NautilusProgressPopup, nautilus_progress_popup, NAUTILUS, PROGRESS_POPUP, AdwBin)
 
+/* The minimized card: a small progress bar for the bottom bar. Shown while
+ * operations run and the card is minimized; a click brings the card back. */
+GtkWidget *nautilus_progress_mini_new (void);
+
 G_END_DECLS

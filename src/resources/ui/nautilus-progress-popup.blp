@@ -36,6 +36,18 @@ template $NautilusProgressPopup: Adw.Bin {
         ]
       }
 
+      Button {
+        tooltip-text: _("Minimize to the Bottom Bar");
+        icon-name: "window-minimize-symbolic";
+        valign: center;
+        clicked => $on_minimize_clicked(template);
+
+        styles [
+          "flat",
+          "circular",
+        ]
+      }
+
       Button collapse_button {
         tooltip-text: _("Hide Details");
         icon-name: "pan-down-symbolic";
