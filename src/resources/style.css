@@ -439,7 +439,6 @@ nautilus-inspector { background-color: var(--view-bg-color); }
 .inspector-header:hover .inspector-grip { background-color: alpha(currentColor, 0.45); }
 .inspector-drop { background-color: color-mix(in srgb, var(--accent-bg-color) 25%, transparent); border: 2px solid var(--accent-bg-color); border-radius: 12px; margin: 6px; }
 .inspector-drop label { font-weight: bold; }
-nautilus-inspector .star { min-width: 28px; padding-left: 2px; padding-right: 2px; }
 /* Stars and tags in off-white, quieter than the name above them. */
 nautilus-inspector .star,
 nautilus-inspector .inspector-tag,
@@ -457,11 +456,12 @@ nautilus-inspector.density-comfortable preferencesgroup list.boxed-list > row { 
 /* Compact (default) */
 nautilus-inspector .inspector-name { font-size: 12pt; }
 nautilus-inspector.density-comfortable .inspector-name { font-size: 14pt; }
-nautilus-inspector .star { min-height: 26px; -gtk-icon-size: 14px; }
-nautilus-inspector.density-comfortable .star { min-height: 32px; -gtk-icon-size: 16px; }
+nautilus-inspector .star { min-width: 22px; min-height: 22px; -gtk-icon-size: 13px; padding: 0 1px; }
+nautilus-inspector.density-comfortable .star { min-width: 26px; min-height: 26px; -gtk-icon-size: 15px; }
+nautilus-inspector .inspector-widget-line { padding-top: 1px; padding-bottom: 1px; }
 nautilus-inspector .inspector-tag,
 nautilus-inspector .inspector-tags-edit { font-size: 9.5pt; }
-nautilus-inspector .inspector-tags-edit { min-height: 24px; padding-top: 0; padding-bottom: 0; }
+nautilus-inspector .inspector-tags-edit { min-height: 22px; padding: 0 6px; }
 nautilus-inspector.density-comfortable .inspector-tag,
 nautilus-inspector.density-comfortable .inspector-tags-edit { font-size: 11pt; }
 /* Dense */

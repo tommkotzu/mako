@@ -55,6 +55,8 @@ struct _NautilusInspector
     GtkLabel *name;
     GtkLabel *summary;
     GtkWidget *rating_box;
+    GtkWidget *rating_row;
+    GtkWidget *tags_row;
     GtkWidget *stars[5];
     GtkWidget *tags_box;
     AdwPreferencesGroup *details;
@@ -116,6 +118,29 @@ add_detail (NautilusInspector *self,
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
     adw_preferences_group_add (self->details, row);
     self->detail_rows = g_list_append (self->detail_rows, row);
+}
+
+/* A detail line whose value is a widget (the stars, the tags). */
+static GtkWidget *
+widget_line (const char *title,
+             GtkWidget  *value)
+{
+    GtkWidget *row = gtk_list_box_row_new ();
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+    GtkWidget *key = gtk_label_new (title);
+
+    gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+    gtk_widget_add_css_class (row, "inspector-detail");
+    gtk_widget_add_css_class (row, "inspector-widget-line");
+    gtk_label_set_xalign (GTK_LABEL (key), 0);
+    gtk_widget_add_css_class (key, "inspector-detail-key");
+    gtk_widget_set_hexpand (value, TRUE);
+    gtk_widget_set_halign (value, GTK_ALIGN_END);
+    gtk_box_append (GTK_BOX (box), key);
+    gtk_box_append (GTK_BOX (box), value);
+    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
+
+    return row;
 }
 
 static void
@@ -220,7 +245,7 @@ update_marks (NautilusInspector *self)
         }
     }
 
-    gtk_widget_set_visible (self->rating_box, writable && g_settings_get_boolean (flier, "ratings"));
+    gtk_widget_set_visible (self->rating_row, writable && g_settings_get_boolean (flier, "ratings"));
     for (guint i = 0; i < 5; i++)
     {
         gtk_button_set_icon_name (GTK_BUTTON (self->stars[i]),
@@ -257,14 +282,14 @@ update_marks (NautilusInspector *self)
 
     if (tags_on)
     {
-        GtkWidget *edit = gtk_button_new_with_mnemonic (_("_Tags…"));
+        GtkWidget *edit = gtk_button_new_with_label (tags != NULL && tags[0] != NULL ? _("Edit…") : _("Add…"));
 
         gtk_widget_add_css_class (edit, "flat");
         gtk_widget_add_css_class (edit, "inspector-tags-edit");
         gtk_actionable_set_action_name (GTK_ACTIONABLE (edit), "view.edit-tags");
         gtk_box_append (GTK_BOX (self->tags_box), edit);
     }
-    gtk_widget_set_visible (self->tags_box, tags_on);
+    gtk_widget_set_visible (self->tags_row, tags_on);
 }
 
 static void
@@ -737,7 +762,6 @@ nautilus_inspector_init (NautilusInspector *self)
 
     /* Stars */
     self->rating_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_set_halign (self->rating_box, GTK_ALIGN_CENTER);
     for (guint i = 0; i < 5; i++)
     {
         self->stars[i] = gtk_button_new_from_icon_name ("non-starred-symbolic");
@@ -747,15 +771,17 @@ nautilus_inspector_init (NautilusInspector *self)
         g_signal_connect (self->stars[i], "clicked", G_CALLBACK (on_star_clicked), self);
         gtk_box_append (GTK_BOX (self->rating_box), self->stars[i]);
     }
-    gtk_box_append (GTK_BOX (box), self->rating_box);
 
     /* Tags */
     self->tags_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
-    gtk_widget_set_halign (self->tags_box, GTK_ALIGN_CENTER);
-    gtk_box_append (GTK_BOX (box), self->tags_box);
 
-    /* Details */
+    /* Details, with the stars and tags as their first lines (the other
+     * lines are added after them for each file). */
     self->details = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
+    self->rating_row = widget_line (_("Rating"), self->rating_box);
+    adw_preferences_group_add (self->details, self->rating_row);
+    self->tags_row = widget_line (_("Tags"), self->tags_box);
+    adw_preferences_group_add (self->details, self->tags_row);
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (self->details));
 
 
