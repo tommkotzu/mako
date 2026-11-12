@@ -60,6 +60,7 @@
 #include "nautilus-mime-actions.h"
 #include "nautilus-module.h"
 #include "nautilus-progress-indicator.h"
+#include "nautilus-progress-popup.h"
 #include "nautilus-scheme.h"
 #include "nautilus-shortcut-manager.h"
 #include "nautilus-sidebar.h"
@@ -114,6 +115,7 @@ struct _NautilusWindow
     AdwTabPage *menu_page;
     NautilusTileLayout *tile_layout;
     GtkPaned *inspector_paned;
+    GtkWidget *files_overlay; /* the tiles, with the file operations card over them */
     GtkWidget *inspector;
     GtkWidget *mode_columns;    /* weak; the active slot's, for win.view-mode */
     gboolean inspector_placed;
@@ -3054,7 +3056,7 @@ arrange_inspector (NautilusWindow *window)
     InspectorSide side = g_settings_get_enum (flier, "inspector-side");
     gboolean visible = g_settings_get_boolean (flier, "inspector-visible");
     GtkPaned *paned = window->inspector_paned;
-    GtkWidget *layout = GTK_WIDGET (window->tile_layout);
+    GtkWidget *layout = window->files_overlay;
     gboolean first = side == INSPECTOR_LEFT || side == INSPECTOR_TOP;
     gboolean was_floating = window->inspector_window != NULL;
     GtkWidget *start;
@@ -3459,9 +3461,12 @@ setup_inspector (NautilusWindow *window)
                                GTK_EVENT_CONTROLLER (drag));
 
     /* In the tiles' place in the template. */
+    window->files_overlay = gtk_overlay_new ();
+    gtk_overlay_add_overlay (GTK_OVERLAY (window->files_overlay), g_object_new (NAUTILUS_TYPE_PROGRESS_POPUP, NULL));
     g_object_ref (layout);
     adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (parent), window->inspector_overlay);
-    gtk_paned_set_start_child (window->inspector_paned, layout);
+    gtk_overlay_set_child (GTK_OVERLAY (window->files_overlay), layout);
+    gtk_paned_set_start_child (window->inspector_paned, window->files_overlay);
     g_object_unref (layout);
     arrange_inspector (window);
 
@@ -3643,6 +3648,7 @@ nautilus_window_init (NautilusWindow *window)
     g_type_ensure (NAUTILUS_TYPE_TILE_LAYOUT);
     g_type_ensure (NAUTILUS_TYPE_PLACES_SIDEBAR);
     g_type_ensure (NAUTILUS_TYPE_PROGRESS_INDICATOR);
+    g_type_ensure (NAUTILUS_TYPE_PROGRESS_POPUP);
     g_type_ensure (NAUTILUS_TYPE_SHORTCUT_MANAGER);
     gtk_widget_init_template (GTK_WIDGET (window));
     speed_up_sidebar (window);

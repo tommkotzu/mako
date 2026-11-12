@@ -32,6 +32,7 @@
     <file preprocess="xml-stripblanks">ui/nautilus-new-folder-dialog.ui</file>
     <file preprocess="xml-stripblanks">ui/nautilus-operations-ui-manager-request-passphrase.ui</file>
     <file preprocess="xml-stripblanks">ui/nautilus-progress-indicator.ui</file>
+    <file preprocess="xml-stripblanks">ui/nautilus-progress-popup.ui</file>
     <file preprocess="xml-stripblanks">ui/nautilus-progress-info-widget.ui</file>
     <file preprocess="xml-stripblanks">ui/nautilus-properties-widget.ui</file>
     <file preprocess="xml-stripblanks">ui/nautilus-properties-window.ui</file>

@@ -50,6 +50,16 @@
       <summary>Stars in column view</summary>
       <description>Show the star for starring files on every row in column view, as in the list view.</description>
     </key>
+    <key type="b" name="queue-transfers">
+      <default>true</default>
+      <summary>Copy one after another</summary>
+      <description>When you copy or move while another copy is running, wait for it to finish instead of running both at once.</description>
+    </key>
+    <key type="b" name="progress-popup">
+      <default>true</default>
+      <summary>Progress panel</summary>
+      <description>Show copies, moves and other file operations in a panel in the corner of the window while they run.</description>
+    </key>
     <key type="b" name="ratings">
       <default>true</default>
       <summary>Ratings</summary>

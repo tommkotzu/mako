@@ -539,3 +539,10 @@ window.density-extra-dense nautilus-columns .miller-column > row { padding-top: 
 window.sidebar-density-compact placessidebar .navigation-sidebar > row { min-height: 30px; }
 window.sidebar-density-dense placessidebar .navigation-sidebar > row { min-height: 26px; margin-bottom: 1px; }
 window.sidebar-density-extra-dense placessidebar .navigation-sidebar > row { min-height: 22px; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+
+/* The file operations card in the corner of the window */
+.progress-popup {
+  background-color: var(--popover-bg-color);
+  color: var(--popover-fg-color);
+  box-shadow: 0 2px 8px 2px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.08);
+}

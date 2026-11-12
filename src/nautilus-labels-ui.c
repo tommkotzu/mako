@@ -754,6 +754,19 @@ nautilus_labels_preferences_page_new (void)
                                                "run-in-background"));
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
+    /* Copying and moving */
+    group = adw_preferences_group_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Copying"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("_Progress Panel"),
+                                               _("Show running copies and other operations in the corner of the window"),
+                                               "progress-popup"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("Copy _One After Another"),
+                                               _("A copy or move started while another runs waits for it, instead of both sharing the disk"),
+                                               "queue-transfers"));
+    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
+
     /* Learning the keys */
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Shortcuts"));

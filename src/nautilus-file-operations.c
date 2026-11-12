@@ -56,6 +56,7 @@
 #include "nautilus-file-undo-operations.h"
 #include "nautilus-file-utilities.h"
 #include "nautilus-filename-utilities.h"
+#include "nautilus-labels.h"
 #include "nautilus-operations-ui-manager.h"
 #include "nautilus-scheme.h"
 #include "nautilus-tag-manager.h"
@@ -100,6 +101,7 @@ typedef struct
     gchar *target_name;
     NautilusCopyCallback done_callback;
     gpointer done_callback_data;
+    gboolean queued; /* waits for the copy or move before it */
 } CopyMoveJob;
 
 typedef struct
@@ -5076,6 +5078,92 @@ copy_files (CopyMoveJob  *job,
     g_free (dest_fs_type);
 }
 
+/* Copies and moves that need to transfer data run one after another, in the
+ * order they were started, so a second paste doesn't halve the speed of the
+ * first. Each one waits here after scanning, showing that it is waiting. */
+static GMutex transfer_queue_mutex;
+static GCond transfer_queue_cond;
+static GQueue transfer_queue = G_QUEUE_INIT;
+static gpointer transfer_queue_running;
+
+static gboolean
+transfer_queue_enter (CopyMoveJob *job)
+{
+    CommonJob *common = &job->common;
+    gboolean waited = FALSE;
+
+    if (!job->queued)
+    {
+        return TRUE;
+    }
+
+    g_mutex_lock (&transfer_queue_mutex);
+    g_queue_push_tail (&transfer_queue, job);
+    while (transfer_queue_running != NULL || g_queue_peek_head (&transfer_queue) != job)
+    {
+        if (job_aborted (common))
+        {
+            g_queue_remove (&transfer_queue, job);
+            g_cond_broadcast (&transfer_queue_cond);
+            g_mutex_unlock (&transfer_queue_mutex);
+            return FALSE;
+        }
+
+        if (!waited)
+        {
+            g_autofree char *dest = job->destination != NULL ? get_basename (job->destination) : NULL;
+            guint n = g_list_length (job->files);
+            g_autofree char *what = n == 1 ? get_basename (job->files->data) : NULL;
+
+            waited = TRUE;
+            if (what != NULL && dest != NULL)
+            {
+                nautilus_progress_info_take_status (common->progress,
+                                                    g_strdup_printf (job->is_move ? _("Waiting to move “%s” to “%s”")
+                                                                                  : _("Waiting to copy “%s” to “%s”"),
+                                                                     what, dest),
+                                                    g_strdup (_("Waiting")));
+            }
+            else if (dest != NULL)
+            {
+                nautilus_progress_info_take_status (common->progress,
+                                                    g_strdup_printf (job->is_move ? ngettext ("Waiting to move %'d file to “%s”",
+                                                                                              "Waiting to move %'d files to “%s”", n)
+                                                                                  : ngettext ("Waiting to copy %'d file to “%s”",
+                                                                                              "Waiting to copy %'d files to “%s”", n),
+                                                                     n, dest),
+                                                    g_strdup (_("Waiting")));
+            }
+            else
+            {
+                nautilus_progress_info_set_status (common->progress, _("Waiting to duplicate"), _("Waiting"));
+            }
+            nautilus_progress_info_set_details (common->progress, _("Starts when the one before it is done"));
+            nautilus_progress_info_set_progress (common->progress, 0, 1);
+        }
+
+        g_cond_wait_until (&transfer_queue_cond, &transfer_queue_mutex,
+                           g_get_monotonic_time () + 200 * G_TIME_SPAN_MILLISECOND);
+    }
+    g_queue_pop_head (&transfer_queue);
+    transfer_queue_running = job;
+    g_mutex_unlock (&transfer_queue_mutex);
+
+    return TRUE;
+}
+
+static void
+transfer_queue_leave (CopyMoveJob *job)
+{
+    g_mutex_lock (&transfer_queue_mutex);
+    if (transfer_queue_running == job)
+    {
+        transfer_queue_running = NULL;
+    }
+    g_cond_broadcast (&transfer_queue_cond);
+    g_mutex_unlock (&transfer_queue_mutex);
+}
+
 static void
 copy_task_done (GObject      *source_object,
                 GAsyncResult *res,
@@ -5196,12 +5284,18 @@ nautilus_file_operations_copy (GTask        *task,
         return;
     }
 
+    if (!transfer_queue_enter (job))
+    {
+        return;
+    }
+
     g_timer_start (job->common.time);
 
     memset (&transfer_info, 0, sizeof (transfer_info));
     copy_files (job,
                 dest_fs_id,
                 &source_info, &transfer_info);
+    transfer_queue_leave (job);
 }
 
 void
@@ -5245,6 +5339,8 @@ nautilus_file_operations_copy_async (GList                          *files,
                           dbus_data,
                           done_callback,
                           done_callback_data);
+
+    job->queued = g_settings_get_boolean (nautilus_flier_settings (), "queue-transfers");
 
     task = g_task_new (NULL, job->common.cancellable, copy_task_done, job);
     g_task_set_task_data (task, job, NULL);
@@ -5757,6 +5853,8 @@ nautilus_file_operations_move_async (GList                          *files,
                           done_callback,
                           done_callback_data);
 
+    job->queued = g_settings_get_boolean (nautilus_flier_settings (), "queue-transfers");
+
     task = g_task_new (NULL, job->common.cancellable, move_task_done, job);
     g_task_set_task_data (task, job, NULL);
     g_task_run_in_thread (task, nautilus_file_operations_move);
@@ -5863,11 +5961,17 @@ nautilus_file_operations_move (GTask        *task,
         return;
     }
 
+    if (!transfer_queue_enter (job))
+    {
+        return;
+    }
+
     memset (&transfer_info, 0, sizeof (transfer_info));
     move_files (job,
                 fallbacks,
                 dest_fs_id, &dest_fs_type,
                 &source_info, &transfer_info);
+    transfer_queue_leave (job);
 }
 
 static void

@@ -1,0 +1,94 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $NautilusProgressPopup: Adw.Bin {
+  halign: end;
+  valign: end;
+  margin-end: 12;
+  margin-bottom: 58;
+  margin-start: 12;
+  margin-top: 12;
+  visible: false;
+
+  child: Box {
+    orientation: vertical;
+    width-request: 360;
+
+    styles [
+      "card",
+      "progress-popup",
+    ]
+
+    Box {
+      spacing: 6;
+      margin-start: 14;
+      margin-end: 6;
+      margin-top: 6;
+      margin-bottom: 6;
+
+      Label title {
+        hexpand: true;
+        xalign: 0;
+        ellipsize: end;
+
+        styles [
+          "heading",
+        ]
+      }
+
+      Button collapse_button {
+        tooltip-text: _("Hide Details");
+        icon-name: "pan-down-symbolic";
+        valign: center;
+        clicked => $on_collapse_clicked(template);
+
+        styles [
+          "flat",
+          "circular",
+        ]
+      }
+
+      Button {
+        tooltip-text: _("Close");
+        icon-name: "window-close-symbolic";
+        valign: center;
+        clicked => $on_close_clicked(template);
+
+        styles [
+          "flat",
+          "circular",
+        ]
+      }
+    }
+
+    ProgressBar overall_bar {
+      margin-start: 14;
+      margin-end: 14;
+      margin-bottom: 10;
+      visible: bind list_revealer.reveal-child inverted;
+    }
+
+    Revealer list_revealer {
+      reveal-child: true;
+      transition-type: slide_down;
+
+      child: ScrolledWindow {
+        hscrollbar-policy: never;
+        max-content-height: 330;
+        propagate-natural-height: true;
+
+        child: ListBox list {
+          margin-start: 6;
+          margin-end: 6;
+          margin-bottom: 6;
+          selection-mode: none;
+          activate-on-single-click: false;
+
+          styles [
+            "operations-list",
+          ]
+        };
+      };
+    }
+  };
+}
