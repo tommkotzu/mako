@@ -10,6 +10,7 @@
 #include <gtk/gtk.h>
 #include "nautilus-enum-types.h"
 #include "nautilus-file.h"
+#include "nautilus-labels.h"
 
 /* For section and place type enums */
 #include "nautilus-sidebar.h"
@@ -43,7 +44,12 @@ struct _NautilusSidebarRow
     NautilusSidebar *sidebar;
     GtkWidget *revealer;
     GtkWidget *busy_spinner;
+    GtkWidget *usage_bar;
+    GCancellable *usage_cancellable;
+    guint usage_timeout_id;
 };
+
+#define USAGE_REFRESH 30 /* s */
 
 G_DEFINE_TYPE (NautilusSidebarRow, nautilus_sidebar_row, GTK_TYPE_LIST_BOX_ROW)
 
@@ -544,6 +550,10 @@ nautilus_sidebar_row_dispose (GObject *object)
 {
     NautilusSidebarRow *self = NAUTILUS_SIDEBAR_ROW (object);
 
+    g_clear_handle_id (&self->usage_timeout_id, g_source_remove);
+    g_cancellable_cancel (self->usage_cancellable);
+    g_clear_object (&self->usage_cancellable);
+
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (self), NULL);
     gtk_widget_dispose_template (GTK_WIDGET (self), NAUTILUS_TYPE_SIDEBAR_ROW);
 
@@ -555,6 +565,123 @@ nautilus_sidebar_row_dispose (GObject *object)
     }
 
     G_OBJECT_CLASS (nautilus_sidebar_row_parent_class)->dispose (object);
+}
+
+/* How full a drive in the Storage section is, as a thin bar under its name. */
+static void
+on_usage_queried (GObject      *source,
+                  GAsyncResult *result,
+                  gpointer      user_data)
+{
+    g_autoptr (GError) error = NULL;
+    g_autoptr (GFileInfo) info = g_file_query_filesystem_info_finish (G_FILE (source), result, &error);
+    NautilusSidebarRow *self;
+    guint64 size, free_space;
+
+    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+    {
+        return;
+    }
+    self = NAUTILUS_SIDEBAR_ROW (user_data);
+    g_clear_object (&self->usage_cancellable);
+
+    size = info != NULL ? g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_SIZE) : 0;
+    free_space = info != NULL ? g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_FILESYSTEM_FREE) : 0;
+    if (size == 0 || free_space > size)
+    {
+        gtk_widget_set_visible (self->usage_bar, FALSE);
+        return;
+    }
+
+    g_autofree char *free_text = g_format_size (free_space);
+    g_autofree char *size_text = g_format_size (size);
+    /* Translators: free space on a drive, e.g. "120 GB free of 500 GB" */
+    g_autofree char *tooltip = g_strdup_printf (_("%s free of %s"), free_text, size_text);
+
+    gtk_level_bar_set_value (GTK_LEVEL_BAR (self->usage_bar), 1.0 - (double) free_space / size);
+    gtk_widget_set_tooltip_text (self->usage_bar, tooltip);
+    if (free_space < size / 10)
+    {
+        gtk_widget_add_css_class (self->usage_bar, "almost-full");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (self->usage_bar, "almost-full");
+    }
+    gtk_widget_set_visible (self->usage_bar, TRUE);
+}
+
+static gboolean
+usage_wanted (NautilusSidebarRow *self)
+{
+    g_autoptr (GFile) location = NULL;
+
+    if (self->section_type != NAUTILUS_SIDEBAR_SECTION_MOUNTS || self->uri == NULL ||
+        !g_settings_get_boolean (nautilus_flier_settings (), "sidebar-storage-usage"))
+    {
+        return FALSE;
+    }
+    /* Network shares can take long to answer; local drives only. */
+    location = g_file_new_for_uri (self->uri);
+    return g_file_is_native (location);
+}
+
+static void
+usage_update (NautilusSidebarRow *self)
+{
+    if (!usage_wanted (self))
+    {
+        gtk_widget_set_visible (self->usage_bar, FALSE);
+        return;
+    }
+    if (self->usage_cancellable != NULL)
+    {
+        return;
+    }
+
+    g_autoptr (GFile) location = g_file_new_for_uri (self->uri);
+    self->usage_cancellable = g_cancellable_new ();
+    g_file_query_filesystem_info_async (location,
+                                        G_FILE_ATTRIBUTE_FILESYSTEM_SIZE "," G_FILE_ATTRIBUTE_FILESYSTEM_FREE,
+                                        G_PRIORITY_LOW, self->usage_cancellable,
+                                        on_usage_queried, self);
+}
+
+static gboolean
+on_usage_timeout (gpointer data)
+{
+    usage_update (NAUTILUS_SIDEBAR_ROW (data));
+    return G_SOURCE_CONTINUE;
+}
+
+static void
+on_usage_map (NautilusSidebarRow *self)
+{
+    usage_update (self);
+    if (self->usage_timeout_id == 0 && usage_wanted (self))
+    {
+        self->usage_timeout_id = g_timeout_add_seconds (USAGE_REFRESH, on_usage_timeout, self);
+    }
+}
+
+static void
+on_usage_unmap (NautilusSidebarRow *self)
+{
+    g_clear_handle_id (&self->usage_timeout_id, g_source_remove);
+}
+
+static void
+on_usage_setting_changed (NautilusSidebarRow *self)
+{
+    on_usage_unmap (self);
+    if (gtk_widget_get_mapped (GTK_WIDGET (self)))
+    {
+        on_usage_map (self);
+    }
+    else
+    {
+        usage_update (self);
+    }
 }
 
 static void
@@ -594,6 +721,15 @@ nautilus_sidebar_row_init (NautilusSidebarRow *self)
     gtk_widget_set_focus_on_click (GTK_WIDGET (self), FALSE);
 
     self->file = NULL;
+
+    /* No colours by level: the bar is one quiet tone, red when almost full. */
+    gtk_level_bar_remove_offset_value (GTK_LEVEL_BAR (self->usage_bar), GTK_LEVEL_BAR_OFFSET_LOW);
+    gtk_level_bar_remove_offset_value (GTK_LEVEL_BAR (self->usage_bar), GTK_LEVEL_BAR_OFFSET_HIGH);
+    gtk_level_bar_remove_offset_value (GTK_LEVEL_BAR (self->usage_bar), GTK_LEVEL_BAR_OFFSET_FULL);
+    g_signal_connect (self, "map", G_CALLBACK (on_usage_map), NULL);
+    g_signal_connect (self, "unmap", G_CALLBACK (on_usage_unmap), NULL);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::sidebar-storage-usage",
+                             G_CALLBACK (on_usage_setting_changed), self, G_CONNECT_SWAPPED);
 }
 
 static void
@@ -755,6 +891,7 @@ nautilus_sidebar_row_class_init (NautilusSidebarRowClass *klass)
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, eject_button);
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, revealer);
     gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, busy_spinner);
+    gtk_widget_class_bind_template_child (widget_class, NautilusSidebarRow, usage_bar);
 
     gtk_widget_class_bind_template_callback (widget_class, on_child_revealed);
     gtk_widget_class_set_css_name (widget_class, "row");

@@ -23,11 +23,27 @@ template $NautilusSidebarRow: ListBoxRow {
         }
       }
 
-      Label label_widget {
+      Box {
+        orientation: vertical;
         hexpand: true;
-        xalign: 0;
-        ellipsize: middle;
-        margin-end: 2;
+        valign: center;
+        spacing: 3;
+
+        Label label_widget {
+          xalign: 0;
+          ellipsize: middle;
+          margin-end: 2;
+        }
+
+        LevelBar usage_bar {
+          visible: false;
+          margin-end: 2;
+          margin-bottom: 1;
+
+          styles [
+            "sidebar-usage",
+          ]
+        }
       }
 
       Image end_icon_widget {

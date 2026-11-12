@@ -50,6 +50,11 @@
       <summary>Stars in column view</summary>
       <description>Show the star for starring files on every row in column view, as in the list view.</description>
     </key>
+    <key type="b" name="sidebar-storage-usage">
+      <default>true</default>
+      <summary>Storage usage in the sidebar</summary>
+      <description>Show how full each drive in the sidebar's Storage section is, as a thin bar under its name.</description>
+    </key>
     <key type="b" name="queue-transfers">
       <default>true</default>
       <summary>Copy one after another</summary>

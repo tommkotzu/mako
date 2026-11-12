@@ -546,3 +546,29 @@ window.sidebar-density-extra-dense placessidebar .navigation-sidebar > row { min
   color: var(--popover-fg-color);
   box-shadow: 0 2px 8px 2px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.08);
 }
+
+/* How full a drive is, under its name in the sidebar */
+.sidebar-usage,
+.sidebar-usage > trough,
+.sidebar-usage > trough > block {
+  min-height: 3px;
+}
+.sidebar-usage > trough {
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background-color: color-mix(in srgb, currentColor 14%, transparent);
+}
+.sidebar-usage > trough > block {
+  border: none;
+  border-radius: 2px;
+}
+.sidebar-usage > trough > block.filled {
+  background-color: color-mix(in srgb, currentColor 50%, transparent);
+}
+.sidebar-usage > trough > block.empty {
+  background-color: transparent;
+}
+.sidebar-usage.almost-full > trough > block.filled {
+  background-color: var(--error-color);
+}
