@@ -560,6 +560,22 @@ apply_density (NautilusInspector *self)
     gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, comfortable ? 280 : dense ? 170 : 220);
 }
 
+static gboolean
+unparent_later (gpointer popover)
+{
+    gtk_widget_unparent (popover);
+    g_object_unref (popover);
+    return G_SOURCE_REMOVE;
+}
+
+/* Not at once: the menu closes before it runs the chosen item's action,
+ * which it finds through its parent. */
+static void
+on_menu_closed (GtkWidget *popover)
+{
+    g_idle_add (unparent_later, g_object_ref (popover));
+}
+
 static void
 on_context_pressed (GtkGestureClick   *click,
                     int                n_press,
@@ -599,7 +615,7 @@ on_context_pressed (GtkGestureClick   *click,
     gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
     gtk_widget_set_halign (popover, GTK_ALIGN_START);
     gtk_popover_set_pointing_to (GTK_POPOVER (popover), &(GdkRectangle) { (int) x, (int) y, 1, 1 });
-    g_signal_connect (popover, "closed", G_CALLBACK (gtk_widget_unparent), NULL);
+    g_signal_connect (popover, "closed", G_CALLBACK (on_menu_closed), NULL);
     gtk_popover_popup (GTK_POPOVER (popover));
 }
 
