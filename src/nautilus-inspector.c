@@ -530,15 +530,14 @@ static void
 nautilus_inspector_init (NautilusInspector *self)
 {
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
-    GtkWidget *buttons = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
-    GtkWidget *button;
 
     gtk_widget_add_css_class (GTK_WIDGET (self), "inspector");
     gtk_orientable_set_orientation (GTK_ORIENTABLE (gtk_widget_get_layout_manager (GTK_WIDGET (self))),
                                     GTK_ORIENTATION_VERTICAL);
 
-    /* Header: a grip to drag the panel to another side (or out of the
-     * window), and a button to pop it out or dock it again. */
+    /* The row at the bottom: a grip to drag the panel to another side (or
+     * out of the window), the Open button, and a button to pop it out or
+     * dock it again. */
     self->header = gtk_center_box_new ();
     gtk_widget_add_css_class (self->header, "inspector-header");
     gtk_widget_set_cursor_from_name (self->header, "grab");
@@ -546,7 +545,7 @@ nautilus_inspector_init (NautilusInspector *self)
     self->grip = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_add_css_class (self->grip, "inspector-grip");
     gtk_widget_set_valign (self->grip, GTK_ALIGN_CENTER);
-    gtk_center_box_set_center_widget (GTK_CENTER_BOX (self->header), self->grip);
+    gtk_center_box_set_start_widget (GTK_CENTER_BOX (self->header), self->grip);
     self->pop_button = gtk_button_new_from_icon_name ("window-new-symbolic");
     gtk_widget_add_css_class (self->pop_button, "flat");
     gtk_widget_add_css_class (self->pop_button, "circular");
@@ -554,12 +553,11 @@ nautilus_inspector_init (NautilusInspector *self)
     gtk_widget_set_tooltip_text (self->pop_button, _("Pop Out"));
     gtk_actionable_set_action_name (GTK_ACTIONABLE (self->pop_button), "win.inspector-pop-out");
     gtk_center_box_set_end_widget (GTK_CENTER_BOX (self->header), self->pop_button);
-    gtk_widget_set_parent (self->header, GTK_WIDGET (self));
 
     gtk_widget_set_margin_start (box, 12);
     gtk_widget_set_margin_end (box, 12);
     gtk_widget_set_margin_top (box, 12);
-    gtk_widget_set_margin_bottom (box, 18);
+    gtk_widget_set_margin_bottom (box, 12);
 
     /* Preview */
     self->preview = GTK_STACK (gtk_stack_new ());
@@ -629,26 +627,21 @@ nautilus_inspector_init (NautilusInspector *self)
     self->details = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (self->details));
 
-    /* Buttons */
-    gtk_widget_set_halign (buttons, GTK_ALIGN_CENTER);
+    /* Open, in the row at the bottom. */
     self->open_button = gtk_button_new_with_mnemonic (_("_Open"));
     gtk_widget_add_css_class (self->open_button, "pill");
+    gtk_widget_add_css_class (self->open_button, "inspector-open");
+    gtk_widget_set_cursor_from_name (self->open_button, "default");
+    gtk_widget_set_valign (self->open_button, GTK_ALIGN_CENTER);
     g_signal_connect_swapped (self->open_button, "clicked", G_CALLBACK (on_open_clicked), self);
-    gtk_box_append (GTK_BOX (buttons), self->open_button);
-
-    button = gtk_button_new_from_icon_name ("view-reveal-symbolic");
-    gtk_widget_add_css_class (button, "circular");
-    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_widget_set_tooltip_text (button, _("Quick Look (Space)"));
-    gtk_actionable_set_action_name (GTK_ACTIONABLE (button), "view.preview-selection");
-    gtk_box_append (GTK_BOX (buttons), button);
-    gtk_box_append (GTK_BOX (box), buttons);
+    gtk_center_box_set_center_widget (GTK_CENTER_BOX (self->header), self->open_button);
 
     self->scroller = gtk_scrolled_window_new ();
     gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (self->scroller), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (self->scroller), box);
     gtk_widget_set_vexpand (self->scroller, TRUE);
     gtk_widget_set_parent (self->scroller, GTK_WIDGET (self));
+    gtk_widget_set_parent (self->header, GTK_WIDGET (self));
 
     g_signal_connect (self, "map", G_CALLBACK (on_map), NULL);
     g_signal_connect (self, "unmap", G_CALLBACK (on_unmap), NULL);

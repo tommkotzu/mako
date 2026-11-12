@@ -431,7 +431,8 @@ columnview header .group-header { padding: 12px 12px 4px 12px; }
 /* Inspector */
 nautilus-inspector { background-color: var(--view-bg-color); }
 .inspector-preview nautilus-ql-canvas { background-color: transparent; }
-.inspector-header { padding: 4px 6px 0 6px; min-height: 30px; }
+.inspector-header { padding: 6px 8px 8px 12px; min-height: 30px; border-top: 1px solid var(--border-color); }
+.inspector-header .inspector-open { min-height: 28px; padding: 0 22px; }
 .inspector-grip { min-width: 36px; min-height: 5px; border-radius: 3px; background-color: alpha(currentColor, 0.25); }
 .inspector-header:hover .inspector-grip { background-color: alpha(currentColor, 0.45); }
 .inspector-drop { background-color: color-mix(in srgb, var(--accent-bg-color) 25%, transparent); border: 2px solid var(--accent-bg-color); border-radius: 12px; margin: 6px; }
