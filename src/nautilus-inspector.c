@@ -57,7 +57,6 @@ struct _NautilusInspector
     GtkWidget *tags_box;
     AdwPreferencesGroup *details;
     GList *detail_rows;
-    GtkWidget *open_button;
 };
 
 G_DEFINE_TYPE (NautilusInspector, nautilus_inspector, GTK_TYPE_WIDGET)
@@ -328,7 +327,6 @@ refresh_text (NautilusInspector *self)
     {
         gtk_label_set_text (self->name, "");
         gtk_label_set_text (self->summary, "");
-        gtk_widget_set_visible (self->open_button, FALSE);
         update_marks (self);
         return;
     }
@@ -352,7 +350,6 @@ refresh_text (NautilusInspector *self)
         show_selection_details (self);
     }
 
-    gtk_widget_set_visible (self->open_button, !self->is_folder);
     update_marks (self);
 }
 
@@ -513,12 +510,6 @@ on_unmap (NautilusInspector *self)
 }
 
 static void
-on_open_clicked (NautilusInspector *self)
-{
-    gtk_widget_activate_action (GTK_WIDGET (self), "view.open-with-default-application", NULL);
-}
-
-static void
 on_canvas_item_activated (NautilusQlCanvas  *canvas,
                           NautilusFile      *file,
                           NautilusInspector *self)
@@ -535,9 +526,9 @@ nautilus_inspector_init (NautilusInspector *self)
     gtk_orientable_set_orientation (GTK_ORIENTABLE (gtk_widget_get_layout_manager (GTK_WIDGET (self))),
                                     GTK_ORIENTATION_VERTICAL);
 
-    /* The row at the bottom: a grip to drag the panel to another side (or
-     * out of the window), the Open button, and a button to pop it out or
-     * dock it again. */
+    /* The row at the bottom: a grip in the middle to drag the panel to
+     * another side (or out of the window), showing while the pointer is on
+     * the row, and a quiet button to pop it out or dock it again. */
     self->header = gtk_center_box_new ();
     gtk_widget_add_css_class (self->header, "inspector-header");
     gtk_widget_set_cursor_from_name (self->header, "grab");
@@ -545,10 +536,11 @@ nautilus_inspector_init (NautilusInspector *self)
     self->grip = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_widget_add_css_class (self->grip, "inspector-grip");
     gtk_widget_set_valign (self->grip, GTK_ALIGN_CENTER);
-    gtk_center_box_set_start_widget (GTK_CENTER_BOX (self->header), self->grip);
+    gtk_center_box_set_center_widget (GTK_CENTER_BOX (self->header), self->grip);
     self->pop_button = gtk_button_new_from_icon_name ("window-new-symbolic");
     gtk_widget_add_css_class (self->pop_button, "flat");
     gtk_widget_add_css_class (self->pop_button, "circular");
+    gtk_widget_add_css_class (self->pop_button, "inspector-pop");
     gtk_widget_set_cursor_from_name (self->pop_button, "default");
     gtk_widget_set_tooltip_text (self->pop_button, _("Pop Out"));
     gtk_actionable_set_action_name (GTK_ACTIONABLE (self->pop_button), "win.inspector-pop-out");
@@ -627,14 +619,6 @@ nautilus_inspector_init (NautilusInspector *self)
     self->details = ADW_PREFERENCES_GROUP (adw_preferences_group_new ());
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (self->details));
 
-    /* Open, in the row at the bottom. */
-    self->open_button = gtk_button_new_with_mnemonic (_("_Open"));
-    gtk_widget_add_css_class (self->open_button, "pill");
-    gtk_widget_add_css_class (self->open_button, "inspector-open");
-    gtk_widget_set_cursor_from_name (self->open_button, "default");
-    gtk_widget_set_valign (self->open_button, GTK_ALIGN_CENTER);
-    g_signal_connect_swapped (self->open_button, "clicked", G_CALLBACK (on_open_clicked), self);
-    gtk_center_box_set_center_widget (GTK_CENTER_BOX (self->header), self->open_button);
 
     self->scroller = gtk_scrolled_window_new ();
     gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (self->scroller), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
