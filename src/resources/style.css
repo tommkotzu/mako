@@ -593,3 +593,24 @@ window.mako-translucent * {
   --headerbar-bg-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
   --headerbar-backdrop-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
 }
+
+/* The log under Details in the file operations card, like a terminal */
+.copy-log-toggle {
+  font-size: 0.85em;
+  padding: 2px 6px;
+  min-height: 0;
+  margin-left: 2px;
+  color: var(--dim-fg-color, inherit);
+}
+.copy-log-frame {
+  margin: 2px 6px 8px 6px;
+  border-radius: 6px;
+  background-color: color-mix(in srgb, black 28%, transparent);
+}
+.copy-log {
+  font-family: monospace;
+  font-size: 6.5pt;
+  line-height: 1.3;
+  padding: 6px 8px 12px 8px;
+  color: color-mix(in srgb, currentColor 85%, transparent);
+}

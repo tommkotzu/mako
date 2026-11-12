@@ -82,7 +82,13 @@ struct _NautilusProgressInfo
     gboolean status_at_idle;
 
     GFile *destination;
+
+    GQueue log;       /* lines, oldest first, at most LOG_LINES */
+    guint log_serial; /* bumped on every new line */
+    char *log_current; /* what is being done right now */
 };
+
+#define LOG_LINES 200
 
 G_LOCK_DEFINE_STATIC (progress_info);
 
@@ -106,6 +112,8 @@ nautilus_progress_info_finalize (GObject *object)
     g_cancellable_disconnect (info->cancellable, info->cancellable_id);
     g_object_unref (info->cancellable);
     g_clear_object (&info->destination);
+    g_queue_clear_full (&info->log, g_free);
+    g_free (info->log_current);
 
     if (G_OBJECT_CLASS (nautilus_progress_info_parent_class)->finalize)
     {
@@ -848,6 +856,83 @@ nautilus_progress_info_get_total_elapsed_time (NautilusProgressInfo *info)
     G_UNLOCK (progress_info);
 
     return elapsed_time;
+}
+
+/* A line for the operation's log, the terminal-like detail in the progress
+ * card. Safe to call from the job's thread. */
+void
+nautilus_progress_info_log (NautilusProgressInfo *info,
+                            const char           *format,
+                            ...)
+{
+    va_list args;
+    char *line;
+
+    va_start (args, format);
+    line = g_strdup_vprintf (format, args);
+    va_end (args);
+
+    G_LOCK (progress_info);
+    g_queue_push_tail (&info->log, line);
+    while (info->log.length > LOG_LINES)
+    {
+        g_free (g_queue_pop_head (&info->log));
+    }
+    info->log_serial++;
+    G_UNLOCK (progress_info);
+}
+
+void
+nautilus_progress_info_set_log_current (NautilusProgressInfo *info,
+                                        const char           *current)
+{
+    G_LOCK (progress_info);
+    g_free (info->log_current);
+    info->log_current = g_strdup (current);
+    G_UNLOCK (progress_info);
+}
+
+char *
+nautilus_progress_info_dup_log_current (NautilusProgressInfo *info)
+{
+    char *current;
+
+    G_LOCK (progress_info);
+    current = g_strdup (info->log_current);
+    G_UNLOCK (progress_info);
+
+    return current;
+}
+
+guint
+nautilus_progress_info_get_log_serial (NautilusProgressInfo *info)
+{
+    guint serial;
+
+    G_LOCK (progress_info);
+    serial = info->log_serial;
+    G_UNLOCK (progress_info);
+
+    return serial;
+}
+
+char *
+nautilus_progress_info_dup_log (NautilusProgressInfo *info)
+{
+    GString *text = g_string_new (NULL);
+
+    G_LOCK (progress_info);
+    for (GList *l = info->log.head; l != NULL; l = l->next)
+    {
+        if (text->len > 0)
+        {
+            g_string_append_c (text, '\n');
+        }
+        g_string_append (text, l->data);
+    }
+    G_UNLOCK (progress_info);
+
+    return g_string_free (text, FALSE);
 }
 
 void

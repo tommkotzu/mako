@@ -80,6 +80,15 @@ void          nautilus_progress_info_set_elapsed_time (NautilusProgressInfo *inf
 gdouble       nautilus_progress_info_get_elapsed_time (NautilusProgressInfo *info);
 gdouble       nautilus_progress_info_get_total_elapsed_time (NautilusProgressInfo *info);
 
+void   nautilus_progress_info_log            (NautilusProgressInfo *info,
+                                             const char           *format,
+                                             ...) G_GNUC_PRINTF (2, 3);
+guint  nautilus_progress_info_get_log_serial (NautilusProgressInfo *info);
+void   nautilus_progress_info_set_log_current (NautilusProgressInfo *info,
+                                               const char           *current);
+char  *nautilus_progress_info_dup_log_current (NautilusProgressInfo *info);
+char  *nautilus_progress_info_dup_log        (NautilusProgressInfo *info);
+
 void nautilus_progress_info_set_destination (NautilusProgressInfo *info,
                                              GFile                *file);
 GFile *nautilus_progress_info_get_destination (NautilusProgressInfo *info);

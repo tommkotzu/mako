@@ -3155,6 +3155,17 @@ verify_destination (CommonJob   *job,
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+/* @file as the log shows it: relative to the folder its top item is in. */
+static char *
+log_name (GFile *file,
+          GFile *top)
+{
+    g_autoptr (GFile) base = top != NULL ? g_file_get_parent (top) : NULL;
+    char *rel = base != NULL ? g_file_get_relative_path (base, file) : NULL;
+
+    return rel != NULL ? rel : g_file_get_parse_name (file);
+}
+
 static void
 report_copy_progress (CopyMoveJob  *copy_job,
                       SourceInfo   *source_info,
@@ -4132,6 +4143,9 @@ copy_move_directory (CopyMoveJob   *copy_job,
             case CREATE_DEST_DIR_SUCCESS:
             default:
             {
+                g_autofree char *log_dest = log_name (*dest, copy_job->destination);
+
+                nautilus_progress_info_log (job->progress, "created directory '%s'", log_dest);
             }
             break;
         }
@@ -4698,6 +4712,13 @@ copy_move_file (CopyMoveJob   *copy_job,
         pdata.last_size = 0;
         pdata.source_info = source_info;
         pdata.transfer_info = transfer_info;
+        gint64 log_start = g_get_monotonic_time ();
+        {
+            g_autofree char *log_src = log_name (src, copy_job->files->data);
+            g_autofree char *current = g_strdup_printf ("%s '%s'", copy_job->is_move ? "moving" : "copying", log_src);
+
+            nautilus_progress_info_set_log_current (job->progress, current);
+        }
 
         if (copy_job->is_move)
         {
@@ -4736,6 +4757,26 @@ copy_move_file (CopyMoveJob   *copy_job,
 
         if (res)
         {
+            g_autofree char *log_src = log_name (src, copy_job->files->data);
+            g_autofree char *log_dest = log_name (dest, copy_job->destination != NULL ? dest_dir : NULL);
+            g_autofree char *log_size = g_format_size (pdata.last_size);
+            double log_secs = (g_get_monotonic_time () - log_start) / (double) G_USEC_PER_SEC;
+
+            if (copy_job->destination != NULL)
+            {
+                g_free (log_dest);
+                log_dest = log_name (dest, copy_job->destination);
+            }
+            if (log_secs >= 0.1)
+            {
+                nautilus_progress_info_log (job->progress, "'%s' -> '%s'  %s  %.1f s",
+                                            log_src, log_dest, log_size, log_secs);
+            }
+            else
+            {
+                nautilus_progress_info_log (job->progress, "'%s' -> '%s'  %s", log_src, log_dest, log_size);
+            }
+
             transfer_info->num_files++;
             report_copy_progress (copy_job, source_info, transfer_info);
 
@@ -5139,6 +5180,7 @@ transfer_queue_enter (CopyMoveJob *job)
                 nautilus_progress_info_set_status (common->progress, _("Waiting to duplicate"), _("Waiting"));
             }
             nautilus_progress_info_set_details (common->progress, _("Starts when the one before it is done"));
+            nautilus_progress_info_log (common->progress, "waiting for the operation before this one");
             nautilus_progress_info_set_progress (common->progress, 0, 1);
         }
 
@@ -5148,8 +5190,37 @@ transfer_queue_enter (CopyMoveJob *job)
     g_queue_pop_head (&transfer_queue);
     transfer_queue_running = job;
     g_mutex_unlock (&transfer_queue_mutex);
+    if (waited)
+    {
+        nautilus_progress_info_log (common->progress, "starting");
+    }
 
     return TRUE;
+}
+
+static void
+log_summary (CopyMoveJob  *job,
+             TransferInfo *transfer_info)
+{
+    nautilus_progress_info_set_log_current (job->common.progress, NULL);
+    double secs = g_timer_elapsed (job->common.time, NULL);
+    g_autofree char *size = g_format_size (transfer_info->num_bytes);
+
+    if (job_aborted (&job->common))
+    {
+        nautilus_progress_info_log (job->common.progress, "cancelled after %d files, %s", transfer_info->num_files, size);
+    }
+    else if (secs >= 0.5)
+    {
+        g_autofree char *rate = g_format_size ((guint64) (transfer_info->num_bytes / secs));
+
+        nautilus_progress_info_log (job->common.progress, "done: %d files, %s in %.1f s (%s/s)",
+                                    transfer_info->num_files, size, secs, rate);
+    }
+    else
+    {
+        nautilus_progress_info_log (job->common.progress, "done: %d files, %s", transfer_info->num_files, size);
+    }
 }
 
 static void
@@ -5261,6 +5332,11 @@ nautilus_file_operations_copy (GTask        *task,
     {
         return;
     }
+    {
+        g_autofree char *size = g_format_size (source_info.num_bytes);
+
+        nautilus_progress_info_log (common->progress, "found %d files, %s", source_info.num_files, size);
+    }
 
     if (job->destination)
     {
@@ -5296,6 +5372,7 @@ nautilus_file_operations_copy (GTask        *task,
                 dest_fs_id,
                 &source_info, &transfer_info);
     transfer_queue_leave (job);
+    log_summary (job, &transfer_info);
 }
 
 void
@@ -5951,6 +6028,11 @@ nautilus_file_operations_move (GTask        *task,
     {
         return;
     }
+    {
+        g_autofree char *size = g_format_size (source_info.num_bytes);
+
+        nautilus_progress_info_log (common->progress, "found %d files, %s", source_info.num_files, size);
+    }
 
     verify_destination (&job->common,
                         job->destination,
@@ -5966,12 +6048,14 @@ nautilus_file_operations_move (GTask        *task,
         return;
     }
 
+    g_timer_start (job->common.time);
     memset (&transfer_info, 0, sizeof (transfer_info));
     move_files (job,
                 fallbacks,
                 dest_fs_id, &dest_fs_type,
                 &source_info, &transfer_info);
     transfer_queue_leave (job);
+    log_summary (job, &transfer_info);
 }
 
 static void

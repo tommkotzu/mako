@@ -40,6 +40,8 @@ struct _NautilusProgressPopup
 
 G_DEFINE_FINAL_TYPE (NautilusProgressPopup, nautilus_progress_popup, ADW_TYPE_BIN)
 
+static void update_log (GtkWidget *row_box);
+
 static gboolean
 is_over (NautilusProgressInfo *info)
 {
@@ -165,6 +167,16 @@ tick (gpointer data)
     }
     gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (self->overall_bar), progress / n);
 
+    for (guint i = 0; i < n; i++)
+    {
+        GtkListBoxRow *row = gtk_list_box_get_row_at_index (GTK_LIST_BOX (self->list), i);
+
+        if (row != NULL)
+        {
+            update_log (gtk_list_box_row_get_child (row));
+        }
+    }
+
     if (!self->dismissed)
     {
         gtk_widget_set_visible (GTK_WIDGET (self), TRUE);
@@ -208,11 +220,138 @@ on_collapse_clicked (NautilusProgressPopup *self)
     gtk_widget_set_tooltip_text (self->collapse_button, open ? _("Hide Details") : _("Show Details"));
 }
 
+/* After the next layout, scroll the log to its newest line. */
+static gboolean
+scroll_log_to_end (GtkWidget     *scrolled,
+                   GdkFrameClock *clock,
+                   gpointer       data)
+{
+    GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scrolled));
+
+    gtk_adjustment_set_value (adj, gtk_adjustment_get_upper (adj));
+    g_object_set_data (G_OBJECT (scrolled), "stick", NULL);
+
+    return G_SOURCE_REMOVE;
+}
+
+static void
+stick_log (GtkWidget *scrolled)
+{
+    if (g_object_get_data (G_OBJECT (scrolled), "stick") == NULL)
+    {
+        g_object_set_data (G_OBJECT (scrolled), "stick", GINT_TO_POINTER (TRUE));
+        gtk_widget_add_tick_callback (scrolled, scroll_log_to_end, NULL, NULL);
+    }
+}
+
+/* Each row: the operation, and under a Details dropdown its log, small and
+ * monospaced like a terminal, with the live progress as the last line. */
+static void
+update_log (GtkWidget *row_box)
+{
+    NautilusProgressInfo *info = g_object_get_data (G_OBJECT (row_box), "info");
+    GtkWidget *revealer = g_object_get_data (G_OBJECT (row_box), "revealer");
+    GtkWidget *label = g_object_get_data (G_OBJECT (row_box), "log");
+    GtkWidget *scrolled = g_object_get_data (G_OBJECT (row_box), "scrolled");
+    g_autofree char *log = NULL;
+    g_autofree char *details = NULL;
+    g_autofree char *current = NULL;
+    g_autofree char *text = NULL;
+    GtkAdjustment *adj;
+    gboolean at_end;
+
+    if (!gtk_revealer_get_reveal_child (GTK_REVEALER (revealer)))
+    {
+        return;
+    }
+
+    log = nautilus_progress_info_dup_log (info);
+    details = nautilus_progress_info_get_details (info);
+    current = nautilus_progress_info_dup_log_current (info);
+    if (nautilus_progress_info_get_is_finished (info) || nautilus_progress_info_get_is_cancelled (info))
+    {
+        text = g_strdup (log);
+    }
+    else
+    {
+        text = g_strdup_printf ("%s%s> %s%s%s", log, *log != '\0' ? "\n" : "",
+                                current != NULL ? current : "", current != NULL ? "  " : "",
+                                details != NULL ? details : "");
+    }
+    if (g_strcmp0 (gtk_label_get_text (GTK_LABEL (label)), text) == 0)
+    {
+        return;
+    }
+
+    /* Follow the newest line, unless scrolled up to read. */
+    adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scrolled));
+    at_end = gtk_adjustment_get_value (adj) + gtk_adjustment_get_page_size (adj) >= gtk_adjustment_get_upper (adj) - 2;
+    gtk_label_set_text (GTK_LABEL (label), text);
+    if (at_end || g_object_get_data (G_OBJECT (row_box), "fresh"))
+    {
+        g_object_set_data (G_OBJECT (row_box), "fresh", NULL);
+        stick_log (scrolled);
+    }
+}
+
+static void
+on_details_toggled (GtkToggleButton *button,
+                    GtkWidget       *row_box)
+{
+    GtkWidget *revealer = g_object_get_data (G_OBJECT (row_box), "revealer");
+    gboolean open = gtk_toggle_button_get_active (button);
+
+    gtk_revealer_set_reveal_child (GTK_REVEALER (revealer), open);
+    gtk_image_set_from_icon_name (GTK_IMAGE (g_object_get_data (G_OBJECT (row_box), "toggle-icon")),
+                                  open ? "pan-down-symbolic" : "pan-end-symbolic");
+    g_object_set_data (G_OBJECT (row_box), "fresh", GINT_TO_POINTER (TRUE));
+    gtk_label_set_text (GTK_LABEL (g_object_get_data (G_OBJECT (row_box), "log")), "");
+    update_log (row_box);
+}
+
 static GtkWidget *
 create_row (gpointer  item,
             gpointer  user_data)
 {
-    return nautilus_progress_info_widget_new (NAUTILUS_PROGRESS_INFO (item));
+    NautilusProgressInfo *info = NAUTILUS_PROGRESS_INFO (item);
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    GtkWidget *toggle = gtk_toggle_button_new ();
+    GtkWidget *toggle_content = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+    GtkWidget *revealer = gtk_revealer_new ();
+    GtkWidget *scrolled = gtk_scrolled_window_new ();
+    GtkWidget *label = gtk_label_new (NULL);
+
+    gtk_box_append (GTK_BOX (box), nautilus_progress_info_widget_new (info));
+
+    gtk_box_append (GTK_BOX (toggle_content), gtk_image_new_from_icon_name ("pan-end-symbolic"));
+    gtk_box_append (GTK_BOX (toggle_content), gtk_label_new (_("Details")));
+    gtk_button_set_child (GTK_BUTTON (toggle), toggle_content);
+    gtk_widget_set_halign (toggle, GTK_ALIGN_START);
+    gtk_widget_add_css_class (toggle, "flat");
+    gtk_widget_add_css_class (toggle, "copy-log-toggle");
+    gtk_box_append (GTK_BOX (box), toggle);
+
+    gtk_label_set_xalign (GTK_LABEL (label), 0);
+    gtk_label_set_yalign (GTK_LABEL (label), 0);
+    gtk_label_set_selectable (GTK_LABEL (label), TRUE);
+    gtk_widget_set_focusable (label, FALSE);
+    gtk_widget_add_css_class (label, "copy-log");
+    gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), label);
+    gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scrolled), 150);
+    gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scrolled), TRUE);
+    gtk_widget_add_css_class (scrolled, "copy-log-frame");
+    gtk_revealer_set_child (GTK_REVEALER (revealer), scrolled);
+    gtk_revealer_set_transition_type (GTK_REVEALER (revealer), GTK_REVEALER_TRANSITION_TYPE_SLIDE_DOWN);
+    gtk_box_append (GTK_BOX (box), revealer);
+
+    g_object_set_data_full (G_OBJECT (box), "info", g_object_ref (info), g_object_unref);
+    g_object_set_data (G_OBJECT (box), "revealer", revealer);
+    g_object_set_data (G_OBJECT (box), "scrolled", scrolled);
+    g_object_set_data (G_OBJECT (box), "log", label);
+    g_object_set_data (G_OBJECT (box), "toggle-icon", gtk_widget_get_first_child (toggle_content));
+    g_signal_connect (toggle, "toggled", G_CALLBACK (on_details_toggled), box);
+
+    return box;
 }
 
 static void
