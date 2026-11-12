@@ -151,6 +151,8 @@ struct _NautilusWindow
     GtkWidget *network_address_bar;
 
     guint sidebar_width_handler_id;
+    double sidebar_drag_start;  /* the sidebar's edge when a drag began, or 0 */
+    gint64 sidebar_edge_clicked;  /* when the edge was last clicked */
 
     GQueue *tab_data_queue;
 
@@ -3670,6 +3672,177 @@ speed_up_sidebar (NautilusWindow *window)
     adw_overlay_split_view_set_show_sidebar (split_view, shown);
 }
 
+/* ------------------------------------------------ Sidebar width by dragging
+ *
+ * The split view sizes its sidebar from the window's width; dragging the
+ * sidebar's edge fixes it to a width instead ("sidebar-width"), and a
+ * double click on the edge gives the automatic size back. */
+
+#define SIDEBAR_EDGE 4          /* px either side of the edge that grab it */
+#define SIDEBAR_MIN_WIDTH 150
+#define SIDEBAR_MAX_WIDTH 600
+
+static void
+apply_sidebar_width (NautilusWindow *window)
+{
+    AdwOverlaySplitView *split_view = ADW_OVERLAY_SPLIT_VIEW (window->split_view);
+    int width = g_settings_get_int (nautilus_flier_settings (), "sidebar-width");
+
+    if (width > 0)
+    {
+        width = CLAMP (width, SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH);
+        adw_overlay_split_view_set_max_sidebar_width (split_view, width);
+        adw_overlay_split_view_set_min_sidebar_width (split_view, width);
+    }
+    else
+    {
+        adw_overlay_split_view_set_min_sidebar_width (split_view, 180);
+        adw_overlay_split_view_set_max_sidebar_width (split_view, 240);
+    }
+}
+
+/* The sidebar's end edge, in the split view's coordinates, or -1. */
+static double
+sidebar_edge_x (NautilusWindow *window)
+{
+    AdwOverlaySplitView *split_view = ADW_OVERLAY_SPLIT_VIEW (window->split_view);
+    GtkWidget *sidebar = adw_overlay_split_view_get_sidebar (split_view);
+    graphene_rect_t bounds;
+
+    if (sidebar == NULL || !adw_overlay_split_view_get_show_sidebar (split_view) ||
+        !gtk_widget_get_mapped (sidebar) ||
+        !gtk_widget_compute_bounds (sidebar, window->split_view, &bounds))
+    {
+        return -1;
+    }
+    return bounds.origin.x + bounds.size.width;
+}
+
+static gboolean
+near_sidebar_edge (NautilusWindow *window,
+                   double          x)
+{
+    double edge = sidebar_edge_x (window);
+
+    return edge >= 0 && fabs (x - edge) <= SIDEBAR_EDGE;
+}
+
+static void
+on_sidebar_edge_motion (GtkEventControllerMotion *motion,
+                        double                    x,
+                        double                    y,
+                        NautilusWindow           *window)
+{
+    gboolean near = near_sidebar_edge (window, x) || window->sidebar_drag_start > 0;
+
+    gtk_widget_set_cursor_from_name (window->split_view, near ? "col-resize" : NULL);
+}
+
+static void
+on_sidebar_edge_leave (GtkEventControllerMotion *motion,
+                       NautilusWindow           *window)
+{
+    if (window->sidebar_drag_start <= 0)
+    {
+        gtk_widget_set_cursor (window->split_view, NULL);
+    }
+}
+
+static void
+on_sidebar_drag_begin (GtkGestureDrag *gesture,
+                       double          x,
+                       double          y,
+                       NautilusWindow *window)
+{
+    if (!near_sidebar_edge (window, x))
+    {
+        gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_DENIED);
+        return;
+    }
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+    window->sidebar_drag_start = sidebar_edge_x (window);
+}
+
+static void
+on_sidebar_drag_update (GtkGestureDrag *gesture,
+                        double          dx,
+                        double          dy,
+                        NautilusWindow *window)
+{
+    GtkWidget *sidebar = adw_overlay_split_view_get_sidebar (ADW_OVERLAY_SPLIT_VIEW (window->split_view));
+    graphene_rect_t bounds;
+    double start = 0;
+    int width;
+
+    if (window->sidebar_drag_start <= 0)
+    {
+        return;
+    }
+    if (gtk_widget_compute_bounds (sidebar, window->split_view, &bounds))
+    {
+        start = bounds.origin.x;
+    }
+    width = CLAMP ((int) round (window->sidebar_drag_start + dx - start), SIDEBAR_MIN_WIDTH, SIDEBAR_MAX_WIDTH);
+    adw_overlay_split_view_set_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->split_view), width);
+    adw_overlay_split_view_set_min_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->split_view), width);
+}
+
+static void
+on_sidebar_drag_end (GtkGestureDrag *gesture,
+                     double          dx,
+                     double          dy,
+                     NautilusWindow *window)
+{
+    if (window->sidebar_drag_start <= 0)
+    {
+        return;
+    }
+    window->sidebar_drag_start = 0;
+    if (fabs (dx) < 2 && fabs (dy) < 2)
+    {
+        /* A click on the edge, not a drag: two in a row give the automatic
+         * width back. */
+        gint64 now = g_get_monotonic_time ();
+
+        if (now - window->sidebar_edge_clicked < 400 * G_TIME_SPAN_MILLISECOND)
+        {
+            window->sidebar_edge_clicked = 0;
+            g_settings_set_int (nautilus_flier_settings (), "sidebar-width", 0);
+            apply_sidebar_width (window);
+        }
+        else
+        {
+            window->sidebar_edge_clicked = now;
+        }
+        return;
+    }
+    g_settings_set_int (nautilus_flier_settings (), "sidebar-width",
+                        (int) adw_overlay_split_view_get_max_sidebar_width (ADW_OVERLAY_SPLIT_VIEW (window->split_view)));
+}
+
+static void
+setup_sidebar_resize (NautilusWindow *window)
+{
+    GtkEventController *controller;
+    GtkGesture *drag = gtk_gesture_drag_new ();
+
+    controller = gtk_event_controller_motion_new ();
+    g_signal_connect (controller, "motion", G_CALLBACK (on_sidebar_edge_motion), window);
+    g_signal_connect (controller, "leave", G_CALLBACK (on_sidebar_edge_leave), window);
+    gtk_widget_add_controller (window->split_view, controller);
+
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (drag), GTK_PHASE_CAPTURE);
+    g_signal_connect (drag, "drag-begin", G_CALLBACK (on_sidebar_drag_begin), window);
+    g_signal_connect (drag, "drag-update", G_CALLBACK (on_sidebar_drag_update), window);
+    g_signal_connect (drag, "drag-end", G_CALLBACK (on_sidebar_drag_end), window);
+    gtk_widget_add_controller (window->split_view, GTK_EVENT_CONTROLLER (drag));
+
+
+    g_signal_connect_object (nautilus_flier_settings (), "changed::sidebar-width",
+                             G_CALLBACK (apply_sidebar_width), window, G_CONNECT_SWAPPED);
+    apply_sidebar_width (window);
+}
+
 static void
 nautilus_window_init (NautilusWindow *window)
 {
@@ -3686,6 +3859,7 @@ nautilus_window_init (NautilusWindow *window)
     g_type_ensure (NAUTILUS_TYPE_SHORTCUT_MANAGER);
     gtk_widget_init_template (GTK_WIDGET (window));
     speed_up_sidebar (window);
+    setup_sidebar_resize (window);
 
     g_signal_connect (window, "notify::maximized",
                       G_CALLBACK (on_is_maximized_changed), NULL);

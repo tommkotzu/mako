@@ -182,6 +182,12 @@
       <summary>Inspector side</summary>
       <description>Which side of the window the inspector is docked to.</description>
     </key>
+    <key type="i" name="sidebar-width">
+      <range min="0" max="600"/>
+      <default>0</default>
+      <summary>Sidebar width</summary>
+      <description>The width of the sidebar in pixels, set by dragging its edge. 0 sizes it with the window.</description>
+    </key>
     <key type="i" name="inspector-size">
       <default>320</default>
       <summary>Inspector size</summary>
