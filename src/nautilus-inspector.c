@@ -239,6 +239,7 @@ update_marks (NautilusInspector *self)
         GtkWidget *edit = gtk_button_new_with_mnemonic (_("_Tags…"));
 
         gtk_widget_add_css_class (edit, "flat");
+        gtk_widget_add_css_class (edit, "inspector-tags-edit");
         gtk_actionable_set_action_name (GTK_ACTIONABLE (edit), "view.edit-tags");
         gtk_box_append (GTK_BOX (self->tags_box), edit);
     }
