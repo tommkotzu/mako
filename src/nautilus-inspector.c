@@ -81,18 +81,37 @@ add_detail (NautilusInspector *self,
             const char        *value)
 {
     GtkWidget *row;
+    GtkWidget *box;
+    GtkWidget *key;
+    GtkWidget *val;
 
     if (value == NULL || *value == '\0' || g_strcmp0 (value, "—") == 0)
     {
         return;
     }
 
-    row = adw_action_row_new ();
-    gtk_widget_add_css_class (row, "property");
-    adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), title);
-    adw_preferences_row_set_use_markup (ADW_PREFERENCES_ROW (row), FALSE);
-    adw_action_row_set_subtitle (ADW_ACTION_ROW (row), value);
-    adw_action_row_set_subtitle_selectable (ADW_ACTION_ROW (row), TRUE);
+    /* One line each: the name on the left, the value on the right (on
+     * more lines only when it is long, like a path). */
+    row = gtk_list_box_row_new ();
+    gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+    gtk_widget_add_css_class (row, "inspector-detail");
+    box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 12);
+    key = gtk_label_new (title);
+    gtk_label_set_xalign (GTK_LABEL (key), 0);
+    gtk_widget_set_valign (key, GTK_ALIGN_START);
+    gtk_widget_add_css_class (key, "inspector-detail-key");
+    val = gtk_label_new (value);
+    gtk_label_set_xalign (GTK_LABEL (val), 1);
+    gtk_label_set_justify (GTK_LABEL (val), GTK_JUSTIFY_RIGHT);
+    gtk_label_set_wrap (GTK_LABEL (val), TRUE);
+    gtk_label_set_wrap_mode (GTK_LABEL (val), PANGO_WRAP_WORD_CHAR);
+    gtk_label_set_selectable (GTK_LABEL (val), TRUE);
+    gtk_widget_set_focusable (val, FALSE);
+    gtk_widget_set_hexpand (val, TRUE);
+    gtk_widget_add_css_class (val, "inspector-detail-value");
+    gtk_box_append (GTK_BOX (box), key);
+    gtk_box_append (GTK_BOX (box), val);
+    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
     adw_preferences_group_add (self->details, row);
     self->detail_rows = g_list_append (self->detail_rows, row);
 }

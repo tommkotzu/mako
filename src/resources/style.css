@@ -447,11 +447,10 @@ nautilus-inspector .inspector-tags-edit { color: color-mix(in srgb, var(--window
 nautilus-inspector .inspector-tags-edit { font-weight: normal; }
 /* The details: plain rows with lines between them, no card behind. */
 nautilus-inspector preferencesgroup list.boxed-list { background: none; box-shadow: none; border-radius: 0; }
-nautilus-inspector preferencesgroup list.boxed-list > row { background: none; border-radius: 0; min-height: 0; padding: 7px 2px; border-bottom: 1px solid var(--border-color); }
+nautilus-inspector preferencesgroup list.boxed-list > row { background: none; border-radius: 0; min-height: 0; padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
 nautilus-inspector preferencesgroup list.boxed-list > row:last-child { border-bottom: none; }
-nautilus-inspector preferencesgroup list.boxed-list > row .header { padding: 0; min-height: 0; }
-nautilus-inspector row.property .title { font-size: 8pt; }
-nautilus-inspector row.property .subtitle { font-size: 9.5pt; }
+nautilus-inspector .inspector-detail label { font-size: 8.5pt; }
+nautilus-inspector .inspector-detail-key { color: color-mix(in srgb, var(--window-fg-color) 55%, transparent); }
 
 /* Miller columns */
 nautilus-columns .miller-column-box { background-color: var(--view-bg-color); }
