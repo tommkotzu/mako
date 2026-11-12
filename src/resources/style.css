@@ -547,6 +547,13 @@ window.sidebar-density-extra-dense placessidebar .navigation-sidebar > row { min
   box-shadow: 0 2px 8px 2px rgb(0 0 0 / 0.16), 0 0 0 1px rgb(0 0 0 / 0.08);
 }
 
+/* The file operations card in a window of its own: only the card shows */
+window.progress-float,
+window.progress-float > windowhandle {
+  background: none;
+  box-shadow: none;
+}
+
 /* How full a drive is, under its name in the sidebar */
 .sidebar-usage,
 .sidebar-usage > trough,
@@ -613,19 +620,4 @@ window.mako-translucent * {
   line-height: 1.3;
   padding: 6px 8px;
   color: color-mix(in srgb, currentColor 85%, transparent);
-}
-
-/* The minimized file operations card, in the bottom bar */
-.progress-mini {
-  padding: 0 8px;
-  min-height: 0;
-}
-.progress-mini progressbar,
-.progress-mini progressbar > trough {
-  min-width: 64px;
-}
-.progress-mini progressbar > trough,
-.progress-mini progressbar > trough > progress {
-  min-height: 4px;
-  border-radius: 2px;
 }

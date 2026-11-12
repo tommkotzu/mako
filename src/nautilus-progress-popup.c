@@ -11,7 +11,6 @@
 #include "nautilus-progress-popup.h"
 
 #include <glib/gi18n.h>
-#include <math.h>
 
 #include "nautilus-labels.h"
 #include "nautilus-progress-info.h"
@@ -28,6 +27,7 @@ struct _NautilusProgressPopup
 
     GtkWidget *title;
     GtkWidget *collapse_button;
+    GtkWidget *popout_button;
     GtkWidget *overall_bar;
     GtkWidget *list_revealer;
     GtkWidget *list;
@@ -37,61 +37,97 @@ struct _NautilusProgressPopup
     guint tick_id;
     gint64 all_done_since;
     gboolean dismissed;
+    gboolean floating;  /* the one in its own window */
 };
 
 G_DEFINE_FINAL_TYPE (NautilusProgressPopup, nautilus_progress_popup, ADW_TYPE_BIN)
 
-/* Shared by every window's card and every bottom bar's small bar: whether
- * the card is minimized, and how far the operations are. */
-typedef struct
-{
-    GObject *notifier;  /* "changed" is emitted on it */
-    gboolean minimized;
-    gboolean active;
-    double fraction;
-    char *tooltip;
-} Dock;
+static void update_log (GtkWidget *row_box);
 
-static Dock *
-dock_get (void)
-{
-    static Dock dock;
+/* -------------------------------------------- The card in its own window
+ *
+ * With "progress-popup-window" on, the card in each window's corner stays
+ * hidden and one card in a small window of its own, that can be dragged
+ * anywhere by the card itself, shows the operations instead. */
 
-    if (dock.notifier == NULL)
-    {
-        dock.notifier = g_object_new (G_TYPE_OBJECT, NULL);
-        g_signal_new ("mako-dock-changed", G_TYPE_OBJECT, G_SIGNAL_RUN_LAST, 0,
-                      NULL, NULL, NULL, G_TYPE_NONE, 0);
-    }
-    return &dock;
+static GtkWidget *float_window;
+
+static gboolean
+is_detached (void)
+{
+    return g_settings_get_boolean (nautilus_flier_settings (), "progress-popup-window");
 }
 
-static void
-dock_changed (void)
-{
-    g_signal_emit_by_name (dock_get ()->notifier, "mako-dock-changed");
-}
 
 static void
-dock_set (gboolean    active,
-          double      fraction,
-          const char *tooltip)
+ensure_float_window (void)
 {
-    Dock *dock = dock_get ();
+    GtkWidget *handle;
+    NautilusProgressPopup *popup;
 
-    if (dock->active == active && fabs (dock->fraction - fraction) < 0.001 &&
-        g_strcmp0 (dock->tooltip, tooltip) == 0)
+    if (float_window != NULL)
     {
         return;
     }
-    dock->active = active;
-    dock->fraction = fraction;
-    g_free (dock->tooltip);
-    dock->tooltip = g_strdup (tooltip);
-    dock_changed ();
+
+    float_window = gtk_window_new ();
+    g_object_add_weak_pointer (G_OBJECT (float_window), (gpointer *) &float_window);
+    gtk_window_set_title (GTK_WINDOW (float_window), _("File Operations"));
+    gtk_window_set_decorated (GTK_WINDOW (float_window), FALSE);
+    gtk_window_set_resizable (GTK_WINDOW (float_window), FALSE);
+    gtk_window_set_hide_on_close (GTK_WINDOW (float_window), TRUE);
+    gtk_widget_add_css_class (float_window, "progress-float");
+
+    popup = g_object_new (NAUTILUS_TYPE_PROGRESS_POPUP, NULL);
+    popup->floating = TRUE;
+    gtk_widget_set_margin_top (GTK_WIDGET (popup), 10);
+    gtk_widget_set_margin_bottom (GTK_WIDGET (popup), 10);
+    gtk_widget_set_margin_start (GTK_WIDGET (popup), 10);
+    gtk_widget_set_margin_end (GTK_WIDGET (popup), 10);
+    gtk_widget_set_visible (GTK_WIDGET (popup), TRUE);
+    gtk_button_set_icon_name (GTK_BUTTON (popup->popout_button), "view-restore-symbolic");
+    gtk_widget_set_tooltip_text (popup->popout_button, _("Put Back in the Window"));
+
+    handle = gtk_window_handle_new ();
+    gtk_window_handle_set_child (GTK_WINDOW_HANDLE (handle), GTK_WIDGET (popup));
+    gtk_window_set_child (GTK_WINDOW (float_window), handle);
 }
 
-static void update_log (GtkWidget *row_box);
+/* Whether this card should show at all: the one in the window's corner
+ * or the one in its own window, whichever is in use. */
+static gboolean
+wants_shown (NautilusProgressPopup *self)
+{
+    return !self->dismissed && self->floating == is_detached ();
+}
+
+static void
+set_shown (NautilusProgressPopup *self,
+           gboolean               shown)
+{
+    if (self->floating)
+    {
+        if (float_window != NULL && gtk_widget_get_visible (float_window) != shown)
+        {
+            if (shown)
+            {
+                /* Kept above the file manager window, so clicking in that
+                 * window doesn't bury it. */
+                GtkWindow *parent = gtk_application_get_active_window (GTK_APPLICATION (g_application_get_default ()));
+
+                if (parent != NULL && parent != GTK_WINDOW (float_window))
+                {
+                    gtk_window_set_transient_for (GTK_WINDOW (float_window), parent);
+                }
+            }
+            gtk_widget_set_visible (float_window, shown);
+        }
+    }
+    else
+    {
+        gtk_widget_set_visible (GTK_WIDGET (self), shown);
+    }
+}
 
 static gboolean
 is_over (NautilusProgressInfo *info)
@@ -116,13 +152,9 @@ stop_tick (NautilusProgressPopup *self)
 static void
 hide_card (NautilusProgressPopup *self)
 {
-    gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
+    set_shown (self, FALSE);
     g_list_store_remove_all (self->model);
     self->all_done_since = 0;
-    /* Minimizing lasts until the operations are over: the next copy
-     * shows the card again, instead of only the small bottom bar. */
-    dock_get ()->minimized = FALSE;
-    dock_set (FALSE, 0, NULL);
 }
 
 static gboolean
@@ -140,8 +172,9 @@ tick (gpointer data)
         return G_SOURCE_REMOVE;
     }
 
-    /* Rows in the order operations started; new ones go below. */
-    for (GList *l = infos; l != NULL; l = l->next)
+    /* Rows in the order operations started; new ones go below. The
+     * manager keeps the newest first. */
+    for (GList *l = g_list_last (infos); l != NULL; l = l->prev)
     {
         NautilusProgressInfo *info = l->data;
 
@@ -232,17 +265,7 @@ tick (gpointer data)
         }
     }
 
-    {
-        g_autofree char *tip = running > 0
-                               ? g_strdup_printf (ngettext ("%u operation, %d %% — click to show",
-                                                            "%u operations, %d %% — click to show", running),
-                                                  running, (int) round (100 * progress / n))
-                               : g_strdup (_("All done"));
-
-        dock_set (running > 0, progress / n, tip);
-    }
-
-    gtk_widget_set_visible (GTK_WIDGET (self), !self->dismissed && !dock_get ()->minimized);
+    set_shown (self, wants_shown (self));
 
     return G_SOURCE_CONTINUE;
 }
@@ -265,28 +288,43 @@ on_new_progress_info (NautilusProgressPopup *self)
     start_tick (self);
 }
 
+/* Popped out or put back. */
 static void
-on_minimize_clicked (NautilusProgressPopup *self)
-{
-    dock_get ()->minimized = TRUE;
-    dock_changed ();
-}
-
-/* Minimized or brought back, from this window or another. */
-static void
-on_dock_changed (NautilusProgressPopup *self)
+sync_shown (NautilusProgressPopup *self)
 {
     if (self->tick_id != 0 && g_list_model_get_n_items (G_LIST_MODEL (self->model)) > 0)
     {
-        gtk_widget_set_visible (GTK_WIDGET (self), !self->dismissed && !dock_get ()->minimized);
+        set_shown (self, wants_shown (self));
     }
+}
+
+static void
+on_popout_clicked (NautilusProgressPopup *self)
+{
+    g_settings_set_boolean (nautilus_flier_settings (), "progress-popup-window", !self->floating);
+}
+
+static void
+on_detached_changed (NautilusProgressPopup *self)
+{
+    if (is_detached ())
+    {
+        ensure_float_window ();
+    }
+    if (self->floating && is_detached ())
+    {
+        /* Popped out while operations run: show them there right away. */
+        self->dismissed = FALSE;
+        start_tick (self);
+    }
+    sync_shown (self);
 }
 
 static void
 on_close_clicked (NautilusProgressPopup *self)
 {
     self->dismissed = TRUE;
-    gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
+    set_shown (self, FALSE);
 }
 
 static void
@@ -462,11 +500,12 @@ nautilus_progress_popup_class_init (NautilusProgressPopupClass *klass)
                                                  "/org/gnome/nautilus/ui/nautilus-progress-popup.ui");
     gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, title);
     gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, collapse_button);
+    gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, popout_button);
     gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, overall_bar);
     gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, list_revealer);
     gtk_widget_class_bind_template_child (widget_class, NautilusProgressPopup, list);
     gtk_widget_class_bind_template_callback (widget_class, on_close_clicked);
-    gtk_widget_class_bind_template_callback (widget_class, on_minimize_clicked);
+    gtk_widget_class_bind_template_callback (widget_class, on_popout_clicked);
     gtk_widget_class_bind_template_callback (widget_class, on_collapse_clicked);
 }
 
@@ -483,51 +522,16 @@ nautilus_progress_popup_init (NautilusProgressPopup *self)
     g_signal_connect_object (self->manager, "new-progress-info",
                              G_CALLBACK (on_new_progress_info), self, G_CONNECT_SWAPPED);
 
-    g_signal_connect_object (dock_get ()->notifier, "mako-dock-changed",
-                             G_CALLBACK (on_dock_changed), self, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::progress-popup-window",
+                             G_CALLBACK (on_detached_changed), self, G_CONNECT_SWAPPED);
+    if (is_detached ())
+    {
+        ensure_float_window ();
+    }
 
     /* Operations already running when this window opened. */
     if (!nautilus_progress_manager_are_all_infos_finished_or_cancelled (self->manager))
     {
         start_tick (self);
     }
-}
-
-/* ------------------------------------------------- The minimized card */
-
-static void
-mini_sync (GtkWidget *button)
-{
-    Dock *dock = dock_get ();
-    GtkWidget *bar = gtk_button_get_child (GTK_BUTTON (button));
-
-    gtk_widget_set_visible (button, dock->minimized && dock->active);
-    gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (bar), dock->fraction);
-    gtk_widget_set_tooltip_text (button, dock->tooltip);
-}
-
-static void
-on_mini_clicked (GtkWidget *button)
-{
-    dock_get ()->minimized = FALSE;
-    dock_changed ();
-}
-
-GtkWidget *
-nautilus_progress_mini_new (void)
-{
-    GtkWidget *button = gtk_button_new ();
-    GtkWidget *bar = gtk_progress_bar_new ();
-
-    gtk_widget_set_valign (bar, GTK_ALIGN_CENTER);
-    gtk_button_set_child (GTK_BUTTON (button), bar);
-    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_widget_add_css_class (button, "flat");
-    gtk_widget_add_css_class (button, "progress-mini");
-    g_signal_connect (button, "clicked", G_CALLBACK (on_mini_clicked), NULL);
-    g_signal_connect_object (dock_get ()->notifier, "mako-dock-changed",
-                             G_CALLBACK (mini_sync), button, G_CONNECT_SWAPPED);
-    mini_sync (button);
-
-    return button;
 }

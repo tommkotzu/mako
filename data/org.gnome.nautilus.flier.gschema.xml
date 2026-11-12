@@ -71,6 +71,11 @@
       <summary>Progress panel</summary>
       <description>Show copies, moves and other file operations in a panel in the corner of the window while they run.</description>
     </key>
+    <key type="b" name="progress-popup-window">
+      <default>false</default>
+      <summary>Progress panel in its own window</summary>
+      <description>Show the progress panel in a small window of its own that can be moved anywhere, instead of in the corner of the file manager window.</description>
+    </key>
     <key type="b" name="ratings">
       <default>true</default>
       <summary>Ratings</summary>

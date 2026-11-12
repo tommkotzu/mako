@@ -36,11 +36,11 @@ template $NautilusProgressPopup: Adw.Bin {
         ]
       }
 
-      Button {
-        tooltip-text: _("Minimize to the Bottom Bar");
-        icon-name: "window-minimize-symbolic";
+      Button popout_button {
+        tooltip-text: _("Pop Out");
+        icon-name: "window-new-symbolic";
         valign: center;
-        clicked => $on_minimize_clicked(template);
+        clicked => $on_popout_clicked(template);
 
         styles [
           "flat",
