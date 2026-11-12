@@ -609,8 +609,8 @@ window.mako-translucent * {
 }
 .copy-log {
   font-family: monospace;
-  font-size: 6.5pt;
+  font-size: 5.5pt;
   line-height: 1.3;
-  padding: 6px 8px 12px 8px;
+  padding: 6px 8px;
   color: color-mix(in srgb, currentColor 85%, transparent);
 }

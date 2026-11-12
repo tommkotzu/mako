@@ -334,10 +334,14 @@ create_row (gpointer  item,
     gtk_label_set_xalign (GTK_LABEL (label), 0);
     gtk_label_set_yalign (GTK_LABEL (label), 0);
     gtk_label_set_selectable (GTK_LABEL (label), TRUE);
+    /* A path longer than the card still shows whole, on a second line. */
+    gtk_label_set_wrap (GTK_LABEL (label), TRUE);
+    gtk_label_set_wrap_mode (GTK_LABEL (label), PANGO_WRAP_CHAR);
     gtk_widget_set_focusable (label, FALSE);
     gtk_widget_add_css_class (label, "copy-log");
     gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scrolled), label);
-    gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scrolled), 150);
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_scrolled_window_set_max_content_height (GTK_SCROLLED_WINDOW (scrolled), 200);
     gtk_scrolled_window_set_propagate_natural_height (GTK_SCROLLED_WINDOW (scrolled), TRUE);
     gtk_widget_add_css_class (scrolled, "copy-log-frame");
     gtk_revealer_set_child (GTK_REVEALER (revealer), scrolled);
