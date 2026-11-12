@@ -450,12 +450,28 @@ nautilus-inspector preferencesgroup list.boxed-list { background: none; box-shad
 nautilus-inspector preferencesgroup list.boxed-list > row { background: none; border-radius: 0; min-height: 0; padding: 4px 2px; border-bottom: 1px solid var(--border-color); }
 nautilus-inspector preferencesgroup list.boxed-list > row:last-child { border-bottom: none; }
 nautilus-inspector .inspector-detail label { font-size: 8.5pt; }
+/* Density: everything but the preview gets smaller.
+ * Comfortable */
 nautilus-inspector.density-comfortable .inspector-detail label { font-size: 9.5pt; }
 nautilus-inspector.density-comfortable preferencesgroup list.boxed-list > row { padding: 7px 2px; }
-nautilus-inspector.density-dense .inspector-detail label { font-size: 8pt; }
+/* Compact (default) */
+nautilus-inspector .inspector-name { font-size: 12pt; }
+nautilus-inspector.density-comfortable .inspector-name { font-size: 14pt; }
+nautilus-inspector .star { min-height: 26px; -gtk-icon-size: 14px; }
+nautilus-inspector.density-comfortable .star { min-height: 32px; -gtk-icon-size: 16px; }
+nautilus-inspector .inspector-tag,
+nautilus-inspector .inspector-tags-edit { font-size: 9.5pt; }
+nautilus-inspector .inspector-tags-edit { min-height: 24px; padding-top: 0; padding-bottom: 0; }
+nautilus-inspector.density-comfortable .inspector-tag,
+nautilus-inspector.density-comfortable .inspector-tags-edit { font-size: 11pt; }
+/* Dense */
+nautilus-inspector.density-dense .inspector-name { font-size: 10pt; }
+nautilus-inspector.density-dense .star { min-width: 20px; min-height: 20px; -gtk-icon-size: 12px; padding: 0 1px; }
+nautilus-inspector.density-dense .inspector-tag,
+nautilus-inspector.density-dense .inspector-tags-edit { font-size: 8pt; }
+nautilus-inspector.density-dense .inspector-tags-edit { min-height: 18px; }
+nautilus-inspector.density-dense .inspector-detail label { font-size: 7.5pt; }
 nautilus-inspector.density-dense preferencesgroup list.boxed-list > row { padding: 2px 2px; }
-nautilus-inspector.density-dense .inspector-name { font-size: 11pt; }
-nautilus-inspector.density-dense .star { min-height: 24px; }
 nautilus-inspector .inspector-detail-key { color: color-mix(in srgb, var(--window-fg-color) 55%, transparent); }
 
 /* Miller columns */

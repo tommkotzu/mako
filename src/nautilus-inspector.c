@@ -554,10 +554,13 @@ apply_density (NautilusInspector *self)
     {
         gtk_widget_add_css_class (GTK_WIDGET (self), comfortable ? "density-comfortable" : "density-dense");
     }
-    gtk_box_set_spacing (GTK_BOX (self->content), comfortable ? 14 : dense ? 4 : 8);
-    /* Exactly this tall: room left over stays below the details. */
-    gtk_widget_set_vexpand (GTK_WIDGET (self->preview), FALSE);
-    gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, comfortable ? 280 : dense ? 170 : 220);
+    gtk_box_set_spacing (GTK_BOX (self->content), comfortable ? 14 : dense ? 3 : 8);
+    gtk_widget_set_margin_start (self->content, dense ? 8 : 12);
+    gtk_widget_set_margin_end (self->content, dense ? 8 : 12);
+    /* As big as the panel allows: all the height the rest doesn't need. */
+    gtk_widget_set_vexpand (GTK_WIDGET (self->preview), TRUE);
+    /* At least this tall, whatever the density. */
+    gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, 240);
 }
 
 static gboolean
