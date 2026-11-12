@@ -119,6 +119,9 @@ hide_card (NautilusProgressPopup *self)
     gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
     g_list_store_remove_all (self->model);
     self->all_done_since = 0;
+    /* Minimizing lasts until the operations are over: the next copy
+     * shows the card again, instead of only the small bottom bar. */
+    dock_get ()->minimized = FALSE;
     dock_set (FALSE, 0, NULL);
 }
 
