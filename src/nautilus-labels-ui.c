@@ -754,6 +754,21 @@ nautilus_labels_preferences_page_new (void)
                                                "run-in-background"));
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
+    /* See-through window */
+    group = adw_preferences_group_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Appearance"));
+    {
+        GtkWidget *opacity_row = adw_spin_row_new_with_range (40, 100, 5);
+
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (opacity_row), _("Window _Opacity"));
+        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (opacity_row), TRUE);
+        adw_action_row_set_subtitle (ADW_ACTION_ROW (opacity_row),
+                                     _("Below 100% the desktop shows through. To blur it, add a shell extension that blurs behind windows, such as Blur my Shell"));
+        g_settings_bind (nautilus_flier_settings (), "window-opacity", opacity_row, "value", G_SETTINGS_BIND_DEFAULT);
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
+    }
+    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
+
     /* Copying and moving */
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Copying"));

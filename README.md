@@ -47,6 +47,7 @@ https://github.com/user-attachments/assets/1a1a578e-7426-485a-a1e6-026c1ab35ce3
 | **Commands** | `F1` or `Ctrl+K` opens a searchable list of every command, and any key can be changed there. |
 | **Key hints** | Each shortcut you press briefly shows its name at the bottom of the window, which helps you learn them. Tooltips show keys too. |
 | **Copy progress** | Copies and moves show in a panel in the corner of the window. Paste again while one is running and the new one waits below it, then starts as soon as the first is done. |
+| **Look** | A thin bar under each drive in the sidebar shows how full it is. The window can be see-through (Preferences → Appearance → Window Opacity); with the [Blur my Shell](https://extensions.gnome.org/extension/3193/blur-my-shell/) extension's Applications option, what is behind shows blurred. |
 | **Bottom bar** | Filter as you type, search, sort and group, flat view, and the view switcher, all in one bar under each tab. |
 
 ## Views
@@ -200,7 +201,7 @@ Most of what Mako adds can be switched in **Preferences →
 Organize**: the density of the list, grid and columns (comfortable as in GNOME Files,
 compact, dense or extra dense, with the icons a standard size or two smaller)
 and, separately, of the sidebar, ratings, tags, folder colors and their scheme, the built-in
-Quick Look, the progress panel and copying one after another, shortcut hints, keys in menus, sidebar groups and which
+Quick Look, the progress panel and copying one after another, how see-through the window is, storage bars in the sidebar, shortcut hints, keys in menus, sidebar groups and which
 sections and places the sidebar shows. The file density is also in the bottom
 bar's View menu, the sidebar's in its right-click menu.
 

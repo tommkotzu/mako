@@ -50,6 +50,12 @@
       <summary>Stars in column view</summary>
       <description>Show the star for starring files on every row in column view, as in the list view.</description>
     </key>
+    <key type="i" name="window-opacity">
+      <range min="40" max="100"/>
+      <default>100</default>
+      <summary>Window opacity</summary>
+      <description>How opaque the window background is, in percent. Below 100 the desktop and other windows show through; with a shell extension that blurs behind windows, they show blurred.</description>
+    </key>
     <key type="b" name="sidebar-storage-usage">
       <default>true</default>
       <summary>Storage usage in the sidebar</summary>

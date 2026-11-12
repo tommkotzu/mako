@@ -3409,6 +3409,36 @@ action_view_step (GSimpleAction *action,
     }
 }
 
+/* The window's background lets what is behind it show through, by the
+ * window-opacity setting. One style for all windows; each window takes the
+ * class that turns it on. */
+static void
+apply_window_opacity (NautilusWindow *window)
+{
+    static GtkCssProvider *provider = NULL;
+    int opacity = g_settings_get_int (nautilus_flier_settings (), "window-opacity");
+    g_autofree char *css = g_strdup_printf ("window.mako-translucent { --mako-alpha: %.2f; }",
+                                            CLAMP (opacity, 40, 100) / 100.0);
+
+    if (provider == NULL)
+    {
+        provider = gtk_css_provider_new ();
+        gtk_style_context_add_provider_for_display (gtk_widget_get_display (GTK_WIDGET (window)),
+                                                    GTK_STYLE_PROVIDER (provider),
+                                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+    }
+    gtk_css_provider_load_from_string (provider, css);
+
+    if (opacity < 100)
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (window), "mako-translucent");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (window), "mako-translucent");
+    }
+}
+
 static void
 setup_inspector (NautilusWindow *window)
 {
@@ -3459,6 +3489,10 @@ setup_inspector (NautilusWindow *window)
     g_signal_connect (drag, "cancel", G_CALLBACK (on_inspector_drag_cancel), window);
     gtk_widget_add_controller (nautilus_inspector_get_grip (NAUTILUS_INSPECTOR (window->inspector)),
                                GTK_EVENT_CONTROLLER (drag));
+
+    apply_window_opacity (window);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::window-opacity",
+                             G_CALLBACK (apply_window_opacity), window, G_CONNECT_SWAPPED);
 
     /* In the tiles' place in the template. */
     window->files_overlay = gtk_overlay_new ();

@@ -572,3 +572,24 @@ window.sidebar-density-extra-dense placessidebar .navigation-sidebar > row { min
 .sidebar-usage.almost-full > trough > block.filled {
   background-color: var(--error-color);
 }
+
+/* Translucent window (Preferences > Appearance > Window Opacity). The
+ * theme's own colors are kept and only made see-through: the originals are
+ * taken once on the window, and every widget below reads the see-through
+ * versions. --mako-alpha comes from the setting. */
+window.mako-translucent {
+  --mako-alpha: 1;
+  --mako-window-bg: var(--window-bg-color);
+  --mako-view-bg: var(--view-bg-color);
+  --mako-sidebar-bg: var(--sidebar-bg-color);
+  --mako-headerbar-bg: var(--headerbar-bg-color);
+  background-color: rgb(from var(--view-bg-color) r g b / var(--mako-alpha));
+}
+window.mako-translucent * {
+  --window-bg-color: rgb(from var(--mako-window-bg) r g b / var(--mako-alpha));
+  --view-bg-color: rgb(from var(--mako-view-bg) r g b / var(--mako-alpha));
+  --sidebar-bg-color: rgb(from var(--mako-sidebar-bg) r g b / var(--mako-alpha));
+  --secondary-sidebar-bg-color: rgb(from var(--mako-sidebar-bg) r g b / var(--mako-alpha));
+  --headerbar-bg-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
+  --headerbar-backdrop-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
+}
