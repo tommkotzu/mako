@@ -20,6 +20,9 @@ gboolean nautilus_quick_look_enabled    (void);
 void     nautilus_quick_look_toggle     (NautilusFilesView *view,
                                          GList             *selection);
 /* Follows a new selection of @view, if Quick Look is showing it. */
+/* The same, in a window of its own, as big as the screen allows. */
+void     nautilus_quick_look_toggle_window (NautilusFilesView *view,
+                                            GList             *selection);
 void     nautilus_quick_look_update     (NautilusFilesView *view,
                                          GList             *selection);
 gboolean nautilus_quick_look_is_visible (void);

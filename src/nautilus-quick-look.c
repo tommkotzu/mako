@@ -94,6 +94,9 @@ static void ql_set_fullscreen (NautilusQuickLook *self,
                                gboolean           fullscreen);
 
 static NautilusQuickLook *quick_look = NULL;
+/* Ctrl+Space: Quick Look in a window of its own, as big as the screen
+ * allows rather than the file manager window. */
+static GtkWidget *ql_window = NULL;
 
 static void show_current (NautilusQuickLook *self);
 
@@ -592,6 +595,11 @@ on_key_pressed (GtkEventControllerKey *controller,
         open_shown (self);
         return GDK_EVENT_STOP;
     }
+    if (mods == GDK_CONTROL_MASK && key == GDK_KEY_space)
+    {
+        ql_hide (self);
+        return GDK_EVENT_STOP;
+    }
 
     if ((mods & ~GDK_SHIFT_MASK) != 0)
     {
@@ -942,6 +950,10 @@ on_fade_done (NautilusQuickLook *self)
 
     /* Let go of everything; the card stays, to come back quickly. */
     gtk_widget_set_visible (GTK_WIDGET (self), FALSE);
+    if (ql_window != NULL && gtk_widget_get_root (GTK_WIDGET (self)) == GTK_ROOT (ql_window))
+    {
+        gtk_widget_set_visible (ql_window, FALSE);
+    }
     stop_media (self);
     nautilus_text_preview_set_file (self->text, NULL);
     watch_files (self, FALSE);
@@ -1275,14 +1287,79 @@ nautilus_quick_look_attach (AdwApplicationWindow *window)
     g_object_set_data (G_OBJECT (window), "quick-look-overlay", overlay);
 }
 
-void
-nautilus_quick_look_toggle (NautilusFilesView *view,
-                            GList             *selection)
+static gboolean
+on_ql_window_close (GtkWindow *window)
+{
+    if (quick_look != NULL)
+    {
+        ql_hide (quick_look);
+    }
+    return TRUE;    /* hidden at the end of the fade */
+}
+
+static void
+ensure_ql_window (void)
+{
+    if (ql_window != NULL)
+    {
+        return;
+    }
+    ql_window = adw_window_new ();
+    g_object_add_weak_pointer (G_OBJECT (ql_window), (gpointer *) &ql_window);
+    gtk_window_set_title (GTK_WINDOW (ql_window), _("Quick Look"));
+    gtk_widget_add_css_class (ql_window, "quick-look-window");
+    g_signal_connect (ql_window, "close-request", G_CALLBACK (on_ql_window_close), NULL);
+}
+
+/* Most of the screen @parent is on. */
+static void
+size_ql_window (GtkWindow *parent)
+{
+    GdkSurface *surface = parent != NULL ? gtk_native_get_surface (GTK_NATIVE (parent)) : NULL;
+    GdkMonitor *monitor = surface != NULL
+                          ? gdk_display_get_monitor_at_surface (gdk_surface_get_display (surface), surface)
+                          : NULL;
+    GdkRectangle area = { 0, 0, 1600, 1000 };
+
+    if (monitor != NULL)
+    {
+        gdk_monitor_get_geometry (monitor, &area);
+    }
+    gtk_window_set_default_size (GTK_WINDOW (ql_window), area.width * 0.85, area.height * 0.85);
+}
+
+/* Takes Quick Look out of wherever it is. */
+static void
+detach_quick_look (void)
+{
+    GtkWidget *parent = gtk_widget_get_parent (GTK_WIDGET (quick_look));
+
+    if (parent == NULL)
+    {
+        return;
+    }
+    if (GTK_IS_OVERLAY (parent))
+    {
+        gtk_overlay_remove_overlay (GTK_OVERLAY (parent), GTK_WIDGET (quick_look));
+    }
+    else if (ql_window != NULL && gtk_widget_get_root (GTK_WIDGET (quick_look)) == GTK_ROOT (ql_window))
+    {
+        adw_window_set_content (ADW_WINDOW (ql_window), NULL);
+    }
+}
+
+static void
+show_quick_look (NautilusFilesView *view,
+                 GList             *selection,
+                 gboolean           in_window)
 {
     GtkRoot *root = gtk_widget_get_root (GTK_WIDGET (view));
     GtkWidget *overlay = root != NULL ? g_object_get_data (G_OBJECT (root), "quick-look-overlay") : NULL;
+    GtkWidget *target;
+    gboolean was_in_window = quick_look != NULL && ql_window != NULL &&
+                             gtk_widget_get_root (GTK_WIDGET (quick_look)) == GTK_ROOT (ql_window);
 
-    if (nautilus_quick_look_is_visible ())
+    if (nautilus_quick_look_is_visible () && was_in_window == in_window)
     {
         nautilus_quick_look_close ();
         return;
@@ -1299,26 +1376,67 @@ nautilus_quick_look_toggle (NautilusFilesView *view,
         g_object_add_weak_pointer (G_OBJECT (quick_look), (gpointer *) &quick_look);
     }
 
-    /* Over the window it was opened from, going away with it. */
-    if (gtk_widget_get_parent (GTK_WIDGET (quick_look)) != overlay)
+    if (in_window)
     {
-        if (gtk_widget_get_parent (GTK_WIDGET (quick_look)) != NULL)
+        ensure_ql_window ();
+        target = ql_window;
+    }
+    else
+    {
+        /* Over the window it was opened from, going away with it. */
+        target = overlay;
+    }
+
+    if (in_window ? !was_in_window : gtk_widget_get_parent (GTK_WIDGET (quick_look)) != target)
+    {
+        g_object_ref (quick_look);
+        detach_quick_look ();
+        if (in_window)
         {
-            g_object_ref (quick_look);
-            gtk_overlay_remove_overlay (GTK_OVERLAY (gtk_widget_get_parent (GTK_WIDGET (quick_look))),
-                                        GTK_WIDGET (quick_look));
-            gtk_overlay_add_overlay (GTK_OVERLAY (overlay), GTK_WIDGET (quick_look));
-            g_object_unref (quick_look);
+            adw_window_set_content (ADW_WINDOW (ql_window), GTK_WIDGET (quick_look));
         }
         else
         {
             gtk_overlay_add_overlay (GTK_OVERLAY (overlay), GTK_WIDGET (quick_look));
         }
+        g_object_unref (quick_look);
+        if (was_in_window && !in_window)
+        {
+            gtk_widget_set_visible (ql_window, FALSE);
+        }
+    }
+    if (in_window)
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (quick_look), "in-window");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (quick_look), "in-window");
     }
     g_set_weak_pointer (&quick_look->view, view);
 
     set_files (quick_look, selection);
+    if (in_window && !gtk_widget_get_visible (ql_window))
+    {
+        gtk_window_set_transient_for (GTK_WINDOW (ql_window), GTK_WINDOW (root));
+        size_ql_window (GTK_WINDOW (root));
+        gtk_window_present (GTK_WINDOW (ql_window));
+    }
     ql_show (quick_look);
+}
+
+void
+nautilus_quick_look_toggle (NautilusFilesView *view,
+                            GList             *selection)
+{
+    show_quick_look (view, selection, FALSE);
+}
+
+void
+nautilus_quick_look_toggle_window (NautilusFilesView *view,
+                                   GList             *selection)
+{
+    show_quick_look (view, selection, TRUE);
 }
 
 void

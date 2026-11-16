@@ -2987,6 +2987,7 @@ pop_out_inspector (NautilusWindow *window)
     static const GActionEntry view_entries[] =
     {
         { .name = "preview-selection", .activate = forward_view_action },
+        { .name = "preview-selection-window", .activate = forward_view_action },
         { .name = "open-with-default-application", .activate = forward_view_action },
         { .name = "edit-tags", .activate = forward_view_action },
     };

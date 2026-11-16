@@ -1773,6 +1773,22 @@ action_preview_selection (GSimpleAction *action,
 }
 
 static void
+action_preview_selection_window (GSimpleAction *action,
+                                 GVariant      *state,
+                                 gpointer       user_data)
+{
+    NautilusFilesView *self = user_data;
+    g_autolist (NautilusFile) selection = nautilus_files_view_get_selection (self);
+
+    if (!nautilus_quick_look_enabled ())
+    {
+        action_preview_selection (action, state, user_data);
+        return;
+    }
+    nautilus_quick_look_toggle_window (self, selection);
+}
+
+static void
 action_popup_menu (GSimpleAction *action,
                    GVariant      *state,
                    gpointer       user_data)
@@ -7046,6 +7062,7 @@ const GActionEntry view_entries[] =
     { .name = "select-pattern", .activate = action_select_pattern },
     { .name = "invert-selection", .activate = action_invert_selection },
     { .name = "preview-selection", .activate = action_preview_selection },
+    { .name = "preview-selection-window", .activate = action_preview_selection_window },
     { .name = "popup-menu", .activate = action_popup_menu },
 };
 
@@ -7653,6 +7670,9 @@ nautilus_files_view_update_actions_state (NautilusFilesView *self)
                                  !selection_contains_starred);
     action = g_action_map_lookup_action (G_ACTION_MAP (view_action_group),
                                          "preview-selection");
+    g_simple_action_set_enabled (G_SIMPLE_ACTION (action), selection != NULL);
+    action = g_action_map_lookup_action (G_ACTION_MAP (view_action_group),
+                                         "preview-selection-window");
     g_simple_action_set_enabled (G_SIMPLE_ACTION (action), selection != NULL);
     action = g_action_map_lookup_action (G_ACTION_MAP (view_action_group),
                                          "copy-current-location");
@@ -9839,6 +9859,11 @@ nautilus_files_view_init (NautilusFilesView *self)
     /* By default, :scope is GTK_SHORTCUT_SCOPE_LOCAL, so no need to set it. */
     gtk_event_controller_set_propagation_phase (controller, GTK_PHASE_CAPTURE);
     gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller), shortcut);
+    /* Ctrl+Space (which the list items use to toggle their selection):
+     * Quick Look in a window of its own. */
+    gtk_shortcut_controller_add_shortcut (GTK_SHORTCUT_CONTROLLER (controller),
+                                          gtk_shortcut_new (gtk_keyval_trigger_new (GDK_KEY_space, GDK_CONTROL_MASK),
+                                                            gtk_named_action_new ("view.preview-selection-window")));
 
     self->starred_cancellable = g_cancellable_new ();
     self->clipboard_cancellable = g_cancellable_new ();

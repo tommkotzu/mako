@@ -81,6 +81,7 @@ static const Command commands[] =
     { SECTION_OPEN, N_("Open in New Window"), "view.open-item-new-window", "<shift>Return", NULL },
     { SECTION_OPEN, N_("Open Item Location"), "view.open-item-location", "<ctrl><alt>o", NULL },
     { SECTION_OPEN, N_("Quick Look"), "view.preview-selection", "space", NULL },
+    { SECTION_OPEN, N_("Quick Look in a Window"), "view.preview-selection-window", "<ctrl>space", NULL },
     { SECTION_OPEN, N_("Open in Console"), "view.current-directory-console", "<ctrl>period", NULL },
 
     { SECTION_EDIT, N_("Copy"), "view.copy", "<ctrl>c", NULL },
