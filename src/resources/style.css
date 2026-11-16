@@ -510,7 +510,7 @@ nautilus-quick-look, .quick-look { background-color: alpha(black, 0.32); }
 .quick-look.fullscreen .quick-look-card { margin: 0; border-radius: 0; box-shadow: none; }
 
 /* Each tab's bar under its files. */
-nautilus-bottom-bar { border-top: 1px solid var(--border-color); background-color: var(--headerbar-bg-color); }
+nautilus-bottom-bar { border-top: 1px solid var(--border-color); background-color: transparent; }
 nautilus-bottom-bar > .toolbar { padding: 4px 6px; }
 
 /* What a shortcut just did, at the bottom of the window. */
