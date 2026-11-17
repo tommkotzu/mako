@@ -185,10 +185,12 @@
   padding-top: 16px;
   padding-bottom: 24px;
   border-spacing: 8px;
+  --mako-row-gap: 8px;  /* the same, for the alternating rows */
 }
 
 .nautilus-list-view.compact columnview > listview {
   border-spacing: 4px;
+  --mako-row-gap: 4px;
 }
 
 /* Use negative margins to extend rubberbanding area into the columnview's
@@ -505,7 +507,7 @@ nautilus-columns.columns-on .miller-content-title { border-right: 1px solid var(
  * like the side columns' (navigation-sidebar), so moving on doesn't jump. */
 nautilus-columns.columns-on .nautilus-list-view columnview { padding-left: 6px; padding-right: 6px; }
 nautilus-columns.columns-on .nautilus-list-view columnview > listview {
-  padding-top: 6px; padding-bottom: 6px; border-spacing: 2px; margin-left: -6px; margin-right: -6px;
+  padding-top: 6px; padding-bottom: 6px; border-spacing: 2px; --mako-row-gap: 2px; margin-left: -6px; margin-right: -6px;
 }
 nautilus-columns.columns-on .nautilus-list-view columnview > listview > row { margin-left: 6px; margin-right: 6px; border-radius: 6px; }
 nautilus-columns.columns-on .nautilus-list-view .nautilus-view-cell { padding: 2px 8px; }
@@ -561,15 +563,15 @@ nautilus-bottom-bar .bottom-filter > image { opacity: 0.6; }
  * padding and spacing shrink together; its small zoom has 3px padding and
  * 4px spacing): the icons go down the standard sizes
  * (nautilus_density_icon_size ()) and the room around them with them. */
-window.density-compact .nautilus-list-view columnview > listview { border-spacing: 6px; }
+window.density-compact .nautilus-list-view columnview > listview { border-spacing: 6px; --mako-row-gap: 6px; }
 window.density-compact .nautilus-list-view .nautilus-view-cell { padding-top: 4px; padding-bottom: 4px; }
-window.density-compact .nautilus-list-view.compact columnview > listview { border-spacing: 3px; }
+window.density-compact .nautilus-list-view.compact columnview > listview { border-spacing: 3px; --mako-row-gap: 3px; }
 window.density-compact .nautilus-list-view.compact .nautilus-view-cell { padding-top: 2px; padding-bottom: 2px; }
-window.density-dense .nautilus-list-view columnview > listview { border-spacing: 3px; }
+window.density-dense .nautilus-list-view columnview > listview { border-spacing: 3px; --mako-row-gap: 3px; }
 window.density-dense .nautilus-list-view .nautilus-view-cell { padding-top: 2px; padding-bottom: 2px; }
-window.density-dense .nautilus-list-view.compact columnview > listview { border-spacing: 2px; }
+window.density-dense .nautilus-list-view.compact columnview > listview { border-spacing: 2px; --mako-row-gap: 2px; }
 window.density-dense .nautilus-list-view.compact .nautilus-view-cell { padding-top: 1px; padding-bottom: 1px; }
-window.density-extra-dense .nautilus-list-view columnview > listview { border-spacing: 0; }
+window.density-extra-dense .nautilus-list-view columnview > listview { border-spacing: 0; --mako-row-gap: 0px; }
 window.density-extra-dense .nautilus-list-view .nautilus-view-cell { padding-top: 1px; padding-bottom: 1px; }
 window.density-extra-dense .nautilus-list-view.compact .nautilus-view-cell { padding-top: 0; padding-bottom: 0; }
 
@@ -581,13 +583,13 @@ window.density-extra-dense .nautilus-grid-view gridview { padding: 6px; border-s
 window.density-extra-dense .nautilus-grid-view .nautilus-view-cell { padding: 2px; }
 
 /* Columns: the middle column's cells and the side columns' rows together. */
-window.density-compact nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 2px; }
+window.density-compact nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 2px; --mako-row-gap: 2px; }
 window.density-compact nautilus-columns.columns-on .nautilus-list-view .nautilus-view-cell { padding: 1px 8px; }
 window.density-compact nautilus-columns .miller-column > row { padding-top: 1px; padding-bottom: 1px; margin-bottom: 2px; }
-window.density-dense nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 0; }
+window.density-dense nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 0; --mako-row-gap: 0px; }
 window.density-dense nautilus-columns.columns-on .nautilus-list-view .nautilus-view-cell { padding: 1px 8px; }
 window.density-dense nautilus-columns .miller-column > row { padding-top: 1px; padding-bottom: 1px; margin-bottom: 0; }
-window.density-extra-dense nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 0; }
+window.density-extra-dense nautilus-columns.columns-on .nautilus-list-view columnview > listview { border-spacing: 0; --mako-row-gap: 0px; }
 window.density-extra-dense nautilus-columns.columns-on .nautilus-list-view .nautilus-view-cell { padding: 0 8px; }
 window.density-extra-dense nautilus-columns .miller-column > row { padding-top: 0; padding-bottom: 0; margin-bottom: 0; }
 
@@ -878,7 +880,23 @@ window.theme-matcha, window.theme-matcha.framed-panels, .theme-preview.theme-mat
 
 /* Alternating row colors (setting alternate-rows): list, tree and columns. */
 window.alternate-rows listview > row.stripe-odd:not(:selected):not(:hover) {
-  background-color: color-mix(in srgb, currentColor 4%, transparent);
+  --mako-stripe: color-mix(in srgb, currentColor 4%, transparent);
+  background-color: var(--mako-stripe);
+}
+/* A stripe also covers half the gap above and below its row (the list's
+ * border-spacing, kept in --mako-row-gap), so striped and plain bands are
+ * exactly as tall. */
+window.alternate-rows .nautilus-list-view columnview > listview > row.stripe-odd:not(:selected):not(:hover) {
+  box-shadow: 0 calc(var(--mako-row-gap) / -2) var(--mako-stripe),
+              0 calc(var(--mako-row-gap) / 2) var(--mako-stripe);
+}
+/* The side columns space their rows with a margin below each instead. */
+window.alternate-rows nautilus-columns .miller-column > row.stripe-odd:not(:selected):not(:hover) {
+  box-shadow: 0 2px var(--mako-stripe);
+}
+window.alternate-rows.density-dense nautilus-columns .miller-column > row.stripe-odd,
+window.alternate-rows.density-extra-dense nautilus-columns .miller-column > row.stripe-odd {
+  box-shadow: none;
 }
 
 /* More fun themes, after well-known palettes (Nord, Dracula, Gruvbox,
