@@ -1590,6 +1590,21 @@ create_tile (NautilusWindow *window)
     adw_tab_bar_set_inverted (bar, window->tab_bar_inverted);
     add_lone_tab_drag (bar, view);
 
+    /* A new tab here: with framed panels, shown while the pointer is on
+     * the tabs. A press anywhere in the tile makes it the active one first. */
+    {
+        GtkWidget *add = gtk_button_new_from_icon_name ("list-add-symbolic");
+
+        gtk_widget_add_css_class (add, "flat");
+        gtk_widget_add_css_class (add, "tile-new-tab");
+        gtk_widget_set_valign (add, GTK_ALIGN_CENTER);
+        gtk_widget_set_tooltip_text (add, _("New Tab"));
+        gtk_widget_set_focus_on_click (add, FALSE);
+        gtk_actionable_set_action_name (GTK_ACTIONABLE (add), "win.new-tab");
+        g_settings_bind (nautilus_flier_settings (), "framed-panels", add, "visible", G_SETTINGS_BIND_GET);
+        adw_tab_bar_set_end_action_widget (bar, add);
+    }
+
     /* Only allow tab DnD in Wayland.  We are using a hack in list-base to
      * get the preferred action which we can not replicate here because we
      * don't have access to the GtkDropTarget to check the actions on the GdkDrag.
@@ -3178,6 +3193,18 @@ arrange_inspector (NautilusWindow *window)
     }
 
     window->inspector_docked_side = side;
+    {
+        static const char *sides[] = { "docked-left", "docked-right", "docked-top", "docked-bottom" };
+
+        for (guint i = 0; i < G_N_ELEMENTS (sides); i++)
+        {
+            gtk_widget_remove_css_class (window->inspector, sides[i]);
+        }
+        gtk_widget_add_css_class (window->inspector,
+                                  side == INSPECTOR_LEFT ? "docked-left"
+                                  : side == INSPECTOR_TOP ? "docked-top"
+                                  : side == INSPECTOR_BOTTOM ? "docked-bottom" : "docked-right");
+    }
     if (was_floating)
     {
         dock_inspector (window);
@@ -3537,6 +3564,21 @@ apply_window_opacity (NautilusWindow *window)
     }
 }
 
+/* Framed panels: each tile a card of its own, the inspector a brighter one
+ * (style.css, window.framed-panels). */
+static void
+apply_framed_panels (NautilusWindow *window)
+{
+    if (g_settings_get_boolean (nautilus_flier_settings (), "framed-panels"))
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (window), "framed-panels");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (window), "framed-panels");
+    }
+}
+
 /* The sidebar and inspector buttons, unless turned off; a narrow window
  * keeps the sidebar's, the only way to its folded-away sidebar by mouse. */
 static gboolean
@@ -3586,6 +3628,7 @@ setup_inspector (NautilusWindow *window)
     GtkGesture *drag;
 
     window->inspector = nautilus_inspector_new ();
+    gtk_widget_set_overflow (window->inspector, GTK_OVERFLOW_HIDDEN);
     window->inspector_docked_side = INSPECTOR_RIGHT;
     window->inspector_drag_target = -1;
     window->inspector_paned = GTK_PANED (gtk_paned_new (GTK_ORIENTATION_HORIZONTAL));
@@ -4035,6 +4078,9 @@ nautilus_window_init (NautilusWindow *window)
     nautilus_quick_look_attach (ADW_APPLICATION_WINDOW (window));
     nautilus_shortcuts_attach (GTK_WINDOW (window));
     setup_inspector (window);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::framed-panels",
+                             G_CALLBACK (apply_framed_panels), window, G_CONNECT_SWAPPED);
+    apply_framed_panels (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::panel-buttons",
                              G_CALLBACK (panel_buttons_later), window, G_CONNECT_SWAPPED);
     g_signal_connect_object (window->split_view, "notify::collapsed",

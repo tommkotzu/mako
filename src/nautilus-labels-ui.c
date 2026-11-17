@@ -768,6 +768,10 @@ nautilus_labels_preferences_page_new (void)
         adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
     }
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("_Framed Panels"),
+                                               _("Each tile a rounded card of its own with a gap between them, and the inspector a brighter card"),
+                                               "framed-panels"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("_Panel Buttons"),
                                                _("The sidebar and inspector buttons at the ends of the header bar. Without them, use F9 and F4, or the view menu"),
                                                "panel-buttons"));

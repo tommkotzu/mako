@@ -88,6 +88,7 @@ static const Setting settings[] =
     { N_("Folder Color Scheme"), N_("Appearance"), "colours palette", SCHEMA_FLIER, "folder-color-scheme",
       N_("pastel=Pastel|vibrant=Vibrant|earth=Earth|ocean=Ocean|mono=Mono") },
     { N_("Window Opacity"), N_("Appearance"), "transparent transparency blur", SCHEMA_FLIER, "window-opacity", NULL },
+    { N_("Framed Panels"), N_("Appearance"), "theme cards rounded tiles style look", SCHEMA_FLIER, "framed-panels", NULL },
     { N_("Built-in Quick Look"), N_("Quick Look"), "preview", SCHEMA_FLIER, "own-quick-look", NULL },
     { N_("Quick Look Names"), N_("Quick Look"), "preview", SCHEMA_FLIER, "quick-look-names", NULL },
     { N_("Quick Look Ratings and Tags"), N_("Quick Look"), "preview stars", SCHEMA_FLIER, "quick-look-marks", NULL },

@@ -132,6 +132,11 @@
       <summary>Tree view for new tabs</summary>
       <description>Whether new tabs show the list with expandable folders. The last choice of View is remembered.</description>
     </key>
+    <key type="b" name="framed-panels">
+      <default>false</default>
+      <summary>Framed panels</summary>
+      <description>Draw each tile as a card of its own with rounded corners and a gap between them, and the inspector as a brighter card, instead of panels divided by lines.</description>
+    </key>
     <key type="b" name="panel-buttons">
       <default>true</default>
       <summary>Panel buttons</summary>

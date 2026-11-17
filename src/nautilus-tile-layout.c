@@ -31,6 +31,8 @@ static void
 nautilus_tile_init (NautilusTile *self)
 {
     gtk_orientable_set_orientation (GTK_ORIENTABLE (self), GTK_ORIENTATION_VERTICAL);
+    /* Its contents follow its rounded corners, with framed panels. */
+    gtk_widget_set_overflow (GTK_WIDGET (self), GTK_OVERFLOW_HIDDEN);
 
     self->view = ADW_TAB_VIEW (adw_tab_view_new ());
     self->bar = ADW_TAB_BAR (adw_tab_bar_new ());

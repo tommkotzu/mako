@@ -724,3 +724,36 @@ button.jump-reset { min-height: 22px; min-width: 22px; padding: 0; }
   color: var(--accent-fg-color);
   font-weight: bold;
 }
+
+/* Framed panels (setting framed-panels): each tile a card of its own with
+ * a gap around it, the inspector a brighter card; no lines between them. */
+window.framed-panels {
+  --mako-tile-bg: color-mix(in srgb, var(--view-bg-color) 76%, black);
+  --mako-card-bg: var(--sidebar-bg-color);
+}
+@media (prefers-color-scheme: light) {
+  window.framed-panels { --mako-tile-bg: color-mix(in srgb, var(--view-bg-color) 95%, black); }
+}
+window.framed-panels nautilus-tile-layout { padding: 0 6px 6px 6px; }
+window.framed-panels nautilus-tile-layout paned > separator {
+  background: none; box-shadow: none; min-width: 6px; min-height: 6px;
+}
+/* Everything in a tile that paints the view colour paints the tile's. */
+window.framed-panels nautilus-tile {
+  --view-bg-color: var(--mako-tile-bg);
+  background-color: var(--view-bg-color);
+  border-radius: 10px;
+}
+window.framed-panels nautilus-bottom-bar { border-top: none; }
+window.framed-panels tabbar .tile-new-tab { opacity: 0; transition: opacity 150ms ease-out; min-width: 28px; min-height: 28px; padding: 0; margin: 0 4px; }
+window.framed-panels tabbar:hover .tile-new-tab { opacity: 1; }
+window.framed-panels nautilus-inspector {
+  background-color: var(--mako-card-bg);
+  border-radius: 10px;
+  margin: 0 6px 6px 0;
+}
+window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
+window.framed-panels nautilus-inspector.docked-top,
+window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
+window.framed-panels nautilus-inspector .inspector-header { border-top: none; }
+window.framed-panels paned.inspector-paned > separator { min-width: 0; min-height: 0; }
