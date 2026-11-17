@@ -224,6 +224,13 @@ older releases can't install it. Mako goes into `/opt/mako` and starts with
 To make it your default file manager, see below. Remove it with
 `sudo apt remove mako`.
 
+Installing the .deb also adds Mako's update source
+([tommkotzu.github.io/mako-apt](https://tommkotzu.github.io/mako-apt/)),
+so new versions arrive through Software Updater or
+`sudo apt update && sudo apt upgrade`. Versions before 0.1.5 don't have
+it: install 0.1.5 by hand once. To stop updates, delete
+`/etc/apt/sources.list.d/mako.sources`.
+
 ## Build and install
 
 You need the build dependencies of Nautilus 50, with **GTK 4.22** and
