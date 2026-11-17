@@ -515,6 +515,9 @@ nautilus-quick-look, .quick-look { background-color: alpha(black, 0.32); }
 /* Each tab's bar under its files. */
 nautilus-bottom-bar { background-color: transparent; }
 nautilus-bottom-bar > .toolbar { padding: 4px 6px; }
+/* The filter: no pill, only the lens; the focus ring still shows where you type. */
+nautilus-bottom-bar .bottom-filter { background: none; box-shadow: none; }
+nautilus-bottom-bar .bottom-filter > image { opacity: 0.6; }
 
 /* What a shortcut just did, at the bottom of the window. */
 .shortcut-hint {

@@ -478,6 +478,7 @@ nautilus_bottom_bar_init (NautilusBottomBar *self)
     gtk_widget_set_parent (self->box, GTK_WIDGET (self));
 
     self->filter_entry = gtk_search_entry_new ();
+    gtk_widget_add_css_class (self->filter_entry, "bottom-filter");
     gtk_search_entry_set_placeholder_text (GTK_SEARCH_ENTRY (self->filter_entry), _("Filter"));
     gtk_search_entry_set_search_delay (GTK_SEARCH_ENTRY (self->filter_entry), 0);
     gtk_widget_set_hexpand (self->filter_entry, TRUE);
