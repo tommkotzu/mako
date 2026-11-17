@@ -157,6 +157,11 @@
       <summary>Alternating row colors</summary>
       <description>Draw every other row a shade apart in the list view (also with expandable folders) and in columns.</description>
     </key>
+    <key type="s" name="custom-theme">
+      <default>''</default>
+      <summary>Custom color theme</summary>
+      <description>A theme of your own from ~/.config/mako/themes: the file name without “.css”. When it names a theme that's there, it is used instead of color-theme; empty for none.</description>
+    </key>
     <key type="b" name="framed-panels">
       <default>false</default>
       <summary>Framed panels</summary>

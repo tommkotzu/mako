@@ -1,0 +1,56 @@
+/* Mako colour theme
+ * Name: Paper
+ *
+ * An example of a small theme: warm paper in light mode, ink at night,
+ * and a few rules beyond colours (a painted header bar, rounder tabs).
+ * Copy it to ~/.config/mako/themes/ to use it.
+ */
+
+.mako-theme {
+  --view-bg-color: #1f1d1a;
+  --view-fg-color: #e8e1d3;
+  --window-bg-color: #171512;
+  --window-fg-color: #e8e1d3;
+  --mako-sidebar: #26231f;
+  --sidebar-bg-color: #26231f;
+  --sidebar-backdrop-color: #26231f;
+  --sidebar-fg-color: #e8e1d3;
+  --headerbar-bg-color: #26231f;
+  --headerbar-fg-color: #e8e1d3;
+  --popover-bg-color: #2c2924;
+  --popover-fg-color: #e8e1d3;
+  --accent-bg-color: #c9653b;
+  --accent-fg-color: #ffffff;
+  --accent-color: #e08a63;
+}
+
+@media (prefers-color-scheme: light) {
+  .mako-theme {
+    --view-bg-color: #fbf7ef;
+    --view-fg-color: #3b342b;
+    --window-bg-color: #efe7d8;
+    --window-fg-color: #3b342b;
+    --mako-sidebar: #f3ecdf;
+    --sidebar-bg-color: #f3ecdf;
+    --sidebar-backdrop-color: #f3ecdf;
+    --sidebar-fg-color: #3b342b;
+    --headerbar-bg-color: #efe7d8;
+    --headerbar-fg-color: #3b342b;
+    --popover-bg-color: #fffdf8;
+    --popover-fg-color: #3b342b;
+    --accent-bg-color: #b4532a;
+    --accent-fg-color: #ffffff;
+    --accent-color: #9c4522;
+  }
+}
+
+/* The header bars in the theme's own colour. */
+.mako-theme headerbar {
+  background-color: var(--headerbar-bg-color);
+  color: var(--headerbar-fg-color);
+}
+
+/* Rounder tabs. */
+.mako-theme tabbar tab {
+  border-radius: 14px;
+}

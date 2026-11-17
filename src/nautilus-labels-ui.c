@@ -11,6 +11,8 @@
 
 #include "nautilus-file.h"
 #include "nautilus-labels.h"
+#include "nautilus-custom-themes.h"
+#include "nautilus-application.h"
 
 /* ---------------------------------------------------------- Rating row */
 
@@ -599,16 +601,292 @@ on_sidebar_density_changed (GSettings   *settings,
     adw_combo_row_set_selected (row, g_settings_get_enum (settings, key));
 }
 
+/* The colour theme picker: a small window in each theme's colours. */
+static const struct
+{
+    const char *nick;
+    const char *title;
+} color_themes[] =
+{
+    /* In the order of the ColorTheme enum. */
+    { "mako", N_("Mako") }, { "uniform", N_("Uniform") }, { "classic", N_("Classic") },
+    { "graphite", N_("Graphite") }, { "deep-sea", N_("Deep Sea") }, { "synthwave", N_("Synthwave") },
+    { "matcha", N_("Matcha") }, { "nord", N_("Nord") }, { "dracula", N_("Dracula") },
+    { "gruvbox", N_("Gruvbox") }, { "catppuccin", N_("Catppuccin") }, { "solarized", N_("Solarized") },
+    { "clown", N_("Clown") },
+};
+
 static void
-on_color_theme_selected (AdwComboRow *row)
+on_theme_choice_toggled (GtkToggleButton *button)
 {
     GSettings *settings = nautilus_flier_settings ();
-    guint selected = adw_combo_row_get_selected (row);
+    const char *custom = g_object_get_data (G_OBJECT (button), "custom");
+    int theme = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "theme"));
+    g_autofree char *current = g_settings_get_string (settings, "custom-theme");
 
-    if (selected != GTK_INVALID_LIST_POSITION && (int) selected != g_settings_get_enum (settings, "color-theme"))
+    if (!gtk_toggle_button_get_active (button))
     {
-        g_settings_set_enum (settings, "color-theme", selected);
+        return;
     }
+    if (custom != NULL)
+    {
+        if (g_strcmp0 (current, custom) != 0)
+        {
+            g_settings_set_string (settings, "custom-theme", custom);
+        }
+        return;
+    }
+    if (*current != '\0')
+    {
+        g_settings_set_string (settings, "custom-theme", "");
+    }
+    if (g_settings_get_enum (settings, "color-theme") != theme)
+    {
+        g_settings_set_enum (settings, "color-theme", theme);
+    }
+}
+
+/* The choice in use: a custom theme when one is set and there, else the
+ * built-in one. */
+static void
+on_theme_setting_changed (GSettings  *settings,
+                          const char *key,
+                          GtkWidget  *picker)
+{
+    int theme = g_settings_get_enum (settings, "color-theme");
+    g_autofree char *custom = g_settings_get_string (settings, "custom-theme");
+    gboolean use_custom = *custom != '\0' && nautilus_custom_themes_has (custom);
+
+    for (GtkWidget *child = gtk_widget_get_first_child (picker); child != NULL;
+         child = gtk_widget_get_next_sibling (child))
+    {
+        GtkWidget *button = gtk_flow_box_child_get_child (GTK_FLOW_BOX_CHILD (child));
+        const char *id = g_object_get_data (G_OBJECT (button), "custom");
+
+        if (use_custom ? g_strcmp0 (id, custom) == 0
+                       : id == NULL && GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "theme")) == theme)
+        {
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (button), TRUE);
+        }
+    }
+}
+
+/* The GNOME-style previews show the accent colour of the desktop. */
+static void
+update_preview_accent (AdwStyleManager *manager,
+                       GParamSpec      *pspec,
+                       GtkCssProvider  *provider)
+{
+    GdkRGBA rgba;
+    g_autofree char *color = NULL;
+    g_autofree char *css = NULL;
+
+    adw_accent_color_to_rgba (adw_style_manager_get_accent_color (manager), &rgba);
+    color = gdk_rgba_to_string (&rgba);
+    css = g_strdup_printf (".theme-preview.theme-mako, .theme-preview.theme-uniform, "
+                           ".theme-preview.theme-classic, .theme-preview.theme-graphite "
+                           "{ --accent-bg-color: %s; }", color);
+    gtk_css_provider_load_from_string (provider, css);
+}
+
+static GtkWidget *
+theme_preview_new (const char *nick)
+{
+    GtkWidget *preview = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    GtkWidget *side = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+    GtkWidget *main = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    GtkWidget *head = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    GtkWidget *view = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+    g_autofree char *class = g_strconcat ("theme-", nick, NULL);
+
+    gtk_widget_add_css_class (preview, "theme-preview");
+    gtk_widget_add_css_class (preview, class);
+    gtk_widget_set_overflow (preview, GTK_OVERFLOW_HIDDEN);
+    gtk_widget_add_css_class (side, "tp-side");
+    gtk_widget_add_css_class (main, "tp-main");
+    gtk_widget_add_css_class (head, "tp-head");
+    gtk_widget_add_css_class (view, "tp-view");
+    gtk_widget_set_hexpand (main, TRUE);
+    gtk_widget_set_vexpand (view, TRUE);
+
+    for (int i = 0; i < 3; i++)
+    {
+        GtkWidget *line = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+
+        gtk_widget_add_css_class (line, "tp-line");
+        gtk_widget_set_margin_end (line, i == 1 ? 6 : 0);
+        gtk_box_append (GTK_BOX (side), line);
+    }
+    {
+        GtkWidget *accent = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+
+        gtk_widget_add_css_class (accent, "tp-accent");
+        gtk_widget_set_halign (accent, GTK_ALIGN_START);
+        gtk_box_append (GTK_BOX (view), accent);
+    }
+    for (int i = 0; i < 2; i++)
+    {
+        GtkWidget *line = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+
+        gtk_widget_add_css_class (line, "tp-line");
+        gtk_widget_set_margin_end (line, i == 0 ? 14 : 30);
+        gtk_box_append (GTK_BOX (view), line);
+    }
+
+    gtk_box_append (GTK_BOX (main), head);
+    gtk_box_append (GTK_BOX (main), view);
+    gtk_box_append (GTK_BOX (preview), side);
+    gtk_box_append (GTK_BOX (preview), main);
+    return preview;
+}
+
+static GtkWidget *
+theme_choice_new (GtkWidget  *preview,
+                  const char *title,
+                  GtkWidget  *group)
+{
+    GtkWidget *button = gtk_toggle_button_new ();
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    GtkWidget *label = gtk_label_new (title);
+
+    gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+    gtk_label_set_max_width_chars (GTK_LABEL (label), 14);
+    gtk_box_append (GTK_BOX (box), preview);
+    gtk_box_append (GTK_BOX (box), label);
+    gtk_button_set_child (GTK_BUTTON (button), box);
+    gtk_widget_add_css_class (button, "theme-choice");
+    gtk_widget_set_tooltip_text (button, title);
+    if (group != NULL)
+    {
+        gtk_toggle_button_set_group (GTK_TOGGLE_BUTTON (button), GTK_TOGGLE_BUTTON (group));
+    }
+    return button;
+}
+
+/* The built-in themes, then the user's own. */
+static void
+fill_theme_picker (GtkWidget *picker)
+{
+    GPtrArray *custom = nautilus_custom_themes_list ();
+    GtkWidget *first = NULL;
+
+    gtk_flow_box_remove_all (GTK_FLOW_BOX (picker));
+    for (guint i = 0; i < G_N_ELEMENTS (color_themes); i++)
+    {
+        GtkWidget *button = theme_choice_new (theme_preview_new (color_themes[i].nick),
+                                              _(color_themes[i].title), first);
+
+        first = first != NULL ? first : button;
+        g_object_set_data (G_OBJECT (button), "theme", GINT_TO_POINTER (i));
+        gtk_flow_box_append (GTK_FLOW_BOX (picker), button);
+    }
+    for (guint i = 0; i < custom->len; i++)
+    {
+        NautilusCustomTheme *theme = g_ptr_array_index (custom, i);
+        g_autofree char *class = nautilus_custom_themes_class (theme->id);
+        GtkWidget *preview = theme_preview_new ("mako");
+        GtkWidget *button;
+
+        /* GNOME's colours under it, the theme's on top. */
+        gtk_widget_add_css_class (preview, class);
+        button = theme_choice_new (preview, theme->name, first);
+        g_object_set_data_full (G_OBJECT (button), "custom", g_strdup (theme->id), g_free);
+        gtk_flow_box_append (GTK_FLOW_BOX (picker), button);
+    }
+
+    on_theme_setting_changed (nautilus_flier_settings (), NULL, picker);
+    for (GtkWidget *child = gtk_widget_get_first_child (picker); child != NULL;
+         child = gtk_widget_get_next_sibling (child))
+    {
+        g_signal_connect (gtk_flow_box_child_get_child (GTK_FLOW_BOX_CHILD (child)), "toggled",
+                          G_CALLBACK (on_theme_choice_toggled), NULL);
+    }
+}
+
+static GtkWidget *
+theme_picker_new (void)
+{
+    GSettings *settings = nautilus_flier_settings ();
+    GtkWidget *picker = gtk_flow_box_new ();
+    static GtkCssProvider *provider = NULL;
+
+    gtk_flow_box_set_selection_mode (GTK_FLOW_BOX (picker), GTK_SELECTION_NONE);
+    gtk_flow_box_set_homogeneous (GTK_FLOW_BOX (picker), TRUE);
+    gtk_flow_box_set_min_children_per_line (GTK_FLOW_BOX (picker), 3);
+    gtk_flow_box_set_max_children_per_line (GTK_FLOW_BOX (picker), 5);
+    gtk_flow_box_set_column_spacing (GTK_FLOW_BOX (picker), 4);
+    gtk_flow_box_set_row_spacing (GTK_FLOW_BOX (picker), 4);
+
+    /* Once for the app: the desktop's accent on the GNOME-style previews. */
+    if (provider == NULL)
+    {
+        AdwStyleManager *manager = adw_style_manager_get_default ();
+
+        provider = gtk_css_provider_new ();
+        gtk_style_context_add_provider_for_display (gdk_display_get_default (), GTK_STYLE_PROVIDER (provider),
+                                                    GTK_STYLE_PROVIDER_PRIORITY_APPLICATION + 1);
+        g_signal_connect (manager, "notify::accent-color", G_CALLBACK (update_preview_accent), provider);
+        update_preview_accent (manager, NULL, provider);
+    }
+
+    fill_theme_picker (picker);
+    g_signal_connect_object (settings, "changed::color-theme", G_CALLBACK (on_theme_setting_changed), picker, 0);
+    g_signal_connect_object (settings, "changed::custom-theme", G_CALLBACK (on_theme_setting_changed), picker, 0);
+    g_signal_connect_object (nautilus_custom_themes_get (), "changed", G_CALLBACK (fill_theme_picker), picker,
+                             G_CONNECT_SWAPPED);
+    return picker;
+}
+
+static void
+on_new_theme (GtkButton *button)
+{
+    g_autoptr (GError) error = NULL;
+    g_autoptr (GFile) file = nautilus_custom_themes_new_from_template (&error);
+
+    if (file == NULL)
+    {
+        g_warning ("New theme: %s", error->message);
+        return;
+    }
+    {
+        g_autoptr (GtkFileLauncher) launcher = gtk_file_launcher_new (file);
+        g_autofree char *id = g_file_get_basename (file);
+
+        id[strlen (id) - strlen (".css")] = '\0';
+        /* Picked at once, so every save shows in the window. */
+        g_settings_set_string (nautilus_flier_settings (), "custom-theme", id);
+        gtk_file_launcher_launch (launcher, GTK_WINDOW (gtk_widget_get_root (GTK_WIDGET (button))), NULL, NULL, NULL);
+    }
+}
+
+static void
+on_open_themes_folder (GtkButton *button)
+{
+    g_autoptr (GFile) folder = nautilus_custom_themes_get_folder ();
+
+    g_file_make_directory_with_parents (folder, NULL, NULL);
+    nautilus_application_open_location_full (NAUTILUS_APPLICATION (g_application_get_default ()), folder,
+                                             NAUTILUS_OPEN_FLAG_NEW_WINDOW, NULL, NULL);
+}
+
+static GtkWidget *
+theme_buttons_new (void)
+{
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget *add = gtk_button_new_with_mnemonic (_("_New Theme"));
+    GtkWidget *open = gtk_button_new_with_mnemonic (_("Open Themes _Folder"));
+
+    gtk_widget_set_tooltip_text (add, _("Start from a template that explains every color, and edit it: each save shows at once"));
+    gtk_widget_set_tooltip_text (open, _("Your themes live in ~/.config/mako/themes. Drop a theme's .css file there to add it"));
+    gtk_widget_add_css_class (add, "pill");
+    gtk_widget_add_css_class (open, "pill");
+    gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
+    gtk_widget_set_margin_top (box, 8);
+    g_signal_connect (add, "clicked", G_CALLBACK (on_new_theme), NULL);
+    g_signal_connect (open, "clicked", G_CALLBACK (on_open_themes_folder), NULL);
+    gtk_box_append (GTK_BOX (box), add);
+    gtk_box_append (GTK_BOX (box), open);
+    return box;
 }
 
 static void
@@ -651,29 +929,19 @@ nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
     g_action_map_add_action (G_ACTION_MAP (actions), density_action);
     gtk_widget_insert_action_group (appearance, "flier", G_ACTION_GROUP (actions));
 
-    /* Window: colours and frames */
+    /* Colour theme: a picture of each */
     page = appearance;
     group = adw_preferences_group_new ();
-    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Window"));
-    {
-        /* In the order of the ColorTheme enum. */
-        const char *names[] = { _("Mako"), _("Uniform"), _("Classic"), _("Graphite"),
-                                _("Deep Sea"), _("Synthwave"), _("Matcha"), _("Nord"), _("Dracula"),
-                                _("Gruvbox"), _("Catppuccin"), _("Solarized"), _("Clown"), NULL };
-        g_autoptr (GtkStringList) list = gtk_string_list_new (names);
-        GtkWidget *theme_row = adw_combo_row_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Color Theme"));
+    adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group),
+                                           _("The first four keep to GNOME, the rest are for fun. Each follows light and dark. Your own themes come after them."));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_picker_new ());
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_buttons_new ());
+    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
-        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (theme_row), _("Color _Theme"));
-        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (theme_row), TRUE);
-        adw_action_row_set_subtitle (ADW_ACTION_ROW (theme_row),
-                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the rest are for fun. Each follows light and dark"));
-        adw_combo_row_set_model (ADW_COMBO_ROW (theme_row), G_LIST_MODEL (list));
-        adw_combo_row_set_selected (ADW_COMBO_ROW (theme_row), g_settings_get_enum (settings, "color-theme"));
-        g_signal_connect (theme_row, "notify::selected", G_CALLBACK (on_color_theme_selected), NULL);
-        g_signal_connect_object (settings, "changed::color-theme",
-                                 G_CALLBACK (on_sidebar_density_changed), theme_row, 0);
-        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_row);
-    }
+    /* Window: frames and buttons */
+    group = adw_preferences_group_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Window"));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("_Framed Panels"),
                                                _("Each tile a rounded card of its own with a gap between them, and the inspector a card too"),

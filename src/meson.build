@@ -143,6 +143,7 @@ libnautilus_sources = [
   'nautilus-labels.c',
   'nautilus-labels.h',
   'nautilus-labels-ui.c',
+  'nautilus-custom-themes.c',
   'nautilus-labels-ui.h',
   'nautilus-label-cell.h',
   'nautilus-list-base.c',

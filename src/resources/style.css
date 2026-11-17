@@ -795,23 +795,23 @@ window.theme-classic,
 window.theme-classic.framed-panels { --mako-sidebar: var(--sidebar-bg-color); }
 
 /* Graphite: deeper, with more contrast between the parts. */
-window.theme-graphite {
+window.theme-graphite, .theme-preview.theme-graphite {
   --window-bg-color: #111113; --view-bg-color: #161618; --headerbar-bg-color: #111113;
   --headerbar-backdrop-color: #111113; --sidebar-bg-color: #232326; --sidebar-backdrop-color: #1e1e21;
   --card-bg-color: #1f1f22; --popover-bg-color: #262629; --dialog-bg-color: #1f1f22;
 }
-window.theme-graphite, window.theme-graphite.framed-panels { --mako-sidebar: #232326; }
+window.theme-graphite, window.theme-graphite.framed-panels, .theme-preview.theme-graphite { --mako-sidebar: #232326; }
 @media (prefers-color-scheme: light) {
-  window.theme-graphite {
+  window.theme-graphite, .theme-preview.theme-graphite {
     --window-bg-color: #e4e4e7; --view-bg-color: #ffffff; --headerbar-bg-color: #e4e4e7;
     --headerbar-backdrop-color: #ececee; --sidebar-bg-color: #eeeef0; --sidebar-backdrop-color: #f3f3f5;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fafafb;
   }
-  window.theme-graphite, window.theme-graphite.framed-panels { --mako-sidebar: #eeeef0; }
+  window.theme-graphite, window.theme-graphite.framed-panels, .theme-preview.theme-graphite { --mako-sidebar: #eeeef0; }
 }
 
 /* Deep Sea: night water, a cyan accent. */
-window.theme-deep-sea {
+window.theme-deep-sea, .theme-preview.theme-deep-sea {
   --window-bg-color: #07131d; --view-bg-color: #0b1b29; --headerbar-bg-color: #07131d;
   --headerbar-backdrop-color: #07131d; --sidebar-bg-color: #102538; --sidebar-backdrop-color: #0d2031;
   --card-bg-color: #10243a; --popover-bg-color: #12293f; --dialog-bg-color: #10243a;
@@ -819,9 +819,9 @@ window.theme-deep-sea {
   --sidebar-fg-color: #dbeef6; --card-fg-color: #dbeef6; --popover-fg-color: #dbeef6; --dialog-fg-color: #dbeef6;
   --accent-bg-color: #1597ab; --accent-color: #5cd3e6; --accent-fg-color: #ffffff;
 }
-window.theme-deep-sea, window.theme-deep-sea.framed-panels { --mako-sidebar: #102538; }
+window.theme-deep-sea, window.theme-deep-sea.framed-panels, .theme-preview.theme-deep-sea { --mako-sidebar: #102538; }
 @media (prefers-color-scheme: light) {
-  window.theme-deep-sea {
+  window.theme-deep-sea, .theme-preview.theme-deep-sea {
     --window-bg-color: #d3e7ef; --view-bg-color: #f1f8fb; --headerbar-bg-color: #d3e7ef;
     --headerbar-backdrop-color: #dcecf2; --sidebar-bg-color: #e1f0f5; --sidebar-backdrop-color: #e8f3f7;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #f6fbfc;
@@ -829,11 +829,11 @@ window.theme-deep-sea, window.theme-deep-sea.framed-panels { --mako-sidebar: #10
     --sidebar-fg-color: #0d2a3a; --card-fg-color: #0d2a3a; --popover-fg-color: #0d2a3a; --dialog-fg-color: #0d2a3a;
     --accent-bg-color: #0d8295; --accent-color: #0a6c7c;
   }
-  window.theme-deep-sea, window.theme-deep-sea.framed-panels { --mako-sidebar: #e1f0f5; }
+  window.theme-deep-sea, window.theme-deep-sea.framed-panels, .theme-preview.theme-deep-sea { --mako-sidebar: #e1f0f5; }
 }
 
 /* Synthwave: violet night, a hot pink accent. */
-window.theme-synthwave {
+window.theme-synthwave, .theme-preview.theme-synthwave {
   --window-bg-color: #130a22; --view-bg-color: #1a0f2e; --headerbar-bg-color: #130a22;
   --headerbar-backdrop-color: #130a22; --sidebar-bg-color: #24153f; --sidebar-backdrop-color: #1f1237;
   --card-bg-color: #24153f; --popover-bg-color: #281745; --dialog-bg-color: #24153f;
@@ -841,9 +841,9 @@ window.theme-synthwave {
   --sidebar-fg-color: #f4e7ff; --card-fg-color: #f4e7ff; --popover-fg-color: #f4e7ff; --dialog-fg-color: #f4e7ff;
   --accent-bg-color: #d93a93; --accent-color: #ff7cc4; --accent-fg-color: #ffffff;
 }
-window.theme-synthwave, window.theme-synthwave.framed-panels { --mako-sidebar: #24153f; }
+window.theme-synthwave, window.theme-synthwave.framed-panels, .theme-preview.theme-synthwave { --mako-sidebar: #24153f; }
 @media (prefers-color-scheme: light) {
-  window.theme-synthwave {
+  window.theme-synthwave, .theme-preview.theme-synthwave {
     --window-bg-color: #ecdff6; --view-bg-color: #fbf6ff; --headerbar-bg-color: #ecdff6;
     --headerbar-backdrop-color: #f1e7f8; --sidebar-bg-color: #f3e9fa; --sidebar-backdrop-color: #f6eefb;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fdfaff;
@@ -851,11 +851,11 @@ window.theme-synthwave, window.theme-synthwave.framed-panels { --mako-sidebar: #
     --sidebar-fg-color: #2a1340; --card-fg-color: #2a1340; --popover-fg-color: #2a1340; --dialog-fg-color: #2a1340;
     --accent-bg-color: #c0287c; --accent-color: #a8226c;
   }
-  window.theme-synthwave, window.theme-synthwave.framed-panels { --mako-sidebar: #f3e9fa; }
+  window.theme-synthwave, window.theme-synthwave.framed-panels, .theme-preview.theme-synthwave { --mako-sidebar: #f3e9fa; }
 }
 
 /* Matcha: green tea, a leaf accent. */
-window.theme-matcha {
+window.theme-matcha, .theme-preview.theme-matcha {
   --window-bg-color: #141812; --view-bg-color: #1a1f17; --headerbar-bg-color: #141812;
   --headerbar-backdrop-color: #141812; --sidebar-bg-color: #232a1f; --sidebar-backdrop-color: #1f251b;
   --card-bg-color: #222920; --popover-bg-color: #262e22; --dialog-bg-color: #222920;
@@ -863,9 +863,9 @@ window.theme-matcha {
   --sidebar-fg-color: #e5eddb; --card-fg-color: #e5eddb; --popover-fg-color: #e5eddb; --dialog-fg-color: #e5eddb;
   --accent-bg-color: #5f8c3c; --accent-color: #9cc776; --accent-fg-color: #ffffff;
 }
-window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #232a1f; }
+window.theme-matcha, window.theme-matcha.framed-panels, .theme-preview.theme-matcha { --mako-sidebar: #232a1f; }
 @media (prefers-color-scheme: light) {
-  window.theme-matcha {
+  window.theme-matcha, .theme-preview.theme-matcha {
     --window-bg-color: #e2e8d5; --view-bg-color: #f7f9f1; --headerbar-bg-color: #e2e8d5;
     --headerbar-backdrop-color: #e8ede0; --sidebar-bg-color: #ecf0e2; --sidebar-backdrop-color: #f0f3e8;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fafbf6;
@@ -873,7 +873,7 @@ window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #232a1f
     --sidebar-fg-color: #22301a; --card-fg-color: #22301a; --popover-fg-color: #22301a; --dialog-fg-color: #22301a;
     --accent-bg-color: #50752f; --accent-color: #45672a;
   }
-  window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #ecf0e2; }
+  window.theme-matcha, window.theme-matcha.framed-panels, .theme-preview.theme-matcha { --mako-sidebar: #ecf0e2; }
 }
 
 /* Alternating row colors (setting alternate-rows): list, tree and columns. */
@@ -884,7 +884,7 @@ window.alternate-rows listview > row.stripe-odd:not(:selected):not(:hover) {
 /* More fun themes, after well-known palettes (Nord, Dracula, Gruvbox,
  * Catppuccin, Solarized) and one that is just loud (Clown). */
 /* Nord: arctic blue-grey, frost accent */
-window.theme-nord {
+window.theme-nord, .theme-preview.theme-nord {
   --window-bg-color: #272c36; --view-bg-color: #2e3440; --headerbar-bg-color: #272c36;
   --headerbar-backdrop-color: #272c36; --sidebar-bg-color: #3b4252; --sidebar-backdrop-color: #3b4252;
   --card-bg-color: #3b4252; --popover-bg-color: #3b4252; --dialog-bg-color: #3b4252;
@@ -892,9 +892,9 @@ window.theme-nord {
   --sidebar-fg-color: #eceff4; --card-fg-color: #eceff4; --popover-fg-color: #eceff4; --dialog-fg-color: #eceff4;
   --accent-bg-color: #5e81ac; --accent-color: #88c0d0; --accent-fg-color: #eceff4;
 }
-window.theme-nord, window.theme-nord.framed-panels { --mako-sidebar: #3b4252; }
+window.theme-nord, window.theme-nord.framed-panels, .theme-preview.theme-nord { --mako-sidebar: #3b4252; }
 @media (prefers-color-scheme: light) {
-  window.theme-nord {
+  window.theme-nord, .theme-preview.theme-nord {
     --window-bg-color: #e5e9f0; --view-bg-color: #eceff4; --headerbar-bg-color: #e5e9f0;
     --headerbar-backdrop-color: #e5e9f0; --sidebar-bg-color: #d8dee9; --sidebar-backdrop-color: #d8dee9;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
@@ -902,11 +902,11 @@ window.theme-nord, window.theme-nord.framed-panels { --mako-sidebar: #3b4252; }
     --sidebar-fg-color: #2e3440; --card-fg-color: #2e3440; --popover-fg-color: #2e3440; --dialog-fg-color: #2e3440;
     --accent-bg-color: #5e81ac; --accent-color: #4c6f9a; --accent-fg-color: #ffffff;
   }
-  window.theme-nord, window.theme-nord.framed-panels { --mako-sidebar: #d8dee9; }
+  window.theme-nord, window.theme-nord.framed-panels, .theme-preview.theme-nord { --mako-sidebar: #d8dee9; }
 }
 
 /* Dracula: night purple, pink and violet */
-window.theme-dracula {
+window.theme-dracula, .theme-preview.theme-dracula {
   --window-bg-color: #21222c; --view-bg-color: #282a36; --headerbar-bg-color: #21222c;
   --headerbar-backdrop-color: #21222c; --sidebar-bg-color: #343746; --sidebar-backdrop-color: #343746;
   --card-bg-color: #343746; --popover-bg-color: #343746; --dialog-bg-color: #343746;
@@ -914,9 +914,9 @@ window.theme-dracula {
   --sidebar-fg-color: #f8f8f2; --card-fg-color: #f8f8f2; --popover-fg-color: #f8f8f2; --dialog-fg-color: #f8f8f2;
   --accent-bg-color: #bd93f9; --accent-color: #ff79c6; --accent-fg-color: #21222c;
 }
-window.theme-dracula, window.theme-dracula.framed-panels { --mako-sidebar: #343746; }
+window.theme-dracula, window.theme-dracula.framed-panels, .theme-preview.theme-dracula { --mako-sidebar: #343746; }
 @media (prefers-color-scheme: light) {
-  window.theme-dracula {
+  window.theme-dracula, .theme-preview.theme-dracula {
     --window-bg-color: #f5efd8; --view-bg-color: #fffbeb; --headerbar-bg-color: #f5efd8;
     --headerbar-backdrop-color: #f5efd8; --sidebar-bg-color: #efe8cf; --sidebar-backdrop-color: #efe8cf;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
@@ -924,11 +924,11 @@ window.theme-dracula, window.theme-dracula.framed-panels { --mako-sidebar: #3437
     --sidebar-fg-color: #1f1f1f; --card-fg-color: #1f1f1f; --popover-fg-color: #1f1f1f; --dialog-fg-color: #1f1f1f;
     --accent-bg-color: #644ac9; --accent-color: #a3144d; --accent-fg-color: #ffffff;
   }
-  window.theme-dracula, window.theme-dracula.framed-panels { --mako-sidebar: #efe8cf; }
+  window.theme-dracula, window.theme-dracula.framed-panels, .theme-preview.theme-dracula { --mako-sidebar: #efe8cf; }
 }
 
 /* Gruvbox: retro warm browns, orange accent */
-window.theme-gruvbox {
+window.theme-gruvbox, .theme-preview.theme-gruvbox {
   --window-bg-color: #1d2021; --view-bg-color: #282828; --headerbar-bg-color: #1d2021;
   --headerbar-backdrop-color: #1d2021; --sidebar-bg-color: #32302f; --sidebar-backdrop-color: #32302f;
   --card-bg-color: #3c3836; --popover-bg-color: #3c3836; --dialog-bg-color: #3c3836;
@@ -936,9 +936,9 @@ window.theme-gruvbox {
   --sidebar-fg-color: #ebdbb2; --card-fg-color: #ebdbb2; --popover-fg-color: #ebdbb2; --dialog-fg-color: #ebdbb2;
   --accent-bg-color: #d65d0e; --accent-color: #fe8019; --accent-fg-color: #fbf1c7;
 }
-window.theme-gruvbox, window.theme-gruvbox.framed-panels { --mako-sidebar: #32302f; }
+window.theme-gruvbox, window.theme-gruvbox.framed-panels, .theme-preview.theme-gruvbox { --mako-sidebar: #32302f; }
 @media (prefers-color-scheme: light) {
-  window.theme-gruvbox {
+  window.theme-gruvbox, .theme-preview.theme-gruvbox {
     --window-bg-color: #f2e5bc; --view-bg-color: #fbf1c7; --headerbar-bg-color: #f2e5bc;
     --headerbar-backdrop-color: #f2e5bc; --sidebar-bg-color: #ebdbb2; --sidebar-backdrop-color: #ebdbb2;
     --card-bg-color: #fffaf0; --popover-bg-color: #fffaf0; --dialog-bg-color: #fffaf0;
@@ -946,11 +946,11 @@ window.theme-gruvbox, window.theme-gruvbox.framed-panels { --mako-sidebar: #3230
     --sidebar-fg-color: #3c3836; --card-fg-color: #3c3836; --popover-fg-color: #3c3836; --dialog-fg-color: #3c3836;
     --accent-bg-color: #af3a03; --accent-color: #af3a03; --accent-fg-color: #fbf1c7;
   }
-  window.theme-gruvbox, window.theme-gruvbox.framed-panels { --mako-sidebar: #ebdbb2; }
+  window.theme-gruvbox, window.theme-gruvbox.framed-panels, .theme-preview.theme-gruvbox { --mako-sidebar: #ebdbb2; }
 }
 
 /* Catppuccin: soft pastels on mocha (latte in light) */
-window.theme-catppuccin {
+window.theme-catppuccin, .theme-preview.theme-catppuccin {
   --window-bg-color: #181825; --view-bg-color: #1e1e2e; --headerbar-bg-color: #181825;
   --headerbar-backdrop-color: #181825; --sidebar-bg-color: #25253a; --sidebar-backdrop-color: #25253a;
   --card-bg-color: #313244; --popover-bg-color: #313244; --dialog-bg-color: #313244;
@@ -958,9 +958,9 @@ window.theme-catppuccin {
   --sidebar-fg-color: #cdd6f4; --card-fg-color: #cdd6f4; --popover-fg-color: #cdd6f4; --dialog-fg-color: #cdd6f4;
   --accent-bg-color: #cba6f7; --accent-color: #f5c2e7; --accent-fg-color: #1e1e2e;
 }
-window.theme-catppuccin, window.theme-catppuccin.framed-panels { --mako-sidebar: #25253a; }
+window.theme-catppuccin, window.theme-catppuccin.framed-panels, .theme-preview.theme-catppuccin { --mako-sidebar: #25253a; }
 @media (prefers-color-scheme: light) {
-  window.theme-catppuccin {
+  window.theme-catppuccin, .theme-preview.theme-catppuccin {
     --window-bg-color: #dce0e8; --view-bg-color: #eff1f5; --headerbar-bg-color: #dce0e8;
     --headerbar-backdrop-color: #dce0e8; --sidebar-bg-color: #e6e9ef; --sidebar-backdrop-color: #e6e9ef;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
@@ -968,11 +968,11 @@ window.theme-catppuccin, window.theme-catppuccin.framed-panels { --mako-sidebar:
     --sidebar-fg-color: #4c4f69; --card-fg-color: #4c4f69; --popover-fg-color: #4c4f69; --dialog-fg-color: #4c4f69;
     --accent-bg-color: #8839ef; --accent-color: #8839ef; --accent-fg-color: #ffffff;
   }
-  window.theme-catppuccin, window.theme-catppuccin.framed-panels { --mako-sidebar: #e6e9ef; }
+  window.theme-catppuccin, window.theme-catppuccin.framed-panels, .theme-preview.theme-catppuccin { --mako-sidebar: #e6e9ef; }
 }
 
 /* Solarized: the classic teal-on-cream */
-window.theme-solarized {
+window.theme-solarized, .theme-preview.theme-solarized {
   --window-bg-color: #00212b; --view-bg-color: #002b36; --headerbar-bg-color: #00212b;
   --headerbar-backdrop-color: #00212b; --sidebar-bg-color: #073642; --sidebar-backdrop-color: #073642;
   --card-bg-color: #073642; --popover-bg-color: #073642; --dialog-bg-color: #073642;
@@ -980,9 +980,9 @@ window.theme-solarized {
   --sidebar-fg-color: #93a1a1; --card-fg-color: #93a1a1; --popover-fg-color: #93a1a1; --dialog-fg-color: #93a1a1;
   --accent-bg-color: #268bd2; --accent-color: #2aa198; --accent-fg-color: #fdf6e3;
 }
-window.theme-solarized, window.theme-solarized.framed-panels { --mako-sidebar: #073642; }
+window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.theme-solarized { --mako-sidebar: #073642; }
 @media (prefers-color-scheme: light) {
-  window.theme-solarized {
+  window.theme-solarized, .theme-preview.theme-solarized {
     --window-bg-color: #e6dfca; --view-bg-color: #fdf6e3; --headerbar-bg-color: #e6dfca;
     --headerbar-backdrop-color: #e6dfca; --sidebar-bg-color: #eee8d5; --sidebar-backdrop-color: #eee8d5;
     --card-bg-color: #fffdf6; --popover-bg-color: #fffdf6; --dialog-bg-color: #fffdf6;
@@ -990,11 +990,11 @@ window.theme-solarized, window.theme-solarized.framed-panels { --mako-sidebar: #
     --sidebar-fg-color: #586e75; --card-fg-color: #586e75; --popover-fg-color: #586e75; --dialog-fg-color: #586e75;
     --accent-bg-color: #268bd2; --accent-color: #1f6fa8; --accent-fg-color: #fdf6e3;
   }
-  window.theme-solarized, window.theme-solarized.framed-panels { --mako-sidebar: #eee8d5; }
+  window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.theme-solarized { --mako-sidebar: #eee8d5; }
 }
 
 /* Clown: big top. Red sidebar, yellow header, blue accent */
-window.theme-clown {
+window.theme-clown, .theme-preview.theme-clown {
   --window-bg-color: #2a1856; --view-bg-color: #1b1036; --headerbar-bg-color: #ffd23f;
   --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #d62839; --sidebar-backdrop-color: #d62839;
   --card-bg-color: #2a1856; --popover-bg-color: #2a1856; --dialog-bg-color: #2a1856;
@@ -1002,9 +1002,9 @@ window.theme-clown {
   --sidebar-fg-color: #ffffff; --card-fg-color: #fff4e0; --popover-fg-color: #fff4e0; --dialog-fg-color: #fff4e0;
   --accent-bg-color: #1e90ff; --accent-color: #4fc3ff; --accent-fg-color: #ffffff;
 }
-window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #d62839; }
+window.theme-clown, window.theme-clown.framed-panels, .theme-preview.theme-clown { --mako-sidebar: #d62839; }
 @media (prefers-color-scheme: light) {
-  window.theme-clown {
+  window.theme-clown, .theme-preview.theme-clown {
     --window-bg-color: #ffe680; --view-bg-color: #fffdf3; --headerbar-bg-color: #ffd23f;
     --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #e63946; --sidebar-backdrop-color: #e63946;
     --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
@@ -1012,7 +1012,7 @@ window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #d62839; 
     --sidebar-fg-color: #ffffff; --card-fg-color: #1b1036; --popover-fg-color: #1b1036; --dialog-fg-color: #1b1036;
     --accent-bg-color: #1e6fff; --accent-color: #1555c9; --accent-fg-color: #ffffff;
   }
-  window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #e63946; }
+  window.theme-clown, window.theme-clown.framed-panels, .theme-preview.theme-clown { --mako-sidebar: #e63946; }
 }
 /* The header bars aren't painted in the headerbar colour in Mako's layout
  * (they sit on the views), so Clown paints them itself. */
@@ -1027,3 +1027,34 @@ button.preferences-tab {
 }
 button.preferences-tab:hover { background-color: color-mix(in srgb, currentColor 7%, transparent); }
 button.preferences-tab:checked { background-color: var(--accent-bg-color); color: var(--accent-fg-color); }
+
+/* The colour theme picker (Preferences > Appearance): each choice a small
+ * window in its theme's colours, from the same rules as the window. The
+ * GNOME-style ones get GNOME's colours here, not the theme in use. */
+.theme-choice { padding: 4px; border-radius: 12px; background: none; box-shadow: none; }
+.theme-choice:hover { background-color: color-mix(in srgb, currentColor 6%, transparent); }
+.theme-choice:checked { box-shadow: inset 0 0 0 2px var(--accent-bg-color); background-color: color-mix(in srgb, var(--accent-bg-color) 12%, transparent); }
+.theme-choice label { font-size: 0.9em; margin-top: 4px; }
+.theme-preview { border-radius: 8px; box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 15%, transparent); min-width: 104px; min-height: 64px; }
+.theme-preview .tp-side { background-color: var(--mako-sidebar); min-width: 30px; padding: 12px 5px; border-radius: 8px 0 0 8px; }
+.theme-preview .tp-head { background-color: var(--headerbar-bg-color); min-height: 9px; border-radius: 0 8px 0 0; }
+.theme-preview .tp-view { background-color: var(--view-bg-color); padding: 7px 8px; border-radius: 0 0 8px 0; }
+.theme-preview .tp-line { min-height: 3px; border-radius: 2px; background-color: color-mix(in srgb, var(--view-fg-color) 35%, transparent); }
+.theme-preview .tp-side .tp-line { background-color: color-mix(in srgb, var(--sidebar-fg-color) 45%, transparent); }
+.theme-preview .tp-accent { min-height: 7px; min-width: 26px; border-radius: 4px; background-color: var(--accent-bg-color); }
+.theme-preview.theme-mako, .theme-preview.theme-uniform, .theme-preview.theme-classic {
+  --view-bg-color: #1d1d20; --headerbar-bg-color: #252529; --view-fg-color: #ffffff; --sidebar-fg-color: #ffffff;
+  --sidebar-bg-color: #393939;
+}
+.theme-preview.theme-mako { --mako-sidebar: #2b2b2e; }
+.theme-preview.theme-uniform { --mako-sidebar: #1d1d20; }
+.theme-preview.theme-classic { --mako-sidebar: #393939; }
+@media (prefers-color-scheme: light) {
+  .theme-preview.theme-mako, .theme-preview.theme-uniform, .theme-preview.theme-classic {
+    --view-bg-color: #ffffff; --headerbar-bg-color: #f0f0f2; --view-fg-color: #000000; --sidebar-fg-color: #000000;
+    --sidebar-bg-color: #ebebed;
+  }
+  .theme-preview.theme-mako { --mako-sidebar: #f5f5f6; }
+  .theme-preview.theme-uniform { --mako-sidebar: #ffffff; }
+  .theme-preview.theme-classic { --mako-sidebar: #ebebed; }
+}

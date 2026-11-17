@@ -1,0 +1,144 @@
+/* Mako colour theme
+ * Name: My Theme
+ *
+ * How this works
+ * --------------
+ * Save this file in ~/.config/mako/themes/ (Preferences > Appearance >
+ * New Theme does that for you). Every .css file there shows up in the
+ * Color Theme picker under its Name (the line above), or its file name.
+ * Mako watches the folder: each time you save, the windows change at
+ * once, so keep the window open next to your editor while you play.
+ *
+ * This is ordinary GTK CSS. Write every rule against the class
+ * .mako-theme: Mako puts that class on the window while your theme is
+ * chosen (and on the theme's little picture in Preferences). Anything
+ * you don't set stays as GNOME (libadwaita) has it, so a theme can be
+ * just two or three colours.
+ *
+ * Colours can be written as #rrggbb, rgb(…), a name like "white", or
+ * mixed: color-mix(in srgb, #2e3440 80%, white) is 80% that blue-grey
+ * and 20% white.
+ *
+ * If something doesn't apply, start Mako from a terminal (mako): mistakes
+ * in a theme are printed there with the line they're on.
+ *
+ * The full list of colour variables GNOME apps use:
+ * https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/css-variables.html
+ */
+
+
+/* ---- Dark ---------------------------------------------------------------
+ * Used when the desktop is in dark mode, and when there's no light block
+ * below. */
+.mako-theme {
+  /* The area behind the files: list, grid and columns. */
+  --view-bg-color: #1e2030;
+  --view-fg-color: #c8d3f5;
+
+  /* The window around them: the gaps between framed panels and the
+   * header bar's surroundings. */
+  --window-bg-color: #191a2a;
+  --window-fg-color: #c8d3f5;
+
+  /* The sidebar. --mako-sidebar is what Mako paints it with; set
+   * --sidebar-bg-color to the same, as other parts read that one. */
+  --mako-sidebar: #222436;
+  --sidebar-bg-color: #222436;
+  --sidebar-backdrop-color: #222436;   /* when the window isn't focused */
+  --sidebar-fg-color: #c8d3f5;
+
+  /* Header bars (the ones in Mako's layout sit on the views; see the
+   * header bar rule further down to paint them). */
+  --headerbar-bg-color: #191a2a;
+  --headerbar-backdrop-color: #191a2a;
+  --headerbar-fg-color: #c8d3f5;
+
+  /* Menus, popovers, dialogs (Preferences, Properties) and cards. */
+  --popover-bg-color: #2f334d;
+  --popover-fg-color: #c8d3f5;
+  --dialog-bg-color: #222436;
+  --dialog-fg-color: #c8d3f5;
+  --card-bg-color: #2f334d;
+  --card-fg-color: #c8d3f5;
+
+  /* The accent: the selected tab, selection, switches, links.
+   * --accent-bg-color fills things, --accent-fg-color is text on it,
+   * --accent-color is the accent as text on the normal background. */
+  --accent-bg-color: #82aaff;
+  --accent-fg-color: #1e2030;
+  --accent-color: #82aaff;
+}
+
+/* With Framed Panels on: the colour of each panel's card. Remove this to
+ * get Mako's own (a little darker than --view-bg-color). */
+.mako-theme.framed-panels {
+  --mako-tile-bg: #1e2030;
+}
+
+
+/* ---- Light --------------------------------------------------------------
+ * Used when the desktop is in light mode. Delete this block for a theme
+ * that looks the same either way. */
+@media (prefers-color-scheme: light) {
+  .mako-theme {
+    --view-bg-color: #e1e2e7;
+    --view-fg-color: #3760bf;
+    --window-bg-color: #d0d5e3;
+    --window-fg-color: #3760bf;
+    --mako-sidebar: #d5d6db;
+    --sidebar-bg-color: #d5d6db;
+    --sidebar-backdrop-color: #d5d6db;
+    --sidebar-fg-color: #3760bf;
+    --headerbar-bg-color: #d0d5e3;
+    --headerbar-backdrop-color: #d0d5e3;
+    --headerbar-fg-color: #3760bf;
+    --popover-bg-color: #ffffff;
+    --popover-fg-color: #3760bf;
+    --dialog-bg-color: #e9e9ed;
+    --dialog-fg-color: #3760bf;
+    --card-bg-color: #ffffff;
+    --card-fg-color: #3760bf;
+    --accent-bg-color: #2e7de9;
+    --accent-fg-color: #ffffff;
+    --accent-color: #2e7de9;
+  }
+  .mako-theme.framed-panels {
+    --mako-tile-bg: #e9e9ed;
+  }
+}
+
+
+/* ---- Beyond colours (optional) -------------------------------------------
+ * Any GTK CSS works below the window. A few ideas, switched off; remove
+ * the comment marks around one to try it.
+ *
+ * To find what something is called, run Mako with GTK_DEBUG=interactive
+ * (GTK_DEBUG=interactive mako) and use the Inspector's picker.
+ */
+
+/* Paint the header bars (by default they share the views' colour):
+.mako-theme headerbar {
+  background-color: var(--headerbar-bg-color);
+  color: var(--headerbar-fg-color);
+}
+*/
+
+/* Rounder tabs:
+.mako-theme tabbar tab {
+  border-radius: 14px;
+}
+*/
+
+/* A softer selection in the file views:
+.mako-theme gridview > child:selected,
+.mako-theme columnview > listview > row:selected {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 25%, transparent);
+}
+*/
+
+/* Zebra rows (Preferences > Appearance > Alternating Row Colors) in your
+ * own shade:
+.mako-theme.alternate-rows listview > row.stripe-odd:not(:selected):not(:hover) {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 6%, transparent);
+}
+*/

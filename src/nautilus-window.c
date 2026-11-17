@@ -72,6 +72,7 @@
 #include "nautilus-inspector.h"
 #include "nautilus-columns.h"
 #include "nautilus-labels.h"
+#include "nautilus-custom-themes.h"
 #include "nautilus-quick-look.h"
 #include "nautilus-shortcuts.h"
 #include "nautilus-trash-monitor.h"
@@ -3690,6 +3691,23 @@ apply_color_theme (NautilusWindow *window)
                                      "theme-nord", "theme-dracula", "theme-gruvbox", "theme-catppuccin",
                                      "theme-solarized", "theme-clown" };
     int theme = g_settings_get_enum (nautilus_flier_settings (), "color-theme");
+    g_autofree char *custom = g_settings_get_string (nautilus_flier_settings (), "custom-theme");
+    const char *old_custom = g_object_get_data (G_OBJECT (window), "custom-theme-class");
+
+    /* A theme of the user's own, when it's there, instead. */
+    if (old_custom != NULL)
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (window), old_custom);
+        g_object_set_data (G_OBJECT (window), "custom-theme-class", NULL);
+    }
+    if (*custom != '\0' && nautilus_custom_themes_has (custom))
+    {
+        char *class = nautilus_custom_themes_class (custom);
+
+        gtk_widget_add_css_class (GTK_WIDGET (window), class);
+        g_object_set_data_full (G_OBJECT (window), "custom-theme-class", class, g_free);
+        theme = 0;
+    }
 
     for (int i = 1; i < (int) G_N_ELEMENTS (classes); i++)
     {
@@ -4225,6 +4243,10 @@ nautilus_window_init (NautilusWindow *window)
                              G_CALLBACK (apply_framed_panels), window, G_CONNECT_SWAPPED);
     apply_framed_panels (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::color-theme",
+                             G_CALLBACK (apply_color_theme), window, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::custom-theme",
+                             G_CALLBACK (apply_color_theme), window, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_custom_themes_get (), "changed",
                              G_CALLBACK (apply_color_theme), window, G_CONNECT_SWAPPED);
     apply_color_theme (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::alternate-rows",
