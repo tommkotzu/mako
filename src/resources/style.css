@@ -432,9 +432,9 @@ columnview header .group-header { padding: 12px 12px 4px 12px; }
 nautilus-inspector { background-color: var(--view-bg-color); }
 /* One colour for sidebar, views and inspector, lines between them; the
  * preview straight on the inspector (framed panels: the panels' colour). */
-window:not(.framed-panels) .sidebar-pane,
-window:not(.framed-panels) .sidebar-pane:backdrop { background-color: color-mix(in srgb, var(--view-bg-color) 94%, white); }
-window:not(.framed-panels) nautilus-inspector .inspector-preview { background-color: transparent; box-shadow: none; }
+window .sidebar-pane,
+window .sidebar-pane:backdrop { background-color: var(--mako-sidebar); }
+window:not(.theme-classic) nautilus-inspector .inspector-preview { background-color: transparent; box-shadow: none; }
 /* The divider beside the inspector: hidden until the pointer is on it,
  * then a line shows that it can be dragged. */
 paned.inspector-paned.horizontal > separator,
@@ -642,6 +642,8 @@ window.progress-float > windowhandle {
  * versions. --mako-alpha comes from the setting. */
 window.mako-translucent {
   --mako-alpha: 1;
+  --mako-sidebar-solid: var(--mako-sidebar);
+  --mako-tile-solid: var(--mako-tile-bg, var(--view-bg-color));
   --mako-window-bg: var(--window-bg-color);
   --mako-view-bg: var(--view-bg-color);
   --mako-sidebar-bg: var(--sidebar-bg-color);
@@ -655,6 +657,8 @@ window.mako-translucent * {
   --secondary-sidebar-bg-color: rgb(from var(--mako-sidebar-bg) r g b / var(--mako-alpha));
   --headerbar-bg-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
   --headerbar-backdrop-color: rgb(from var(--mako-headerbar-bg) r g b / var(--mako-alpha));
+  --mako-sidebar: rgb(from var(--mako-sidebar-solid) r g b / var(--mako-alpha));
+  --mako-tile-bg: rgb(from var(--mako-tile-solid) r g b / var(--mako-alpha));
 }
 
 /* The log under Details in the file operations card, like a terminal */
@@ -763,15 +767,111 @@ window.framed-panels nautilus-inspector {
   margin: 0 6px 6px 0;
 }
 /* The sidebar in the panels' colour too, as it is otherwise (flush). */
-window.framed-panels .sidebar-pane,
-window.framed-panels .sidebar-pane:backdrop { background-color: color-mix(in srgb, var(--mako-tile-bg) 94%, white); }
 window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
 window.framed-panels nautilus-inspector.docked-top,
 window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
 window.framed-panels nautilus-inspector .inspector-header { border-top: none; }
-/* The preview straight on the card, no frame behind it. */
-window.framed-panels nautilus-inspector .inspector-preview {
-  background-color: transparent;
-  box-shadow: none;
-}
+/* Classic: the inspector in the sidebar's grey, its preview in a darker frame. */
+window.theme-classic.framed-panels nautilus-inspector { background-color: var(--sidebar-bg-color); }
+window.theme-classic.framed-panels nautilus-inspector .inspector-preview { background-color: color-mix(in srgb, black 22%, transparent); box-shadow: none; }
 window.framed-panels paned.inspector-paned > separator { min-width: 0; min-height: 0; }
+
+/* Colour themes (setting color-theme): a class on the window that sets the
+ * palette; everything below reads it. --mako-sidebar is the sidebar's
+ * colour: a little brighter than the views (darker in light mode). */
+window { --mako-sidebar: color-mix(in srgb, var(--view-bg-color) 94%, white); }
+window.framed-panels { --mako-sidebar: color-mix(in srgb, var(--mako-tile-bg) 94%, white); }
+@media (prefers-color-scheme: light) {
+  window { --mako-sidebar: color-mix(in srgb, var(--view-bg-color) 96%, black); }
+  window.framed-panels { --mako-sidebar: color-mix(in srgb, var(--mako-tile-bg) 96%, black); }
+}
+
+/* Uniform: the sidebar in the views' colour. */
+window.theme-uniform { --mako-sidebar: var(--view-bg-color); }
+window.theme-uniform.framed-panels { --mako-sidebar: var(--mako-tile-bg); }
+
+/* Classic: GNOME's own sidebar grey, the preview in a frame. */
+window.theme-classic,
+window.theme-classic.framed-panels { --mako-sidebar: var(--sidebar-bg-color); }
+
+/* Graphite: deeper, with more contrast between the parts. */
+window.theme-graphite {
+  --window-bg-color: #111113; --view-bg-color: #161618; --headerbar-bg-color: #111113;
+  --headerbar-backdrop-color: #111113; --sidebar-bg-color: #232326; --sidebar-backdrop-color: #1e1e21;
+  --card-bg-color: #1f1f22; --popover-bg-color: #262629; --dialog-bg-color: #1f1f22;
+}
+window.theme-graphite, window.theme-graphite.framed-panels { --mako-sidebar: #232326; }
+@media (prefers-color-scheme: light) {
+  window.theme-graphite {
+    --window-bg-color: #e4e4e7; --view-bg-color: #ffffff; --headerbar-bg-color: #e4e4e7;
+    --headerbar-backdrop-color: #ececee; --sidebar-bg-color: #eeeef0; --sidebar-backdrop-color: #f3f3f5;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fafafb;
+  }
+  window.theme-graphite, window.theme-graphite.framed-panels { --mako-sidebar: #eeeef0; }
+}
+
+/* Deep Sea: night water, a cyan accent. */
+window.theme-deep-sea {
+  --window-bg-color: #07131d; --view-bg-color: #0b1b29; --headerbar-bg-color: #07131d;
+  --headerbar-backdrop-color: #07131d; --sidebar-bg-color: #102538; --sidebar-backdrop-color: #0d2031;
+  --card-bg-color: #10243a; --popover-bg-color: #12293f; --dialog-bg-color: #10243a;
+  --window-fg-color: #dbeef6; --view-fg-color: #dbeef6; --headerbar-fg-color: #dbeef6;
+  --sidebar-fg-color: #dbeef6; --card-fg-color: #dbeef6; --popover-fg-color: #dbeef6; --dialog-fg-color: #dbeef6;
+  --accent-bg-color: #1597ab; --accent-color: #5cd3e6; --accent-fg-color: #ffffff;
+}
+window.theme-deep-sea, window.theme-deep-sea.framed-panels { --mako-sidebar: #102538; }
+@media (prefers-color-scheme: light) {
+  window.theme-deep-sea {
+    --window-bg-color: #d3e7ef; --view-bg-color: #f1f8fb; --headerbar-bg-color: #d3e7ef;
+    --headerbar-backdrop-color: #dcecf2; --sidebar-bg-color: #e1f0f5; --sidebar-backdrop-color: #e8f3f7;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #f6fbfc;
+    --window-fg-color: #0d2a3a; --view-fg-color: #0d2a3a; --headerbar-fg-color: #0d2a3a;
+    --sidebar-fg-color: #0d2a3a; --card-fg-color: #0d2a3a; --popover-fg-color: #0d2a3a; --dialog-fg-color: #0d2a3a;
+    --accent-bg-color: #0d8295; --accent-color: #0a6c7c;
+  }
+  window.theme-deep-sea, window.theme-deep-sea.framed-panels { --mako-sidebar: #e1f0f5; }
+}
+
+/* Synthwave: violet night, a hot pink accent. */
+window.theme-synthwave {
+  --window-bg-color: #130a22; --view-bg-color: #1a0f2e; --headerbar-bg-color: #130a22;
+  --headerbar-backdrop-color: #130a22; --sidebar-bg-color: #24153f; --sidebar-backdrop-color: #1f1237;
+  --card-bg-color: #24153f; --popover-bg-color: #281745; --dialog-bg-color: #24153f;
+  --window-fg-color: #f4e7ff; --view-fg-color: #f4e7ff; --headerbar-fg-color: #f4e7ff;
+  --sidebar-fg-color: #f4e7ff; --card-fg-color: #f4e7ff; --popover-fg-color: #f4e7ff; --dialog-fg-color: #f4e7ff;
+  --accent-bg-color: #d93a93; --accent-color: #ff7cc4; --accent-fg-color: #ffffff;
+}
+window.theme-synthwave, window.theme-synthwave.framed-panels { --mako-sidebar: #24153f; }
+@media (prefers-color-scheme: light) {
+  window.theme-synthwave {
+    --window-bg-color: #ecdff6; --view-bg-color: #fbf6ff; --headerbar-bg-color: #ecdff6;
+    --headerbar-backdrop-color: #f1e7f8; --sidebar-bg-color: #f3e9fa; --sidebar-backdrop-color: #f6eefb;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fdfaff;
+    --window-fg-color: #2a1340; --view-fg-color: #2a1340; --headerbar-fg-color: #2a1340;
+    --sidebar-fg-color: #2a1340; --card-fg-color: #2a1340; --popover-fg-color: #2a1340; --dialog-fg-color: #2a1340;
+    --accent-bg-color: #c0287c; --accent-color: #a8226c;
+  }
+  window.theme-synthwave, window.theme-synthwave.framed-panels { --mako-sidebar: #f3e9fa; }
+}
+
+/* Matcha: green tea, a leaf accent. */
+window.theme-matcha {
+  --window-bg-color: #141812; --view-bg-color: #1a1f17; --headerbar-bg-color: #141812;
+  --headerbar-backdrop-color: #141812; --sidebar-bg-color: #232a1f; --sidebar-backdrop-color: #1f251b;
+  --card-bg-color: #222920; --popover-bg-color: #262e22; --dialog-bg-color: #222920;
+  --window-fg-color: #e5eddb; --view-fg-color: #e5eddb; --headerbar-fg-color: #e5eddb;
+  --sidebar-fg-color: #e5eddb; --card-fg-color: #e5eddb; --popover-fg-color: #e5eddb; --dialog-fg-color: #e5eddb;
+  --accent-bg-color: #5f8c3c; --accent-color: #9cc776; --accent-fg-color: #ffffff;
+}
+window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #232a1f; }
+@media (prefers-color-scheme: light) {
+  window.theme-matcha {
+    --window-bg-color: #e2e8d5; --view-bg-color: #f7f9f1; --headerbar-bg-color: #e2e8d5;
+    --headerbar-backdrop-color: #e8ede0; --sidebar-bg-color: #ecf0e2; --sidebar-backdrop-color: #f0f3e8;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #fafbf6;
+    --window-fg-color: #22301a; --view-fg-color: #22301a; --headerbar-fg-color: #22301a;
+    --sidebar-fg-color: #22301a; --card-fg-color: #22301a; --popover-fg-color: #22301a; --dialog-fg-color: #22301a;
+    --accent-bg-color: #50752f; --accent-color: #45672a;
+  }
+  window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #ecf0e2; }
+}

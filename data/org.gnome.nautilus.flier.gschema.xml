@@ -14,6 +14,15 @@
     <value nick="dense" value="2"/>
     <value nick="extra-dense" value="3"/>
   </enum>
+  <enum id="org.gnome.nautilus.flier.ColorTheme">
+    <value value="0" nick="mako"/>
+    <value value="1" nick="uniform"/>
+    <value value="2" nick="classic"/>
+    <value value="3" nick="graphite"/>
+    <value value="4" nick="deep-sea"/>
+    <value value="5" nick="synthwave"/>
+    <value value="6" nick="matcha"/>
+  </enum>
   <enum id="org.gnome.nautilus.flier.InspectorSide">
     <value value="0" nick="right"/>
     <value value="1" nick="left"/>
@@ -132,10 +141,15 @@
       <summary>Tree view for new tabs</summary>
       <description>Whether new tabs show the list with expandable folders. The last choice of View is remembered.</description>
     </key>
+    <key name="color-theme" enum="org.gnome.nautilus.flier.ColorTheme">
+      <default>'mako'</default>
+      <summary>Color theme</summary>
+      <description>The window's colors: “mako” (the sidebar a little brighter than the views), “uniform” (one color), “classic” (GNOME's sidebar grey), “graphite” (deeper, more contrast), or the playful “deep-sea”, “synthwave” and “matcha”. Each has a light and a dark version.</description>
+    </key>
     <key type="b" name="framed-panels">
       <default>false</default>
       <summary>Framed panels</summary>
-      <description>Draw each tile as a card of its own with rounded corners and a gap between them, and the inspector as a brighter card, instead of panels divided by lines.</description>
+      <description>Draw each tile as a card of its own with rounded corners and a gap between them, and the inspector as a card too, instead of panels divided by lines.</description>
     </key>
     <key type="b" name="panel-buttons">
       <default>true</default>

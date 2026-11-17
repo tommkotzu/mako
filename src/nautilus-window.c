@@ -3656,7 +3656,28 @@ apply_window_opacity (NautilusWindow *window)
     }
 }
 
-/* Framed panels: each tile a card of its own, the inspector a brighter one
+/* Colour theme: a class on the window naming it (style.css, window.theme-*). */
+static void
+apply_color_theme (NautilusWindow *window)
+{
+    static const char *classes[] = { NULL, "theme-uniform", "theme-classic", "theme-graphite",
+                                     "theme-deep-sea", "theme-synthwave", "theme-matcha" };
+    int theme = g_settings_get_enum (nautilus_flier_settings (), "color-theme");
+
+    for (int i = 1; i < (int) G_N_ELEMENTS (classes); i++)
+    {
+        if (i == theme)
+        {
+            gtk_widget_add_css_class (GTK_WIDGET (window), classes[i]);
+        }
+        else
+        {
+            gtk_widget_remove_css_class (GTK_WIDGET (window), classes[i]);
+        }
+    }
+}
+
+/* Framed panels: each tile a card of its own, the inspector one too
  * (style.css, window.framed-panels). */
 static void
 apply_framed_panels (NautilusWindow *window)
@@ -4176,6 +4197,9 @@ nautilus_window_init (NautilusWindow *window)
     g_signal_connect_object (nautilus_flier_settings (), "changed::framed-panels",
                              G_CALLBACK (apply_framed_panels), window, G_CONNECT_SWAPPED);
     apply_framed_panels (window);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::color-theme",
+                             G_CALLBACK (apply_color_theme), window, G_CONNECT_SWAPPED);
+    apply_color_theme (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::panel-buttons",
                              G_CALLBACK (panel_buttons_later), window, G_CONNECT_SWAPPED);
     g_signal_connect_object (window->split_view, "notify::collapsed",

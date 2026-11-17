@@ -89,6 +89,8 @@ static const Setting settings[] =
       N_("pastel=Pastel|vibrant=Vibrant|earth=Earth|ocean=Ocean|mono=Mono") },
     { N_("Window Opacity"), N_("Appearance"), "transparent transparency blur", SCHEMA_FLIER, "window-opacity", NULL },
     { N_("Framed Panels"), N_("Appearance"), "theme cards rounded tiles style look", SCHEMA_FLIER, "framed-panels", NULL },
+    { N_("Color Theme"), N_("Appearance"), "colour theme palette look style dark", SCHEMA_FLIER, "color-theme",
+      N_("mako=Mako|uniform=Uniform|classic=Classic|graphite=Graphite|deep-sea=Deep Sea|synthwave=Synthwave|matcha=Matcha") },
     { N_("Built-in Quick Look"), N_("Quick Look"), "preview", SCHEMA_FLIER, "own-quick-look", NULL },
     { N_("Quick Look Names"), N_("Quick Look"), "preview", SCHEMA_FLIER, "quick-look-names", NULL },
     { N_("Quick Look Ratings and Tags"), N_("Quick Look"), "preview stars", SCHEMA_FLIER, "quick-look-marks", NULL },

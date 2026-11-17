@@ -600,6 +600,18 @@ on_sidebar_density_changed (GSettings   *settings,
 }
 
 static void
+on_color_theme_selected (AdwComboRow *row)
+{
+    GSettings *settings = nautilus_flier_settings ();
+    guint selected = adw_combo_row_get_selected (row);
+
+    if (selected != GTK_INVALID_LIST_POSITION && (int) selected != g_settings_get_enum (settings, "color-theme"))
+    {
+        g_settings_set_enum (settings, "color-theme", selected);
+    }
+}
+
+static void
 on_manage_tags (AdwActionRow *row)
 {
     nautilus_tags_dialog_present (NULL, GTK_WIDGET (row));
@@ -767,9 +779,27 @@ nautilus_labels_preferences_page_new (void)
         g_settings_bind (nautilus_flier_settings (), "window-opacity", opacity_row, "value", G_SETTINGS_BIND_DEFAULT);
         adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
     }
+    {
+        /* In the order of the ColorTheme enum. */
+        const char *names[] = { _("Mako"), _("Uniform"), _("Classic"), _("Graphite"),
+                                _("Deep Sea"), _("Synthwave"), _("Matcha"), NULL };
+        g_autoptr (GtkStringList) list = gtk_string_list_new (names);
+        GtkWidget *theme_row = adw_combo_row_new ();
+
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (theme_row), _("Color _Theme"));
+        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (theme_row), TRUE);
+        adw_action_row_set_subtitle (ADW_ACTION_ROW (theme_row),
+                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the last three are for fun. Each follows light and dark"));
+        adw_combo_row_set_model (ADW_COMBO_ROW (theme_row), G_LIST_MODEL (list));
+        adw_combo_row_set_selected (ADW_COMBO_ROW (theme_row), g_settings_get_enum (settings, "color-theme"));
+        g_signal_connect (theme_row, "notify::selected", G_CALLBACK (on_color_theme_selected), NULL);
+        g_signal_connect_object (settings, "changed::color-theme",
+                                 G_CALLBACK (on_sidebar_density_changed), theme_row, 0);
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_row);
+    }
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("_Framed Panels"),
-                                               _("Each tile a rounded card of its own with a gap between them, and the inspector a brighter card"),
+                                               _("Each tile a rounded card of its own with a gap between them, and the inspector a card too"),
                                                "framed-panels"));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("_Panel Buttons"),
