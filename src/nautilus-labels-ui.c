@@ -658,14 +658,15 @@ nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
     {
         /* In the order of the ColorTheme enum. */
         const char *names[] = { _("Mako"), _("Uniform"), _("Classic"), _("Graphite"),
-                                _("Deep Sea"), _("Synthwave"), _("Matcha"), NULL };
+                                _("Deep Sea"), _("Synthwave"), _("Matcha"), _("Nord"), _("Dracula"),
+                                _("Gruvbox"), _("Catppuccin"), _("Solarized"), _("Clown"), NULL };
         g_autoptr (GtkStringList) list = gtk_string_list_new (names);
         GtkWidget *theme_row = adw_combo_row_new ();
 
         adw_preferences_row_set_title (ADW_PREFERENCES_ROW (theme_row), _("Color _Theme"));
         adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (theme_row), TRUE);
         adw_action_row_set_subtitle (ADW_ACTION_ROW (theme_row),
-                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the last three are for fun. Each follows light and dark"));
+                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the rest are for fun. Each follows light and dark"));
         adw_combo_row_set_model (ADW_COMBO_ROW (theme_row), G_LIST_MODEL (list));
         adw_combo_row_set_selected (ADW_COMBO_ROW (theme_row), g_settings_get_enum (settings, "color-theme"));
         g_signal_connect (theme_row, "notify::selected", G_CALLBACK (on_color_theme_selected), NULL);

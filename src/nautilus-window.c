@@ -3676,7 +3676,9 @@ static void
 apply_color_theme (NautilusWindow *window)
 {
     static const char *classes[] = { NULL, "theme-uniform", "theme-classic", "theme-graphite",
-                                     "theme-deep-sea", "theme-synthwave", "theme-matcha" };
+                                     "theme-deep-sea", "theme-synthwave", "theme-matcha",
+                                     "theme-nord", "theme-dracula", "theme-gruvbox", "theme-catppuccin",
+                                     "theme-solarized", "theme-clown" };
     int theme = g_settings_get_enum (nautilus_flier_settings (), "color-theme");
 
     for (int i = 1; i < (int) G_N_ELEMENTS (classes); i++)

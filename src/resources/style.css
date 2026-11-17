@@ -880,3 +880,140 @@ window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #232a1f
 window.alternate-rows listview > row.stripe-odd:not(:selected):not(:hover) {
   background-color: color-mix(in srgb, currentColor 4%, transparent);
 }
+
+/* More fun themes, after well-known palettes (Nord, Dracula, Gruvbox,
+ * Catppuccin, Solarized) and one that is just loud (Clown). */
+/* Nord: arctic blue-grey, frost accent */
+window.theme-nord {
+  --window-bg-color: #272c36; --view-bg-color: #2e3440; --headerbar-bg-color: #272c36;
+  --headerbar-backdrop-color: #272c36; --sidebar-bg-color: #3b4252; --sidebar-backdrop-color: #3b4252;
+  --card-bg-color: #3b4252; --popover-bg-color: #3b4252; --dialog-bg-color: #3b4252;
+  --window-fg-color: #eceff4; --view-fg-color: #eceff4; --headerbar-fg-color: #eceff4;
+  --sidebar-fg-color: #eceff4; --card-fg-color: #eceff4; --popover-fg-color: #eceff4; --dialog-fg-color: #eceff4;
+  --accent-bg-color: #5e81ac; --accent-color: #88c0d0; --accent-fg-color: #eceff4;
+}
+window.theme-nord, window.theme-nord.framed-panels { --mako-sidebar: #3b4252; }
+@media (prefers-color-scheme: light) {
+  window.theme-nord {
+    --window-bg-color: #e5e9f0; --view-bg-color: #eceff4; --headerbar-bg-color: #e5e9f0;
+    --headerbar-backdrop-color: #e5e9f0; --sidebar-bg-color: #d8dee9; --sidebar-backdrop-color: #d8dee9;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
+    --window-fg-color: #2e3440; --view-fg-color: #2e3440; --headerbar-fg-color: #2e3440;
+    --sidebar-fg-color: #2e3440; --card-fg-color: #2e3440; --popover-fg-color: #2e3440; --dialog-fg-color: #2e3440;
+    --accent-bg-color: #5e81ac; --accent-color: #4c6f9a; --accent-fg-color: #ffffff;
+  }
+  window.theme-nord, window.theme-nord.framed-panels { --mako-sidebar: #d8dee9; }
+}
+
+/* Dracula: night purple, pink and violet */
+window.theme-dracula {
+  --window-bg-color: #21222c; --view-bg-color: #282a36; --headerbar-bg-color: #21222c;
+  --headerbar-backdrop-color: #21222c; --sidebar-bg-color: #343746; --sidebar-backdrop-color: #343746;
+  --card-bg-color: #343746; --popover-bg-color: #343746; --dialog-bg-color: #343746;
+  --window-fg-color: #f8f8f2; --view-fg-color: #f8f8f2; --headerbar-fg-color: #f8f8f2;
+  --sidebar-fg-color: #f8f8f2; --card-fg-color: #f8f8f2; --popover-fg-color: #f8f8f2; --dialog-fg-color: #f8f8f2;
+  --accent-bg-color: #bd93f9; --accent-color: #ff79c6; --accent-fg-color: #21222c;
+}
+window.theme-dracula, window.theme-dracula.framed-panels { --mako-sidebar: #343746; }
+@media (prefers-color-scheme: light) {
+  window.theme-dracula {
+    --window-bg-color: #f5efd8; --view-bg-color: #fffbeb; --headerbar-bg-color: #f5efd8;
+    --headerbar-backdrop-color: #f5efd8; --sidebar-bg-color: #efe8cf; --sidebar-backdrop-color: #efe8cf;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
+    --window-fg-color: #1f1f1f; --view-fg-color: #1f1f1f; --headerbar-fg-color: #1f1f1f;
+    --sidebar-fg-color: #1f1f1f; --card-fg-color: #1f1f1f; --popover-fg-color: #1f1f1f; --dialog-fg-color: #1f1f1f;
+    --accent-bg-color: #644ac9; --accent-color: #a3144d; --accent-fg-color: #ffffff;
+  }
+  window.theme-dracula, window.theme-dracula.framed-panels { --mako-sidebar: #efe8cf; }
+}
+
+/* Gruvbox: retro warm browns, orange accent */
+window.theme-gruvbox {
+  --window-bg-color: #1d2021; --view-bg-color: #282828; --headerbar-bg-color: #1d2021;
+  --headerbar-backdrop-color: #1d2021; --sidebar-bg-color: #32302f; --sidebar-backdrop-color: #32302f;
+  --card-bg-color: #3c3836; --popover-bg-color: #3c3836; --dialog-bg-color: #3c3836;
+  --window-fg-color: #ebdbb2; --view-fg-color: #ebdbb2; --headerbar-fg-color: #ebdbb2;
+  --sidebar-fg-color: #ebdbb2; --card-fg-color: #ebdbb2; --popover-fg-color: #ebdbb2; --dialog-fg-color: #ebdbb2;
+  --accent-bg-color: #d65d0e; --accent-color: #fe8019; --accent-fg-color: #fbf1c7;
+}
+window.theme-gruvbox, window.theme-gruvbox.framed-panels { --mako-sidebar: #32302f; }
+@media (prefers-color-scheme: light) {
+  window.theme-gruvbox {
+    --window-bg-color: #f2e5bc; --view-bg-color: #fbf1c7; --headerbar-bg-color: #f2e5bc;
+    --headerbar-backdrop-color: #f2e5bc; --sidebar-bg-color: #ebdbb2; --sidebar-backdrop-color: #ebdbb2;
+    --card-bg-color: #fffaf0; --popover-bg-color: #fffaf0; --dialog-bg-color: #fffaf0;
+    --window-fg-color: #3c3836; --view-fg-color: #3c3836; --headerbar-fg-color: #3c3836;
+    --sidebar-fg-color: #3c3836; --card-fg-color: #3c3836; --popover-fg-color: #3c3836; --dialog-fg-color: #3c3836;
+    --accent-bg-color: #af3a03; --accent-color: #af3a03; --accent-fg-color: #fbf1c7;
+  }
+  window.theme-gruvbox, window.theme-gruvbox.framed-panels { --mako-sidebar: #ebdbb2; }
+}
+
+/* Catppuccin: soft pastels on mocha (latte in light) */
+window.theme-catppuccin {
+  --window-bg-color: #181825; --view-bg-color: #1e1e2e; --headerbar-bg-color: #181825;
+  --headerbar-backdrop-color: #181825; --sidebar-bg-color: #25253a; --sidebar-backdrop-color: #25253a;
+  --card-bg-color: #313244; --popover-bg-color: #313244; --dialog-bg-color: #313244;
+  --window-fg-color: #cdd6f4; --view-fg-color: #cdd6f4; --headerbar-fg-color: #cdd6f4;
+  --sidebar-fg-color: #cdd6f4; --card-fg-color: #cdd6f4; --popover-fg-color: #cdd6f4; --dialog-fg-color: #cdd6f4;
+  --accent-bg-color: #cba6f7; --accent-color: #f5c2e7; --accent-fg-color: #1e1e2e;
+}
+window.theme-catppuccin, window.theme-catppuccin.framed-panels { --mako-sidebar: #25253a; }
+@media (prefers-color-scheme: light) {
+  window.theme-catppuccin {
+    --window-bg-color: #dce0e8; --view-bg-color: #eff1f5; --headerbar-bg-color: #dce0e8;
+    --headerbar-backdrop-color: #dce0e8; --sidebar-bg-color: #e6e9ef; --sidebar-backdrop-color: #e6e9ef;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
+    --window-fg-color: #4c4f69; --view-fg-color: #4c4f69; --headerbar-fg-color: #4c4f69;
+    --sidebar-fg-color: #4c4f69; --card-fg-color: #4c4f69; --popover-fg-color: #4c4f69; --dialog-fg-color: #4c4f69;
+    --accent-bg-color: #8839ef; --accent-color: #8839ef; --accent-fg-color: #ffffff;
+  }
+  window.theme-catppuccin, window.theme-catppuccin.framed-panels { --mako-sidebar: #e6e9ef; }
+}
+
+/* Solarized: the classic teal-on-cream */
+window.theme-solarized {
+  --window-bg-color: #00212b; --view-bg-color: #002b36; --headerbar-bg-color: #00212b;
+  --headerbar-backdrop-color: #00212b; --sidebar-bg-color: #073642; --sidebar-backdrop-color: #073642;
+  --card-bg-color: #073642; --popover-bg-color: #073642; --dialog-bg-color: #073642;
+  --window-fg-color: #93a1a1; --view-fg-color: #93a1a1; --headerbar-fg-color: #93a1a1;
+  --sidebar-fg-color: #93a1a1; --card-fg-color: #93a1a1; --popover-fg-color: #93a1a1; --dialog-fg-color: #93a1a1;
+  --accent-bg-color: #268bd2; --accent-color: #2aa198; --accent-fg-color: #fdf6e3;
+}
+window.theme-solarized, window.theme-solarized.framed-panels { --mako-sidebar: #073642; }
+@media (prefers-color-scheme: light) {
+  window.theme-solarized {
+    --window-bg-color: #e6dfca; --view-bg-color: #fdf6e3; --headerbar-bg-color: #e6dfca;
+    --headerbar-backdrop-color: #e6dfca; --sidebar-bg-color: #eee8d5; --sidebar-backdrop-color: #eee8d5;
+    --card-bg-color: #fffdf6; --popover-bg-color: #fffdf6; --dialog-bg-color: #fffdf6;
+    --window-fg-color: #586e75; --view-fg-color: #586e75; --headerbar-fg-color: #586e75;
+    --sidebar-fg-color: #586e75; --card-fg-color: #586e75; --popover-fg-color: #586e75; --dialog-fg-color: #586e75;
+    --accent-bg-color: #268bd2; --accent-color: #1f6fa8; --accent-fg-color: #fdf6e3;
+  }
+  window.theme-solarized, window.theme-solarized.framed-panels { --mako-sidebar: #eee8d5; }
+}
+
+/* Clown: big top. Red sidebar, yellow header, blue accent */
+window.theme-clown {
+  --window-bg-color: #2a1856; --view-bg-color: #1b1036; --headerbar-bg-color: #ffd23f;
+  --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #d62839; --sidebar-backdrop-color: #d62839;
+  --card-bg-color: #2a1856; --popover-bg-color: #2a1856; --dialog-bg-color: #2a1856;
+  --window-fg-color: #fff4e0; --view-fg-color: #fff4e0; --headerbar-fg-color: #1b1036;
+  --sidebar-fg-color: #ffffff; --card-fg-color: #fff4e0; --popover-fg-color: #fff4e0; --dialog-fg-color: #fff4e0;
+  --accent-bg-color: #1e90ff; --accent-color: #4fc3ff; --accent-fg-color: #ffffff;
+}
+window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #d62839; }
+@media (prefers-color-scheme: light) {
+  window.theme-clown {
+    --window-bg-color: #ffe680; --view-bg-color: #fffdf3; --headerbar-bg-color: #ffd23f;
+    --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #e63946; --sidebar-backdrop-color: #e63946;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
+    --window-fg-color: #1b1036; --view-fg-color: #1b1036; --headerbar-fg-color: #1b1036;
+    --sidebar-fg-color: #ffffff; --card-fg-color: #1b1036; --popover-fg-color: #1b1036; --dialog-fg-color: #1b1036;
+    --accent-bg-color: #1e6fff; --accent-color: #1555c9; --accent-fg-color: #ffffff;
+  }
+  window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #e63946; }
+}
+/* The header bars aren't painted in the headerbar colour in Mako's layout
+ * (they sit on the views), so Clown paints them itself. */
+window.theme-clown headerbar { background-color: #ffd23f; color: #1b1036; box-shadow: none; }

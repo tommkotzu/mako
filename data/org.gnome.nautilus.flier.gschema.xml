@@ -22,6 +22,12 @@
     <value value="4" nick="deep-sea"/>
     <value value="5" nick="synthwave"/>
     <value value="6" nick="matcha"/>
+    <value value="7" nick="nord"/>
+    <value value="8" nick="dracula"/>
+    <value value="9" nick="gruvbox"/>
+    <value value="10" nick="catppuccin"/>
+    <value value="11" nick="solarized"/>
+    <value value="12" nick="clown"/>
   </enum>
   <enum id="org.gnome.nautilus.flier.InspectorSide">
     <value value="0" nick="right"/>
@@ -144,7 +150,7 @@
     <key name="color-theme" enum="org.gnome.nautilus.flier.ColorTheme">
       <default>'mako'</default>
       <summary>Color theme</summary>
-      <description>The window's colors: “mako” (the sidebar a little brighter than the views), “uniform” (one color), “classic” (GNOME's sidebar grey), “graphite” (deeper, more contrast), or the playful “deep-sea”, “synthwave” and “matcha”. Each has a light and a dark version.</description>
+      <description>The window's colors: “mako” (the sidebar a little brighter than the views), “uniform” (one color), “classic” (GNOME's sidebar grey), “graphite” (deeper, more contrast), or the playful “deep-sea”, “synthwave”, “matcha”, “nord”, “dracula”, “gruvbox”, “catppuccin”, “solarized” and “clown”. Each has a light and a dark version.</description>
     </key>
     <key type="b" name="alternate-rows">
       <default>false</default>
