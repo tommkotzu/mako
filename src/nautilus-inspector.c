@@ -590,6 +590,20 @@ apply_density (NautilusInspector *self)
     gtk_widget_set_margin_bottom (GTK_WIDGET (self->preview), comfortable ? 16 : dense ? 8 : 12);
 }
 
+/* The line above the bottom row goes with the bottom bar's. */
+static void
+apply_bottom_bar (NautilusInspector *self)
+{
+    if (g_settings_get_boolean (nautilus_flier_settings (), "bottom-bar"))
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (self), "no-bottom-bar");
+    }
+    else
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (self), "no-bottom-bar");
+    }
+}
+
 static gboolean
 unparent_later (gpointer popover)
 {
@@ -674,6 +688,9 @@ setup_menu (NautilusInspector *self)
     g_signal_connect_object (nautilus_flier_settings (), "changed::inspector-density",
                              G_CALLBACK (apply_density), self, G_CONNECT_SWAPPED);
     apply_density (self);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::bottom-bar",
+                             G_CALLBACK (apply_bottom_bar), self, G_CONNECT_SWAPPED);
+    apply_bottom_bar (self);
 }
 
 static void
