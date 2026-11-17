@@ -41,6 +41,20 @@ rm -rf "$O/applications" "$O/dbus-1" "$O/gnome-shell" "$O/icons" \
        "$O/metainfo" "$ROOT$P/include" "$ROOT$P/lib/x86_64-linux-gnu/pkgconfig"
 glib-compile-schemas "$O/glib-2.0/schemas"
 
+# Updates: Mako's apt repository and the key it is signed with, so a new
+# version comes through Software Updater and apt upgrade (tools/publish-apt.sh).
+mkdir -p "$ROOT/usr/share/keyrings" "$ROOT/etc/apt/sources.list.d"
+cp "$SRC/data/apt/mako-archive-keyring.gpg" "$ROOT/usr/share/keyrings/"
+cat > "$ROOT/etc/apt/sources.list.d/mako.sources" <<EOF
+# Updates for Mako. Remove this file to stop them.
+Types: deb
+URIs: https://tommkotzu.github.io/mako-apt/
+Suites: stable
+Components: main
+Architectures: amd64
+Signed-By: /usr/share/keyrings/mako-archive-keyring.gpg
+EOF
+
 cat > "$ROOT/usr/bin/mako" <<EOF
 #!/bin/sh
 # Starts Mako from $P with its own settings schemas and library.
@@ -89,6 +103,7 @@ command -v update-desktop-database >/dev/null && update-desktop-database -q /usr
 command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
 EOF
 cp "$ROOT/DEBIAN/postinst" "$ROOT/DEBIAN/postrm"
+echo /etc/apt/sources.list.d/mako.sources > "$ROOT/DEBIAN/conffiles"
 chmod 755 "$ROOT/DEBIAN/postinst" "$ROOT/DEBIAN/postrm"
 
 DEB=$OUT/mako_${VERSION}_amd64.deb
