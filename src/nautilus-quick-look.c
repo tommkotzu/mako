@@ -549,6 +549,12 @@ move_selection (NautilusQuickLook *self,
     if (self->view != NULL && self->alone == NULL && shown_file (self) != NULL)
     {
         nautilus_files_view_preview_selection_event (self->view, direction);
+        /* Moving the cursor focuses the item in the files; the keys stay
+         * here while shown. */
+        if (self->shown)
+        {
+            gtk_widget_grab_focus (GTK_WIDGET (self));
+        }
     }
 }
 
