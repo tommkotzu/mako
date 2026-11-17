@@ -20,6 +20,9 @@ G_DECLARE_FINAL_TYPE (NautilusTile, nautilus_tile, NAUTILUS, TILE, GtkBox)
 NautilusTile *nautilus_tile_new      (GMenuModel   *menu_model);
 AdwTabView   *nautilus_tile_get_view (NautilusTile *self);
 AdwTabBar    *nautilus_tile_get_bar  (NautilusTile *self);
+/* Shown right after the last tab, in the tab bar's row. */
+void          nautilus_tile_set_after_tabs (NautilusTile *self,
+                                            GtkWidget    *widget);
 
 /* The tile a widget (a tab view, a slot) lives in, or NULL. */
 NautilusTile *nautilus_tile_for_widget (GtkWidget *widget);

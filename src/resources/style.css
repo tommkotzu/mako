@@ -392,8 +392,8 @@ rubberband {
 
 /* Tiles: the tab strip blends into the view, so only the selected tab
  * stands out as a tile */
-nautilus-tile > tabbar .box,
-nautilus-tile > tabbar .box:backdrop {
+nautilus-tile tabbar .box,
+nautilus-tile tabbar .box:backdrop {
   background-color: var(--view-bg-color);
   color: var(--view-fg-color);
   box-shadow: none;
@@ -745,8 +745,13 @@ window.framed-panels nautilus-tile {
   border-radius: 10px;
 }
 window.framed-panels nautilus-bottom-bar { border-top: none; }
-window.framed-panels tabbar .tile-new-tab { opacity: 0; transition: opacity 150ms ease-out; min-width: 28px; min-height: 28px; padding: 0; margin: 0 4px; }
-window.framed-panels tabbar:hover .tile-new-tab { opacity: 1; }
+/* The + after the last tab: only with framed panels, while the pointer is
+ * on the tabs or on it. */
+.tile-new-tab { opacity: 0; transition: opacity 150ms ease-out; min-width: 28px; min-height: 28px; padding: 0; margin: 0 4px; border-radius: 8px; }
+window.framed-panels .tile-tab-strip:hover > .tile-new-tab { opacity: 1; }
+.tile-tab-strip > .tile-new-tab { margin: 0 0 0 4px; }
+/* Room at the end of the tab bar, so the + never covers a tab. */
+window.framed-panels nautilus-tile tabbar .box { padding-right: 36px; }
 window.framed-panels nautilus-inspector {
   background-color: var(--mako-card-bg);
   border-radius: 10px;

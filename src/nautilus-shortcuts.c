@@ -74,6 +74,8 @@ static const Command commands[] =
     { SECTION_TABS, N_("Move Tab Right"), "win.tab-move-right", "<ctrl><shift>Page_Down", NULL },
     { SECTION_TABS, N_("Split Right"), "win.split-right", "F3", NULL },
     { SECTION_TABS, N_("Split Down"), "win.split-down", "<shift>F3", NULL },
+    { SECTION_TABS, N_("Move Tab to New Window"), "win.tab-move-new-window", NULL, NULL },
+    { SECTION_TABS, N_("Move Panel to New Window"), "win.tile-move-new-window", NULL, NULL },
     { SECTION_TABS, N_("Next Tab"), "win.tab-next-all", NULL, "<ctrl>Tab|<ctrl>Page_Down" },
     { SECTION_TABS, N_("Previous Tab"), "win.tab-previous-all", NULL, "<ctrl><shift>Tab|<ctrl>Page_Up|<ctrl>ISO_Left_Tab" },
     { SECTION_TABS, N_("Next Tile"), "win.focus-next-tile", "F6", "<alt>t|<ctrl>grave" },

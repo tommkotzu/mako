@@ -146,6 +146,7 @@ struct _NautilusWindow
 
     /* Toolbar */
     GtkWidget *toolbar;
+    NautilusTile *hovered_tile;    /* weak: the tile under the pointer */
     gboolean temporary_navigation_bar;
 
     GtkWidget *network_address_bar;
@@ -264,12 +265,79 @@ action_go_home (GSimpleAction *action,
     g_object_unref (home);
 }
 
+static void activate_tile (NautilusWindow *window,
+                           NautilusTile   *tile);
+
 static void
 action_new_tab (GSimpleAction *action,
                 GVariant      *state,
                 gpointer       user_data)
 {
-    nautilus_window_new_tab (NAUTILUS_WINDOW (user_data));
+    NautilusWindow *window = NAUTILUS_WINDOW (user_data);
+
+    /* In the tile under the pointer, when there is one. */
+    if (window->hovered_tile != NULL)
+    {
+        activate_tile (window, window->hovered_tile);
+    }
+    nautilus_window_new_tab (window);
+}
+
+/* All the tabs of the active tile into a new window, in their order, the
+ * shown one still shown; the tile closes. */
+static void
+action_tile_move_new_window (GSimpleAction *action,
+                             GVariant      *parameter,
+                             gpointer       user_data)
+{
+    NautilusWindow *window = user_data;
+    AdwTabView *view = window->tab_view;
+    AdwTabPage *selected = adw_tab_view_get_selected_page (view);
+    NautilusApplication *app = NAUTILUS_APPLICATION (g_application_get_default ());
+    NautilusWindow *new_window;
+    AdwTabView *new_view;
+    int n = 0;
+
+    /* A window's only tile would leave nothing behind: move its tabs. */
+    if (nautilus_tile_layout_get_n_tiles (window->tile_layout) < 2)
+    {
+        return;
+    }
+
+    new_window = nautilus_application_create_window (app, NULL);
+    gtk_window_set_display (GTK_WINDOW (new_window), gtk_widget_get_display (GTK_WIDGET (window)));
+    new_view = new_window->tab_view;
+
+    g_object_ref (selected);
+    while (adw_tab_view_get_n_pages (view) > 0)
+    {
+        AdwTabPage *page = adw_tab_view_get_nth_page (view, 0);
+
+        adw_tab_view_transfer_page (view, page, new_view, n++);
+    }
+    adw_tab_view_set_selected_page (new_view, selected);
+    g_object_unref (selected);
+    gtk_window_present (GTK_WINDOW (new_window));
+}
+
+static void
+on_tile_hover_enter (GtkEventControllerMotion *controller,
+                     double                    x,
+                     double                    y,
+                     NautilusWindow           *window)
+{
+    g_set_weak_pointer (&window->hovered_tile,
+                        NAUTILUS_TILE (gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller))));
+}
+
+static void
+on_tile_hover_leave (GtkEventControllerMotion *controller,
+                     NautilusWindow           *window)
+{
+    if (window->hovered_tile == (gpointer) gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller)))
+    {
+        g_clear_weak_pointer (&window->hovered_tile);
+    }
 }
 
 static void
@@ -1579,6 +1647,16 @@ add_lone_tab_drag (AdwTabBar  *bar,
     gtk_widget_add_controller (GTK_WIDGET (bar), GTK_EVENT_CONTROLLER (source));
 }
 
+/* The + after a tile's tabs: with framed panels, while its tabs show. */
+static void
+update_new_tab_button (GtkWidget *add)
+{
+    AdwTabBar *bar = g_object_get_data (G_OBJECT (add), "bar");
+
+    gtk_widget_set_visible (add, g_settings_get_boolean (nautilus_flier_settings (), "framed-panels") &&
+                            adw_tab_bar_get_tabs_revealed (bar));
+}
+
 static NautilusTile *
 create_tile (NautilusWindow *window)
 {
@@ -1601,8 +1679,13 @@ create_tile (NautilusWindow *window)
         gtk_widget_set_tooltip_text (add, _("New Tab"));
         gtk_widget_set_focus_on_click (add, FALSE);
         gtk_actionable_set_action_name (GTK_ACTIONABLE (add), "win.new-tab");
-        g_settings_bind (nautilus_flier_settings (), "framed-panels", add, "visible", G_SETTINGS_BIND_GET);
-        adw_tab_bar_set_end_action_widget (bar, add);
+        g_object_set_data (G_OBJECT (add), "bar", bar);
+        g_signal_connect_object (bar, "notify::tabs-revealed", G_CALLBACK (update_new_tab_button), add,
+                                 G_CONNECT_SWAPPED);
+        g_signal_connect_object (nautilus_flier_settings (), "changed::framed-panels",
+                                 G_CALLBACK (update_new_tab_button), add, G_CONNECT_SWAPPED);
+        update_new_tab_button (add);
+        nautilus_tile_set_after_tabs (tile, add);
     }
 
     /* Only allow tab DnD in Wayland.  We are using a hack in list-base to
@@ -1639,6 +1722,13 @@ create_tile (NautilusWindow *window)
     GtkGesture *click = gtk_gesture_click_new ();
 
     g_signal_connect (focus, "enter", G_CALLBACK (on_tile_focus_enter), window);
+    {
+        GtkEventController *hover = gtk_event_controller_motion_new ();
+
+        g_signal_connect (hover, "enter", G_CALLBACK (on_tile_hover_enter), window);
+        g_signal_connect (hover, "leave", G_CALLBACK (on_tile_hover_leave), window);
+        gtk_widget_add_controller (GTK_WIDGET (tile), hover);
+    }
     gtk_widget_add_controller (GTK_WIDGET (tile), focus);
     gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (click), 0);
     gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (click), GTK_PHASE_CAPTURE);
@@ -2467,6 +2557,7 @@ const GActionEntry win_entries[] =
     { .name = "tab-move-left", .activate = action_tab_move_left },
     { .name = "tab-move-right", .activate = action_tab_move_right },
     { .name = "tab-move-new-window", .activate = action_tab_move_new_window },
+    { .name = "tile-move-new-window", .activate = action_tile_move_new_window },
     { .name = "go-to-tab", .parameter_type = "i", .state = "0", .change_state = action_go_to_tab },
     { .name = "restore-tab", .activate = action_restore_tab },
     { .name = "split-right", .activate = action_split_right },
@@ -2652,6 +2743,7 @@ nautilus_window_dispose (GObject *object)
     window = NAUTILUS_WINDOW (object);
 
     g_clear_handle_id (&window->inspector_save_id, g_source_remove);
+    g_clear_weak_pointer (&window->hovered_tile);
     if (window->inspector_window != NULL)
     {
         /* The inspector goes with its window. */

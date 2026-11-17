@@ -17,6 +17,10 @@ struct _NautilusTile
 
     AdwTabBar *bar;
     AdwTabView *view;
+    GtkWidget *strip;          /* an overlay: the tab bar, and what follows its tabs */
+    GtkWidget *after;
+    guint tick;
+    double after_x;
 };
 
 G_DEFINE_FINAL_TYPE (NautilusTile, nautilus_tile, GTK_TYPE_BOX)
@@ -25,6 +29,102 @@ static void
 nautilus_tile_class_init (NautilusTileClass *klass)
 {
     gtk_widget_class_set_css_name (GTK_WIDGET_CLASS (klass), "nautilus-tile");
+}
+
+/* The right edge of the last tab in the strip, or -1 without tabs. */
+static double
+last_tab_end (NautilusTile *self)
+{
+    GtkWidget *stack[64];
+    int depth = 0;
+    double end = -1;
+
+    stack[depth++] = GTK_WIDGET (self->bar);
+    while (depth > 0)
+    {
+        GtkWidget *widget = stack[--depth];
+
+        for (GtkWidget *child = gtk_widget_get_first_child (widget); child != NULL;
+             child = gtk_widget_get_next_sibling (child))
+        {
+            graphene_rect_t bounds;
+
+            if (!gtk_widget_get_visible (child))
+            {
+                continue;
+            }
+            if (g_str_equal (gtk_widget_get_css_name (child), "tab"))
+            {
+                if (gtk_widget_compute_bounds (child, self->strip, &bounds))
+                {
+                    end = MAX (end, bounds.origin.x + bounds.size.width);
+                }
+            }
+            else if (depth < (int) G_N_ELEMENTS (stack))
+            {
+                stack[depth++] = child;
+            }
+        }
+    }
+
+    return end;
+}
+
+static gboolean
+on_after_position (GtkOverlay     *overlay,
+                   GtkWidget      *widget,
+                   GdkRectangle   *allocation,
+                   NautilusTile   *self)
+{
+    int width = gtk_widget_get_width (GTK_WIDGET (overlay));
+    int height = gtk_widget_get_height (GTK_WIDGET (overlay));
+    int w, h;
+    double end = last_tab_end (self);
+
+    gtk_widget_measure (widget, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &w, NULL, NULL);
+    gtk_widget_measure (widget, GTK_ORIENTATION_VERTICAL, w, NULL, &h, NULL, NULL);
+    self->after_x = end;
+    /* Right after the last tab; at the end when the tabs fill the bar. */
+    allocation->x = end < 0 ? 0 : (int) MIN (end, width - w);
+    allocation->y = (height - h) / 2;
+    allocation->width = w;
+    allocation->height = h;
+    return TRUE;
+}
+
+/* While the pointer is on the tabs, the + follows them as they move. */
+static gboolean
+on_tick (GtkWidget     *widget,
+         GdkFrameClock *clock,
+         gpointer       user_data)
+{
+    NautilusTile *self = user_data;
+
+    if (self->after != NULL && !G_APPROX_VALUE (last_tab_end (self), self->after_x, 0.5))
+    {
+        gtk_widget_queue_allocate (self->strip);
+    }
+    return G_SOURCE_CONTINUE;
+}
+
+static void
+follow_tabs (NautilusTile *self)
+{
+    if (self->tick == 0)
+    {
+        self->tick = gtk_widget_add_tick_callback (self->strip, on_tick, self, NULL);
+    }
+    gtk_widget_queue_allocate (self->strip);
+}
+
+static void
+stop_following (NautilusTile *self)
+{
+    if (self->tick != 0)
+    {
+        gtk_widget_remove_tick_callback (self->strip, self->tick);
+        self->tick = 0;
+    }
 }
 
 static void
@@ -42,8 +142,37 @@ nautilus_tile_init (NautilusTile *self)
     adw_tab_bar_set_expand_tabs (self->bar, FALSE);
     gtk_widget_set_vexpand (GTK_WIDGET (self->view), TRUE);
 
-    gtk_box_append (GTK_BOX (self), GTK_WIDGET (self->bar));
+    /* Over the tab bar, so something can float right after the last tab. */
+    self->strip = gtk_overlay_new ();
+    gtk_widget_add_css_class (self->strip, "tile-tab-strip");
+    gtk_overlay_set_child (GTK_OVERLAY (self->strip), GTK_WIDGET (self->bar));
+    g_signal_connect (self->strip, "get-child-position", G_CALLBACK (on_after_position), self);
+    {
+        GtkEventController *motion = gtk_event_controller_motion_new ();
+
+        g_signal_connect_swapped (motion, "enter", G_CALLBACK (follow_tabs), self);
+        g_signal_connect_swapped (motion, "leave", G_CALLBACK (stop_following), self);
+        gtk_widget_add_controller (self->strip, motion);
+    }
+    gtk_box_append (GTK_BOX (self), self->strip);
     gtk_box_append (GTK_BOX (self), GTK_WIDGET (self->view));
+}
+
+void
+nautilus_tile_set_after_tabs (NautilusTile *self,
+                              GtkWidget    *widget)
+{
+    g_return_if_fail (NAUTILUS_IS_TILE (self));
+
+    if (self->after != NULL)
+    {
+        gtk_overlay_remove_overlay (GTK_OVERLAY (self->strip), self->after);
+    }
+    self->after = widget;
+    if (widget != NULL)
+    {
+        gtk_overlay_add_overlay (GTK_OVERLAY (self->strip), widget);
+    }
 }
 
 NautilusTile *
