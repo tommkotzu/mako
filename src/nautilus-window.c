@@ -1217,6 +1217,14 @@ static struct
     NautilusTileDrop where;
 } pending_tab_drop;
 
+/* A tab dragged by Mako itself: libadwaita drags a tab out of its tab bar
+ * only when there are others, so the only tab of a tile is dragged by a
+ * drag source of our own, and moved on the drop. */
+static struct
+{
+    AdwTabView *view;       /* weak; set while such a drag runs */
+} lone_tab_drag;
+
 static GdkDragAction extra_drag_value_cb (AdwTabBar    *self,
                                           AdwTabPage   *page,
                                           const GValue *value,
@@ -1389,6 +1397,13 @@ tile_drop_pick (GtkDropTarget    *target,
         return FALSE;
     }
 
+    /* Its only tab dropped back on its own tile would change nothing. */
+    if (lone_tab_drag.view != NULL && nautilus_tile_get_view (*tile) == lone_tab_drag.view)
+    {
+        nautilus_tile_layout_set_drop_zone (window->tile_layout, NULL);
+        return FALSE;
+    }
+
     *where = nautilus_tile_layout_pick_drop (window->tile_layout, *tile, point.x, point.y, &zone);
     nautilus_tile_layout_set_drop_zone (window->tile_layout, &zone);
 
@@ -1448,6 +1463,27 @@ tile_drop_cb (GtkDropTarget  *target,
 
     nautilus_tile_layout_set_drop_zone (window->tile_layout, NULL);
 
+    /* Our own drag of a tile's only tab: move it here now. */
+    if (lone_tab_drag.view != NULL)
+    {
+        AdwTabView *source = lone_tab_drag.view;
+        AdwTabView *target_view;
+
+        g_set_weak_pointer (&pending_tab_drop.window, window);
+        g_set_weak_pointer (&pending_tab_drop.tile, tile);
+        pending_tab_drop.where = where;
+        target_view = take_pending_tab_drop_view ();
+        g_clear_weak_pointer (&lone_tab_drag.view);
+        if (target_view == NULL)
+        {
+            return FALSE;
+        }
+
+        g_set_weak_pointer (&dropped_page, page);
+        adw_tab_view_transfer_page (source, page, target_view, adw_tab_view_get_n_pages (target_view));
+        return TRUE;
+    }
+
     /* libadwaita detached the page when the drag began. After this drop it
      * asks for a new window to put it in; we hand it the tile instead. */
     g_set_weak_pointer (&pending_tab_drop.window, window);
@@ -1485,6 +1521,64 @@ take_pending_tab_drop_view (void)
     return nautilus_tile_get_view (new_tile);
 }
 
+static GdkContentProvider *
+on_lone_tab_drag_prepare (GtkDragSource *source,
+                          double         x,
+                          double         y,
+                          AdwTabView    *view)
+{
+    AdwTabPage *page;
+
+    /* With more tabs, libadwaita drags them itself. */
+    if (adw_tab_view_get_n_pages (view) != 1)
+    {
+        return NULL;
+    }
+
+    page = adw_tab_view_get_nth_page (view, 0);
+    g_set_weak_pointer (&lone_tab_drag.view, view);
+    return gdk_content_provider_new_typed (ADW_TYPE_TAB_PAGE, page);
+}
+
+static void
+on_lone_tab_drag_begin (GtkDragSource *source,
+                        GdkDrag       *drag,
+                        AdwTabView    *view)
+{
+    AdwTabPage *page = adw_tab_view_get_nth_page (view, 0);
+    g_autofree char *title = g_strdup (adw_tab_page_get_title (page));
+    GtkWidget *label = gtk_label_new (title);
+    GtkWidget *icon = gtk_drag_icon_get_for_drag (drag);
+
+    gtk_widget_add_css_class (label, "lone-tab-drag");
+    gtk_drag_icon_set_child (GTK_DRAG_ICON (icon), label);
+}
+
+static void
+on_lone_tab_drag_end (GtkDragSource *source,
+                      GdkDrag       *drag,
+                      gboolean       delete_data,
+                      AdwTabView    *view)
+{
+    g_clear_weak_pointer (&lone_tab_drag.view);
+}
+
+/* Lets the only tab of a tile be dragged to another tile, or to a side of
+ * one, like any other tab. */
+static void
+add_lone_tab_drag (AdwTabBar  *bar,
+                   AdwTabView *view)
+{
+    GtkDragSource *source = gtk_drag_source_new ();
+
+    gtk_drag_source_set_actions (source, GDK_ACTION_MOVE);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (source), GTK_PHASE_CAPTURE);
+    g_signal_connect_object (source, "prepare", G_CALLBACK (on_lone_tab_drag_prepare), view, 0);
+    g_signal_connect_object (source, "drag-begin", G_CALLBACK (on_lone_tab_drag_begin), view, 0);
+    g_signal_connect_object (source, "drag-end", G_CALLBACK (on_lone_tab_drag_end), view, 0);
+    gtk_widget_add_controller (GTK_WIDGET (bar), GTK_EVENT_CONTROLLER (source));
+}
+
 static NautilusTile *
 create_tile (NautilusWindow *window)
 {
@@ -1494,6 +1588,7 @@ create_tile (NautilusWindow *window)
 
     setup_tab_view (window, view);
     adw_tab_bar_set_inverted (bar, window->tab_bar_inverted);
+    add_lone_tab_drag (bar, view);
 
     /* Only allow tab DnD in Wayland.  We are using a hack in list-base to
      * get the preferred action which we can not replicate here because we

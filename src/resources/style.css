@@ -715,3 +715,12 @@ button.jump-reset { min-height: 22px; min-width: 22px; padding: 0; }
   font-size: 0.85em;
   font-feature-settings: "tnum";
 }
+
+/* The only tab of a tile, while dragged to another */
+.lone-tab-drag {
+  padding: 6px 16px;
+  border-radius: 8px;
+  background-color: var(--accent-bg-color);
+  color: var(--accent-fg-color);
+  font-weight: bold;
+}
