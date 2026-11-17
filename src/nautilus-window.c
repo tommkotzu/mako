@@ -3661,7 +3661,9 @@ apply_window_opacity (NautilusWindow *window)
 static void
 apply_framed_panels (NautilusWindow *window)
 {
-    if (g_settings_get_boolean (nautilus_flier_settings (), "framed-panels"))
+    gboolean framed = g_settings_get_boolean (nautilus_flier_settings (), "framed-panels");
+
+    if (framed)
     {
         gtk_widget_add_css_class (GTK_WIDGET (window), "framed-panels");
     }
@@ -3669,6 +3671,7 @@ apply_framed_panels (NautilusWindow *window)
     {
         gtk_widget_remove_css_class (GTK_WIDGET (window), "framed-panels");
     }
+
 }
 
 /* The sidebar and inspector buttons, unless turned off; a narrow window

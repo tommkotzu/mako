@@ -753,12 +753,18 @@ window.framed-panels .tile-tab-strip:hover > .tile-new-tab { opacity: 1; }
 /* Room at the end of the tab bar, so the + never covers a tab. */
 window.framed-panels nautilus-tile tabbar .box { padding-right: 36px; }
 window.framed-panels nautilus-inspector {
-  background-color: var(--mako-card-bg);
+  background-color: var(--sidebar-bg-color);
   border-radius: 10px;
   margin: 0 6px 6px 0;
 }
+window.framed-panels nautilus-inspector:backdrop { background-color: var(--sidebar-backdrop-color); }
 window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
 window.framed-panels nautilus-inspector.docked-top,
 window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
 window.framed-panels nautilus-inspector .inspector-header { border-top: none; }
+/* The preview sunk into the card rather than raised from it. */
+window.framed-panels nautilus-inspector .inspector-preview {
+  background-color: color-mix(in srgb, black 22%, transparent);
+  box-shadow: none;
+}
 window.framed-panels paned.inspector-paned > separator { min-width: 0; min-height: 0; }
