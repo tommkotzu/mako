@@ -792,9 +792,13 @@ window.framed-panels { --mako-sidebar: color-mix(in srgb, var(--mako-tile-bg) 94
 window.theme-uniform { --mako-sidebar: var(--view-bg-color); }
 window.theme-uniform.framed-panels { --mako-sidebar: var(--mako-tile-bg); }
 
-/* Classic: GNOME's own sidebar grey, the preview in a frame. */
+/* Classic: GNOME's own greys throughout, like the rest of the system: the
+ * sidebar's, the views' for the panels (also when framed, instead of
+ * Mako's darker cards) and the window's around them; the preview in a
+ * frame. */
 window.theme-classic,
 window.theme-classic.framed-panels { --mako-sidebar: var(--sidebar-bg-color); }
+window.theme-classic.framed-panels { --mako-tile-bg: var(--view-bg-color); }
 
 /* Graphite: deeper, with more contrast between the parts. */
 window.theme-graphite, .theme-preview.theme-graphite {
