@@ -433,7 +433,7 @@ nautilus-inspector { background-color: var(--view-bg-color); }
 /* One colour for sidebar, views and inspector, lines between them; the
  * preview straight on the inspector (framed panels: the panels' colour). */
 window:not(.framed-panels) .sidebar-pane,
-window:not(.framed-panels) .sidebar-pane:backdrop { background-color: var(--view-bg-color); }
+window:not(.framed-panels) .sidebar-pane:backdrop { background-color: color-mix(in srgb, var(--view-bg-color) 94%, white); }
 window:not(.framed-panels) nautilus-inspector .inspector-preview { background-color: transparent; box-shadow: none; }
 /* The divider beside the inspector: hidden until the pointer is on it,
  * then a line shows that it can be dragged. */
@@ -764,7 +764,7 @@ window.framed-panels nautilus-inspector {
 }
 /* The sidebar in the panels' colour too, as it is otherwise (flush). */
 window.framed-panels .sidebar-pane,
-window.framed-panels .sidebar-pane:backdrop { background-color: var(--mako-tile-bg); }
+window.framed-panels .sidebar-pane:backdrop { background-color: color-mix(in srgb, var(--mako-tile-bg) 94%, white); }
 window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
 window.framed-panels nautilus-inspector.docked-top,
 window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
