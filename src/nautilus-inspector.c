@@ -586,6 +586,8 @@ apply_density (NautilusInspector *self)
     gtk_widget_set_vexpand (GTK_WIDGET (self->preview), TRUE);
     /* At least this tall, whatever the density. */
     gtk_widget_set_size_request (GTK_WIDGET (self->preview), -1, 240);
+    /* Air between the preview and the details below it. */
+    gtk_widget_set_margin_bottom (GTK_WIDGET (self->preview), comfortable ? 16 : dense ? 8 : 12);
 }
 
 static gboolean
