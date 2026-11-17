@@ -21,9 +21,16 @@
 #include "nautilus-labels.h"
 #include "nautilus-text-preview.h"
 
+/* TILE is the nominal size the zoom thresholds (names, marks) are measured
+ * against; an item's real cell is the picture with a thin border, plus
+ * room for its name below when names show. */
 #define TILE 200.0
-#define GAP 14.0
+#define GAP 4.0
 #define PICTURE 168.0
+#define CELL_SIDE 3.0
+#define CELL_TOP 3.0
+#define NAME_ROOM 26.0
+#define CELL_W (PICTURE + 2 * CELL_SIDE)
 #define MARGIN 16.0
 #define MAX_ITEMS 400
 /* Full pictures kept at once on a canvas of several. */
@@ -148,6 +155,13 @@ grid_shape (NautilusQlCanvas *self,
     *rows = (n + *cols - 1) / *cols;
 }
 
+/* An item's cell height: room for the name only when names show. */
+static double
+cell_h (NautilusQlCanvas *self)
+{
+    return PICTURE + CELL_TOP + (self->show_names ? NAME_ROOM : CELL_TOP);
+}
+
 static void
 content_size (NautilusQlCanvas *self,
               double           *width,
@@ -173,8 +187,8 @@ content_size (NautilusQlCanvas *self,
     guint cols, rows;
 
     grid_shape (self, &cols, &rows);
-    *width = cols * (TILE + GAP) - GAP;
-    *height = rows * (TILE + GAP) - GAP;
+    *width = cols * (CELL_W + GAP) - GAP;
+    *height = rows * (cell_h (self) + GAP) - GAP;
 }
 
 static double
@@ -219,10 +233,10 @@ tile_rect (NautilusQlCanvas *self,
 
     grid_shape (self, &cols, &rows);
 
-    double qx = (i % cols) * (TILE + GAP) - cw / 2;
-    double qy = (i / cols) * (TILE + GAP) - ch / 2;
+    double qx = (i % cols) * (CELL_W + GAP) - cw / 2;
+    double qy = (i / cols) * (cell_h (self) + GAP) - ch / 2;
 
-    return GRAPHENE_RECT_INIT (cx + qx * z, cy + qy * z, TILE * z, TILE * z);
+    return GRAPHENE_RECT_INIT (cx + qx * z, cy + qy * z, CELL_W * z, cell_h (self) * z);
 }
 
 /* The box the picture is fitted into, inside its tile. */
@@ -238,8 +252,8 @@ picture_box (NautilusQlCanvas *self,
         return tile;
     }
 
-    return GRAPHENE_RECT_INIT (tile.origin.x + (TILE - PICTURE) / 2 * z,
-                               tile.origin.y + 4 * z,
+    return GRAPHENE_RECT_INIT (tile.origin.x + CELL_SIDE * z,
+                               tile.origin.y + CELL_TOP * z,
                                PICTURE * z, PICTURE * z);
 }
 
@@ -764,6 +778,17 @@ snapshot_name (NautilusQlCanvas      *self,
         pango_layout_set_ellipsize (item->name, PANGO_ELLIPSIZE_MIDDLE);
     }
 
+    {
+        /* The name shrinks with the pictures, so it fits the room under
+         * them at any zoom. */
+        PangoFontDescription *font = pango_font_description_copy (
+            pango_context_get_font_description (pango_layout_get_context (item->name)));
+        double room = NAME_ROOM * self->zoom;
+
+        pango_font_description_set_absolute_size (font, CLAMP (room * 0.55, 7, 14) * PANGO_SCALE);
+        pango_layout_set_font_description (item->name, font);
+        pango_font_description_free (font);
+    }
     pango_layout_set_width (item->name, (int) (tile->size.width * PANGO_SCALE));
     pango_layout_get_pixel_size (item->name, &text_w, &text_h);
     gtk_widget_get_color (GTK_WIDGET (self), &fg);
@@ -772,7 +797,7 @@ snapshot_name (NautilusQlCanvas      *self,
     gtk_snapshot_save (snapshot);
     gtk_snapshot_translate (snapshot,
                             &GRAPHENE_POINT_INIT (tile->origin.x + (tile->size.width - text_w) / 2,
-                                                  tile->origin.y + tile->size.height - text_h - 2));
+                                                  tile->origin.y + tile->size.height - text_h - 1));
     gtk_snapshot_append_layout (snapshot, item->name, &fg);
     gtk_snapshot_restore (snapshot);
 }
@@ -782,7 +807,7 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
                              GtkSnapshot *snapshot)
 {
     NautilusQlCanvas *self = NAUTILUS_QL_CANVAS (widget);
-    gboolean names = self->show_names && !is_single (self) && self->zoom * TILE >= 90;
+    gboolean names = self->show_names && !is_single (self) && self->zoom * NAME_ROOM >= 12;
     graphene_rect_t bounds = GRAPHENE_RECT_INIT (0, 0, gtk_widget_get_width (widget),
                                                  gtk_widget_get_height (widget));
 
@@ -1228,6 +1253,8 @@ nautilus_ql_canvas_set_property (GObject      *object,
         case PROP_SHOW_NAMES:
         {
             self->show_names = g_value_get_boolean (value);
+            /* The cells change height with it. */
+            gtk_widget_queue_allocate (GTK_WIDGET (self));
             gtk_widget_queue_draw (GTK_WIDGET (self));
         }
         break;
