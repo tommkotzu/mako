@@ -430,6 +430,11 @@ columnview header .group-header { padding: 12px 12px 4px 12px; }
 
 /* Inspector */
 nautilus-inspector { background-color: var(--view-bg-color); }
+/* One colour for sidebar, views and inspector, lines between them; the
+ * preview straight on the inspector (framed panels: the panels' colour). */
+window:not(.framed-panels) .sidebar-pane,
+window:not(.framed-panels) .sidebar-pane:backdrop { background-color: var(--view-bg-color); }
+window:not(.framed-panels) nautilus-inspector .inspector-preview { background-color: transparent; box-shadow: none; }
 /* The divider beside the inspector: hidden until the pointer is on it,
  * then a line shows that it can be dragged. */
 paned.inspector-paned.horizontal > separator,
