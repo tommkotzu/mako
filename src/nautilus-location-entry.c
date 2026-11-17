@@ -29,6 +29,7 @@
 
 #include <config.h>
 #include "nautilus-location-entry.h"
+#include "nautilus-jump.h"
 
 #include "nautilus-application.h"
 #include "nautilus-scheme.h"
@@ -490,6 +491,13 @@ update_completions_store (gpointer callback_data)
     }
 
     g_strstrip (typed);
+
+    /* A name, not a path: the jump menu looks it up instead. */
+    if (!nautilus_jump_is_path (typed))
+    {
+        gtk_list_store_clear (priv->completions_store);
+        return FALSE;
+    }
 
     CompleterData *completer_data = completer_data_new (typed, priv->current_location);
 

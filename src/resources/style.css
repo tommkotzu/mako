@@ -671,3 +671,20 @@ window.mako-translucent * {
   padding: 6px 8px;
   color: color-mix(in srgb, currentColor 85%, transparent);
 }
+
+/* Jump menu (Ctrl+E): under the path bar while typing a name. */
+popover.jump-menu > contents { padding: 6px; }
+.jump-scopes { padding: 0 2px 2px; }
+.jump-scope { min-height: 24px; padding: 0 10px; border-radius: 99px; font-size: 0.9em; }
+.jump-scope:checked { background-color: color-mix(in srgb, var(--accent-bg-color) 25%, transparent); color: var(--accent-color); }
+list.jump-list { background: none; }
+list.jump-list > row.jump-row { padding: 5px 8px; border-radius: 8px; min-height: 30px; }
+list.jump-list > row.jump-row:selected { background-color: color-mix(in srgb, currentColor 10%, transparent); color: inherit; }
+.jump-heading { font-size: 0.8em; font-weight: bold; opacity: 0.55; margin: 10px 8px 3px; }
+list.jump-list > row:first-child .jump-heading { margin-top: 2px; }
+.jump-name { font-weight: 600; }
+.jump-crumbs { margin-top: 1px; }
+.jump-crumb { min-height: 0; min-width: 0; padding: 0 3px; margin: 0; font-size: 0.85em; opacity: 0.6; border-radius: 4px; }
+.jump-crumb:hover { opacity: 1; text-decoration: underline; }
+.jump-crumb-sep { font-size: 0.85em; opacity: 0.35; margin: 0 1px; }
+.jump-choices > button { min-height: 24px; padding: 0 8px; font-size: 0.85em; }

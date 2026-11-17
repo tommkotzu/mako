@@ -21,6 +21,7 @@
  */
 
 #include "nautilus-toolbar.h"
+#include "nautilus-jump.h"
 
 #include <glib/gi18n.h>
 #include <math.h>
@@ -57,6 +58,7 @@ struct _NautilusToolbar
 
     gboolean show_location_entry;
     GtkWidget *focus_before_location_entry;
+    NautilusJump *jump;
 
     GtkWidget *sidebar_button;
     GtkWidget *sidebar_toggle;
@@ -185,6 +187,7 @@ nautilus_toolbar_open_location_entry (NautilusToolbar *self,
                                                   special_text);
         gtk_editable_set_position (GTK_EDITABLE (self->location_entry), -1);
     }
+    nautilus_jump_update (self->jump);
 }
 
 static void
@@ -196,6 +199,7 @@ nautilus_toolbar_close_location_entry (NautilusToolbar *self)
     }
 
     self->show_location_entry = FALSE;
+    nautilus_jump_hide (self->jump);
     toolbar_update_appearance (self);
 
     if (self->focus_before_location_entry != NULL)
@@ -245,7 +249,8 @@ on_location_entry_focus_leave (GtkEventControllerFocus *controller,
 
     focus_widget = gtk_root_get_focus (gtk_widget_get_root (GTK_WIDGET (toolbar)));
     if (focus_widget != NULL &&
-        gtk_widget_is_ancestor (focus_widget, GTK_WIDGET (toolbar->location_entry)))
+        (gtk_widget_is_ancestor (focus_widget, GTK_WIDGET (toolbar->location_entry)) ||
+         nautilus_jump_contains (toolbar->jump, focus_widget)))
     {
         return;
     }
@@ -272,6 +277,44 @@ action_edit_location (GtkWidget  *widget,
     NautilusToolbar *self = NAUTILUS_TOOLBAR (widget);
 
     nautilus_toolbar_open_location_entry (self, NULL);
+}
+
+/* The jump menu: an empty entry, with folders, commands and settings
+ * listed as one types. */
+static void
+action_jump_to (GtkWidget  *widget,
+                const char *action_name,
+                GVariant   *parameter)
+{
+    NautilusToolbar *self = NAUTILUS_TOOLBAR (widget);
+
+    if (self->show_location_entry)
+    {
+        gtk_editable_set_text (GTK_EDITABLE (self->location_entry), "");
+        gtk_widget_grab_focus (self->location_entry);
+        nautilus_jump_update (self->jump);
+        return;
+    }
+    nautilus_toolbar_open_location_entry (self, "");
+}
+
+static void
+on_entry_changed (NautilusToolbar *self)
+{
+    if (self->show_location_entry)
+    {
+        nautilus_jump_update (self->jump);
+    }
+}
+
+static gboolean
+on_entry_key (GtkEventControllerKey *controller,
+              guint                  keyval,
+              guint                  keycode,
+              GdkModifierType        state,
+              NautilusToolbar       *self)
+{
+    return nautilus_jump_key (self->jump, keyval, state);
 }
 
 static void
@@ -342,6 +385,16 @@ nautilus_toolbar_init (NautilusToolbar *self)
     /* Setting a max width on one entry to effectively set a max expansion for
      * the whole title widget. */
     gtk_editable_set_max_width_chars (GTK_EDITABLE (self->location_entry), 88);
+    gtk_entry_set_placeholder_text (GTK_ENTRY (self->location_entry), _("Folder, command or setting…"));
+
+    /* The jump menu, under the entry and its Cancel button. */
+    self->jump = nautilus_jump_new (self->location_entry, gtk_widget_get_parent (self->location_entry));
+    g_signal_connect_object (self->location_entry, "changed",
+                             G_CALLBACK (on_entry_changed), self, G_CONNECT_SWAPPED);
+    controller = gtk_event_controller_key_new ();
+    gtk_event_controller_set_propagation_phase (controller, GTK_PHASE_CAPTURE);
+    g_signal_connect (controller, "key-pressed", G_CALLBACK (on_entry_key), self);
+    gtk_widget_add_controller (self->location_entry, controller);
     g_signal_connect_object (self->location_entry, "location-changed",
                              G_CALLBACK (on_location_entry_location_changed), self,
                              G_CONNECT_DEFAULT);
@@ -477,6 +530,7 @@ nautilus_toolbar_dispose (GObject *object)
 {
     NautilusToolbar *self = NAUTILUS_TOOLBAR (object);
 
+    g_clear_pointer (&self->jump, nautilus_jump_free);
     adw_bin_set_child (ADW_BIN (object), NULL);
     gtk_widget_dispose_template (GTK_WIDGET (self), NAUTILUS_TYPE_TOOLBAR);
 
@@ -567,6 +621,7 @@ nautilus_toolbar_class_init (NautilusToolbarClass *klass)
 
     gtk_widget_class_install_action (widget_class, "toolbar.edit-location", NULL, action_edit_location);
     gtk_widget_class_install_action (widget_class, "toolbar.prompt-root-location", NULL, action_prompt_root_location);
+    gtk_widget_class_install_action (widget_class, "toolbar.jump-to", NULL, action_jump_to);
     gtk_widget_class_install_action (widget_class, "toolbar.prompt-home-location", NULL, action_prompt_home_location);
 }
 
@@ -641,6 +696,7 @@ nautilus_toolbar_set_window_slot_real (NautilusToolbar    *self,
                                        NautilusWindowSlot *slot)
 {
     self->window_slot = slot;
+    nautilus_jump_set_slot (self->jump, slot);
 
     if (self->window_slot != NULL)
     {

@@ -31,4 +31,13 @@ void  nautilus_shortcuts_add_tooltips  (GtkWidget  *root);
 void  nautilus_shortcuts_show_hint_for (GtkWindow  *window,
                                         const char *detailed_action);
 
+/* The commands, for the jump menu. */
+guint        nautilus_shortcuts_n_commands      (void);
+const char  *nautilus_shortcuts_command_title   (guint i);
+const char  *nautilus_shortcuts_command_section (guint i);
+const char  *nautilus_shortcuts_command_action  (guint i);
+GStrv        nautilus_shortcuts_command_keys    (guint i);
+void         nautilus_shortcuts_run             (GtkWindow *window,
+                                                 guint      i);
+
 G_END_DECLS

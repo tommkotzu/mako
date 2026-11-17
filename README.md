@@ -45,6 +45,7 @@ https://github.com/user-attachments/assets/1a1a578e-7426-485a-a1e6-026c1ab35ce3
 | **Ratings and tags** | Stored on the files as extended attributes, the same ones Dolphin uses (`user.baloo.rating`, `user.xdg.tags`). |
 | **Sidebar** | Groups you can fold and reorder (Bookmarks, Places, Recent, Tags, Storage). Every item can get a color. |
 | **Commands** | `F1` or `Ctrl+K` opens a searchable list of every command, and any key can be changed there. |
+| **Jump to** | `Ctrl+E` and a name: every folder of that name on the computer, each with its path to click into, plus the matching commands and settings, switched and changed right in the list. `Tab` goes through All, Folders, Commands and Settings. A path (`/…`, `~/…`) still goes straight there. |
 | **Key hints** | Each shortcut you press briefly shows its name at the bottom of the window, which helps you learn them. Tooltips show keys too. |
 | **Copy progress** | Copies and moves show in a panel in the corner of the window. Paste again while one is running and the new one waits below it, then starts as soon as the first is done. |
 | **Look** | A thin bar under each drive in the sidebar shows how full it is. The window can be see-through (Preferences → Appearance → Window Opacity); with the [Blur my Shell](https://extensions.gnome.org/extension/3193/blur-my-shell/) extension's Applications option, what is behind shows blurred. |

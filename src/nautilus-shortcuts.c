@@ -52,7 +52,8 @@ static const Command commands[] =
     { SECTION_NAVIGATE, N_("Forward"), "slot.forward", "<alt>Right", "<alt>d" },
     { SECTION_NAVIGATE, N_("Parent Folder"), "slot.up", "<alt>Up", "<alt>w" },
     { SECTION_NAVIGATE, N_("Home Folder"), "win.go-home", "<alt>Home", "<alt><shift>w" },
-    { SECTION_NAVIGATE, N_("Enter Location"), "toolbar.edit-location", "<ctrl>l", "<ctrl>e" },
+    { SECTION_NAVIGATE, N_("Jump To"), "toolbar.jump-to", NULL, "<ctrl>e" },
+    { SECTION_NAVIGATE, N_("Enter Location"), "toolbar.edit-location", "<ctrl>l", NULL },
     { SECTION_NAVIGATE, N_("Search"), "slot.focus-search", "<ctrl>f", NULL },
     { SECTION_NAVIGATE, N_("Search Everywhere"), "slot.search-global", "<ctrl><shift>f", NULL },
     { SECTION_NAVIGATE, N_("Reload"), "slot.reload", "F5|<ctrl>r", NULL },
@@ -485,6 +486,44 @@ run_command (GtkWindow     *window,
             w = gtk_widget_get_next_sibling (w);
         }
     }
+}
+
+/* For the jump menu. */
+guint
+nautilus_shortcuts_n_commands (void)
+{
+    return G_N_ELEMENTS (commands);
+}
+
+const char *
+nautilus_shortcuts_command_title (guint i)
+{
+    return _(commands[i].title);
+}
+
+const char *
+nautilus_shortcuts_command_section (guint i)
+{
+    return _(commands[i].section);
+}
+
+const char *
+nautilus_shortcuts_command_action (guint i)
+{
+    return commands[i].action;
+}
+
+GStrv
+nautilus_shortcuts_command_keys (guint i)
+{
+    return command_keys (&commands[i], NULL);
+}
+
+void
+nautilus_shortcuts_run (GtkWindow *window,
+                        guint      i)
+{
+    run_command (window, &commands[i]);
 }
 
 /* ------------------------------------------------------ Hints */
