@@ -42,6 +42,7 @@
 #include "nautilus-list-base-private.h"
 #include "nautilus-list-view.h"
 #include "nautilus-query.h"
+#include "nautilus-ui-utilities.h"
 #include "nautilus-view-info.h"
 #include "nautilus-window-slot.h"
 
@@ -298,6 +299,7 @@ setup_row (GtkSignalListItemFactory *factory,
     gtk_box_append (GTK_BOX (box), frame);
     gtk_box_append (GTK_BOX (box), label);
     gtk_list_item_set_child (item, box);
+    nautilus_stripe_track (G_OBJECT (item), box);
 
     GtkGesture *click = gtk_gesture_click_new ();
 

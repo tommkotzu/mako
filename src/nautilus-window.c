@@ -3656,6 +3656,21 @@ apply_window_opacity (NautilusWindow *window)
     }
 }
 
+/* Alternating rows: the rows know their parity ("stripe-odd"), the
+ * window says whether to show it. */
+static void
+apply_alternate_rows (NautilusWindow *window)
+{
+    if (g_settings_get_boolean (nautilus_flier_settings (), "alternate-rows"))
+    {
+        gtk_widget_add_css_class (GTK_WIDGET (window), "alternate-rows");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (GTK_WIDGET (window), "alternate-rows");
+    }
+}
+
 /* Colour theme: a class on the window naming it (style.css, window.theme-*). */
 static void
 apply_color_theme (NautilusWindow *window)
@@ -4200,6 +4215,9 @@ nautilus_window_init (NautilusWindow *window)
     g_signal_connect_object (nautilus_flier_settings (), "changed::color-theme",
                              G_CALLBACK (apply_color_theme), window, G_CONNECT_SWAPPED);
     apply_color_theme (window);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::alternate-rows",
+                             G_CALLBACK (apply_alternate_rows), window, G_CONNECT_SWAPPED);
+    apply_alternate_rows (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::panel-buttons",
                              G_CALLBACK (panel_buttons_later), window, G_CONNECT_SWAPPED);
     g_signal_connect_object (window->split_view, "notify::collapsed",

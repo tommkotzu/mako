@@ -35,6 +35,8 @@ GtkWidget *nautilus_tag_dot_new             (const char *tag);
 
 /* The "Organize" page of Preferences: ratings, tags, folder colors and
  * Quick Look. */
-GtkWidget *nautilus_labels_preferences_page_new (void);
+void nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
+                                            AdwPreferencesPage   *general,
+                                            AdwPreferencesPage   *shortcuts);
 
 G_END_DECLS

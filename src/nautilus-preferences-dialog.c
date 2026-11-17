@@ -244,10 +244,14 @@ nautilus_preferences_dialog_show_page (GtkWidget  *parent,
                                     "preferences",
                                     G_ACTION_GROUP (action_group));
 
-    adw_preferences_dialog_add (preferences_dialog,
-                                ADW_PREFERENCES_PAGE (nautilus_labels_preferences_page_new ()));
-    adw_preferences_dialog_add (preferences_dialog,
-                                ADW_PREFERENCES_PAGE (nautilus_shortcuts_preferences_page_new ()));
+    {
+        GtkWidget *shortcuts = nautilus_shortcuts_preferences_page_new ();
+
+        nautilus_labels_add_preferences_pages (preferences_dialog,
+                                               ADW_PREFERENCES_PAGE (gtk_builder_get_object (builder, "general_page")),
+                                               ADW_PREFERENCES_PAGE (shortcuts));
+        adw_preferences_dialog_add (preferences_dialog, ADW_PREFERENCES_PAGE (shortcuts));
+    }
 
     if (page != NULL)
     {

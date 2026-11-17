@@ -100,3 +100,8 @@ void        show_unmount_progress_cb                (GMountOperation   *op,
                                                      gpointer           user_data);
 void        show_unmount_progress_aborted_cb        (GMountOperation   *op,
                                                      gpointer           user_data);
+
+/* Marks the row @child sits in "stripe-odd" when @list_item (a GtkListItem
+ * or GtkColumnViewCell) is at an odd position, following it as it moves. */
+void        nautilus_stripe_track                    (GObject           *list_item,
+                                                      GtkWidget         *child);

@@ -88,6 +88,7 @@ static const Setting settings[] =
     { N_("Folder Color Scheme"), N_("Appearance"), "colours palette", SCHEMA_FLIER, "folder-color-scheme",
       N_("pastel=Pastel|vibrant=Vibrant|earth=Earth|ocean=Ocean|mono=Mono") },
     { N_("Window Opacity"), N_("Appearance"), "transparent transparency blur", SCHEMA_FLIER, "window-opacity", NULL },
+    { N_("Alternating Row Colors"), N_("Appearance"), "zebra stripes rows list striped", SCHEMA_FLIER, "alternate-rows", NULL },
     { N_("Framed Panels"), N_("Appearance"), "theme cards rounded tiles style look", SCHEMA_FLIER, "framed-panels", NULL },
     { N_("Color Theme"), N_("Appearance"), "colour theme palette look style dark", SCHEMA_FLIER, "color-theme",
       N_("mako=Mako|uniform=Uniform|classic=Classic|graphite=Graphite|deep-sea=Deep Sea|synthwave=Synthwave|matcha=Matcha") },

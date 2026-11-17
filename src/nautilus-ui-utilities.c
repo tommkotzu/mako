@@ -1017,3 +1017,38 @@ nautilus_ui_draw_stacked_icons (GQueue *icons,
 
     return gtk_snapshot_to_paintable (snapshot, NULL);
 }
+
+static void
+stripe_update (GObject    *list_item,
+               GParamSpec *pspec,
+               GtkWidget  *child)
+{
+    guint position = GTK_INVALID_LIST_POSITION;
+    GtkWidget *row = child;
+
+    while (row != NULL && !g_str_equal (gtk_widget_get_css_name (row), "row"))
+    {
+        row = gtk_widget_get_parent (row);
+    }
+    if (row == NULL)
+    {
+        return;
+    }
+    g_object_get (list_item, "position", &position, NULL);
+    if (position != GTK_INVALID_LIST_POSITION && position % 2 == 1)
+    {
+        gtk_widget_add_css_class (row, "stripe-odd");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (row, "stripe-odd");
+    }
+}
+
+void
+nautilus_stripe_track (GObject   *list_item,
+                       GtkWidget *child)
+{
+    g_signal_connect_object (list_item, "notify::position", G_CALLBACK (stripe_update), child, 0);
+    g_signal_connect_object (list_item, "notify::item", G_CALLBACK (stripe_update), child, 0);
+}

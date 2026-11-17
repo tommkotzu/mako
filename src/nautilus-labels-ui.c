@@ -617,24 +617,81 @@ on_manage_tags (AdwActionRow *row)
     nautilus_tags_dialog_present (NULL, GTK_WIDGET (row));
 }
 
-GtkWidget *
-nautilus_labels_preferences_page_new (void)
+/* Mako's pages of Preferences: Appearance, Sidebar and Organize; the
+ * startup and copying settings go on @general, the shortcut hints on
+ * @shortcuts. */
+void
+nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
+                                       AdwPreferencesPage   *general,
+                                       AdwPreferencesPage   *shortcuts)
 {
     GSettings *settings = nautilus_flier_settings ();
-    GtkWidget *page = adw_preferences_page_new ();
-    GtkWidget *group, *row, *colors_switch;
+    GtkWidget *page;
+    GtkWidget *appearance = adw_preferences_page_new ();
+    GtkWidget *sidebar = adw_preferences_page_new ();
+    GtkWidget *organize = adw_preferences_page_new ();
+    GtkWidget *group, *row, *colors_switch, *sidebar_density_row = NULL;
     g_autoptr (GSimpleActionGroup) actions = g_simple_action_group_new ();
     g_autoptr (GAction) scheme_action = g_settings_create_action (settings, "folder-color-scheme");
     g_autoptr (GAction) density_action = g_settings_create_action (settings, "density");
     GtkWidget *first_check = NULL;
     static const char *scheme_nicks[] = { "pastel", "vibrant", "earth", "ocean", "mono" };
 
-    adw_preferences_page_set_title (ADW_PREFERENCES_PAGE (page), _("Organize"));
-    adw_preferences_page_set_icon_name (ADW_PREFERENCES_PAGE (page), "starred-symbolic");
+    adw_preferences_page_set_title (ADW_PREFERENCES_PAGE (appearance), _("Appearance"));
+    adw_preferences_page_set_icon_name (ADW_PREFERENCES_PAGE (appearance), "applications-graphics-symbolic");
+    adw_preferences_page_set_name (ADW_PREFERENCES_PAGE (appearance), "appearance");
+    adw_preferences_page_set_title (ADW_PREFERENCES_PAGE (sidebar), _("Sidebar"));
+    adw_preferences_page_set_icon_name (ADW_PREFERENCES_PAGE (sidebar), "sidebar-show-symbolic");
+    adw_preferences_page_set_name (ADW_PREFERENCES_PAGE (sidebar), "sidebar");
+    adw_preferences_page_set_title (ADW_PREFERENCES_PAGE (organize), _("Organize"));
+    adw_preferences_page_set_icon_name (ADW_PREFERENCES_PAGE (organize), "starred-symbolic");
+    adw_preferences_page_set_name (ADW_PREFERENCES_PAGE (organize), "organize");
 
     g_action_map_add_action (G_ACTION_MAP (actions), scheme_action);
     g_action_map_add_action (G_ACTION_MAP (actions), density_action);
-    gtk_widget_insert_action_group (page, "flier", G_ACTION_GROUP (actions));
+    gtk_widget_insert_action_group (appearance, "flier", G_ACTION_GROUP (actions));
+
+    /* Window: colours and frames */
+    page = appearance;
+    group = adw_preferences_group_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Window"));
+    {
+        /* In the order of the ColorTheme enum. */
+        const char *names[] = { _("Mako"), _("Uniform"), _("Classic"), _("Graphite"),
+                                _("Deep Sea"), _("Synthwave"), _("Matcha"), NULL };
+        g_autoptr (GtkStringList) list = gtk_string_list_new (names);
+        GtkWidget *theme_row = adw_combo_row_new ();
+
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (theme_row), _("Color _Theme"));
+        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (theme_row), TRUE);
+        adw_action_row_set_subtitle (ADW_ACTION_ROW (theme_row),
+                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the last three are for fun. Each follows light and dark"));
+        adw_combo_row_set_model (ADW_COMBO_ROW (theme_row), G_LIST_MODEL (list));
+        adw_combo_row_set_selected (ADW_COMBO_ROW (theme_row), g_settings_get_enum (settings, "color-theme"));
+        g_signal_connect (theme_row, "notify::selected", G_CALLBACK (on_color_theme_selected), NULL);
+        g_signal_connect_object (settings, "changed::color-theme",
+                                 G_CALLBACK (on_sidebar_density_changed), theme_row, 0);
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_row);
+    }
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("_Framed Panels"),
+                                               _("Each tile a rounded card of its own with a gap between them, and the inspector a card too"),
+                                               "framed-panels"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("_Panel Buttons"),
+                                               _("The sidebar and inspector buttons at the ends of the header bar. Without them, use F9 and F4, or the view menu"),
+                                               "panel-buttons"));
+    {
+        GtkWidget *opacity_row = adw_spin_row_new_with_range (40, 100, 5);
+
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (opacity_row), _("Window _Opacity"));
+        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (opacity_row), TRUE);
+        adw_action_row_set_subtitle (ADW_ACTION_ROW (opacity_row),
+                                     _("Below 100% the desktop shows through. To blur it, add a shell extension that blurs behind windows, such as Blur my Shell"));
+        g_settings_bind (nautilus_flier_settings (), "window-opacity", opacity_row, "value", G_SETTINGS_BIND_DEFAULT);
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
+    }
+    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Density */
     {
@@ -655,7 +712,7 @@ nautilus_labels_preferences_page_new (void)
         group = adw_preferences_group_new ();
         adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Density"));
         adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group),
-                                               _("The list, grid and columns. The sidebar has its own."));
+                                               _("The list, grid and columns. The sidebar has its own, under Sidebar."));
         for (guint i = 0; i < G_N_ELEMENTS (densities); i++)
         {
             GtkWidget *check = gtk_check_button_new ();
@@ -679,12 +736,16 @@ nautilus_labels_preferences_page_new (void)
             adw_action_row_set_activatable_widget (ADW_ACTION_ROW (row), check);
             adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), row);
         }
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                                   switch_row_new (_("_Alternating Row Colors"),
+                                                   _("Every other row a shade apart in the list, the expandable list and columns"),
+                                                   "alternate-rows"));
         {
             const char *names[] = { _("Comfortable"), _("Compact"), _("Dense"), _("Extra Dense"), NULL };
             g_autoptr (GtkStringList) list = gtk_string_list_new (names);
 
             row = adw_combo_row_new ();
-            adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _("_Sidebar"));
+            adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _("_Density"));
             adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (row), TRUE);
             adw_combo_row_set_model (ADW_COMBO_ROW (row), G_LIST_MODEL (list));
             adw_combo_row_set_selected (ADW_COMBO_ROW (row),
@@ -692,12 +753,13 @@ nautilus_labels_preferences_page_new (void)
             g_signal_connect (row, "notify::selected", G_CALLBACK (on_sidebar_density_selected), NULL);
             g_signal_connect_object (settings, "changed::sidebar-density",
                                      G_CALLBACK (on_sidebar_density_changed), row, 0);
-            adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), row);
+            sidebar_density_row = row;
         }
         adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
     }
 
     /* Ratings and tags */
+    page = organize;
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Ratings and Tags"));
     adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group),
@@ -719,6 +781,7 @@ nautilus_labels_preferences_page_new (void)
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Folder colors */
+    page = appearance;
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Folder Colors"));
     adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group),
@@ -758,53 +821,13 @@ nautilus_labels_preferences_page_new (void)
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Startup */
+    page = GTK_WIDGET (general);
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Startup"));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("Run in the _Background"),
                                                _("Keep Mako running after the last window closes, so new windows open at once"),
                                                "run-in-background"));
-    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
-
-    /* See-through window */
-    group = adw_preferences_group_new ();
-    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Appearance"));
-    {
-        GtkWidget *opacity_row = adw_spin_row_new_with_range (40, 100, 5);
-
-        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (opacity_row), _("Window _Opacity"));
-        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (opacity_row), TRUE);
-        adw_action_row_set_subtitle (ADW_ACTION_ROW (opacity_row),
-                                     _("Below 100% the desktop shows through. To blur it, add a shell extension that blurs behind windows, such as Blur my Shell"));
-        g_settings_bind (nautilus_flier_settings (), "window-opacity", opacity_row, "value", G_SETTINGS_BIND_DEFAULT);
-        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
-    }
-    {
-        /* In the order of the ColorTheme enum. */
-        const char *names[] = { _("Mako"), _("Uniform"), _("Classic"), _("Graphite"),
-                                _("Deep Sea"), _("Synthwave"), _("Matcha"), NULL };
-        g_autoptr (GtkStringList) list = gtk_string_list_new (names);
-        GtkWidget *theme_row = adw_combo_row_new ();
-
-        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (theme_row), _("Color _Theme"));
-        adw_preferences_row_set_use_underline (ADW_PREFERENCES_ROW (theme_row), TRUE);
-        adw_action_row_set_subtitle (ADW_ACTION_ROW (theme_row),
-                                     _("Mako, Uniform, Classic and Graphite keep to GNOME; the last three are for fun. Each follows light and dark"));
-        adw_combo_row_set_model (ADW_COMBO_ROW (theme_row), G_LIST_MODEL (list));
-        adw_combo_row_set_selected (ADW_COMBO_ROW (theme_row), g_settings_get_enum (settings, "color-theme"));
-        g_signal_connect (theme_row, "notify::selected", G_CALLBACK (on_color_theme_selected), NULL);
-        g_signal_connect_object (settings, "changed::color-theme",
-                                 G_CALLBACK (on_sidebar_density_changed), theme_row, 0);
-        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_row);
-    }
-    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
-                               switch_row_new (_("_Framed Panels"),
-                                               _("Each tile a rounded card of its own with a gap between them, and the inspector a card too"),
-                                               "framed-panels"));
-    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
-                               switch_row_new (_("_Panel Buttons"),
-                                               _("The sidebar and inspector buttons at the ends of the header bar. Without them, use F9 and F4, or the view menu"),
-                                               "panel-buttons"));
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Copying and moving */
@@ -821,6 +844,7 @@ nautilus_labels_preferences_page_new (void)
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Learning the keys */
+    page = GTK_WIDGET (shortcuts);
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Shortcuts"));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
@@ -834,8 +858,10 @@ nautilus_labels_preferences_page_new (void)
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Sidebar */
+    page = sidebar;
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Sidebar"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), sidebar_density_row);
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("Sidebar _Groups"),
                                                _("Bookmarks, Places, Storage, Recent and Tags as groups that fold away"),
@@ -881,6 +907,7 @@ nautilus_labels_preferences_page_new (void)
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Quick Look */
+    page = organize;
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Quick Look"));
     row = switch_row_new (_("_Built-in Quick Look"),
@@ -893,5 +920,7 @@ nautilus_labels_preferences_page_new (void)
                                switch_row_new (_("Show Ratings and Ta_gs"), NULL, "quick-look-marks"));
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
-    return page;
+    adw_preferences_dialog_add (dialog, ADW_PREFERENCES_PAGE (appearance));
+    adw_preferences_dialog_add (dialog, ADW_PREFERENCES_PAGE (sidebar));
+    adw_preferences_dialog_add (dialog, ADW_PREFERENCES_PAGE (organize));
 }

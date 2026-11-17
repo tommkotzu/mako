@@ -146,6 +146,11 @@
       <summary>Color theme</summary>
       <description>The window's colors: “mako” (the sidebar a little brighter than the views), “uniform” (one color), “classic” (GNOME's sidebar grey), “graphite” (deeper, more contrast), or the playful “deep-sea”, “synthwave” and “matcha”. Each has a light and a dark version.</description>
     </key>
+    <key type="b" name="alternate-rows">
+      <default>false</default>
+      <summary>Alternating row colors</summary>
+      <description>Draw every other row a shade apart in the list view (also with expandable folders) and in columns.</description>
+    </key>
     <key type="b" name="framed-panels">
       <default>false</default>
       <summary>Framed panels</summary>

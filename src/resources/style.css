@@ -875,3 +875,8 @@ window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #232a1f
   }
   window.theme-matcha, window.theme-matcha.framed-panels { --mako-sidebar: #ecf0e2; }
 }
+
+/* Alternating row colors (setting alternate-rows): list, tree and columns. */
+window.alternate-rows listview > row.stripe-odd:not(:selected):not(:hover) {
+  background-color: color-mix(in srgb, currentColor 4%, transparent);
+}
