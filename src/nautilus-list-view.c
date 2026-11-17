@@ -174,12 +174,16 @@ apply_columns_settings (NautilusListView  *self,
     /* always show name column */
     g_hash_table_insert (visible_columns_hash, g_strdup ("name"), g_strdup ("name"));
 
-    /* always show star column if supported; in column view only if asked */
+    /* The star column where starring works, if its setting is on: one for
+     * list and tree, one for column view. It isn't kept with the folder's
+     * columns, so it's the same in every folder. */
     GtkWidget *columns_widget = gtk_widget_get_ancestor (GTK_WIDGET (self), NAUTILUS_TYPE_COLUMNS);
     gboolean names_only = columns_widget != NULL &&
                           nautilus_columns_get_names_only (NAUTILUS_COLUMNS (columns_widget));
+    gboolean want_stars = g_settings_get_boolean (nautilus_flier_settings (),
+                                                  names_only ? "columns-stars" : "list-stars");
 
-    if ((!names_only || g_settings_get_boolean (nautilus_flier_settings (), "columns-stars")) &&
+    if (want_stars &&
         (nautilus_tag_manager_can_star_contents (nautilus_tag_manager_get (), location) ||
          g_file_has_uri_scheme (location, SCHEME_STARRED)))
     {
@@ -194,6 +198,10 @@ apply_columns_settings (NautilusListView  *self,
                                  g_ascii_strdown (visible_columns[i], -1),
                                  g_ascii_strdown (visible_columns[i], -1));
         }
+    }
+    if (!want_stars)
+    {
+        g_hash_table_remove (visible_columns_hash, "starred");
     }
 
     old_view_columns_hash = g_hash_table_new_full (g_str_hash,
@@ -500,6 +508,11 @@ on_column_toggled (GSimpleAction *action,
                    gpointer       user_data)
 {
     g_simple_action_set_state (action, value);
+    if (g_str_equal (g_action_get_name (G_ACTION (action)), "starred"))
+    {
+        g_settings_set_boolean (nautilus_flier_settings (), "list-stars", g_variant_get_boolean (value));
+        return;
+    }
     toggle_column (NAUTILUS_LIST_VIEW (user_data), g_action_get_name (G_ACTION (action)),
                    g_variant_get_boolean (value));
 }
@@ -555,12 +568,20 @@ on_header_pressed (GtkGestureClick  *gesture,
         g_autoptr (GSimpleAction) action = NULL;
 
         g_object_get (l->data, "name", &name, "label", &label, NULL);
+        /* The star column's header is empty; in the menu it needs a name. */
+        if (g_strcmp0 (name, "starred") == 0)
+        {
+            g_free (label);
+            label = g_strdup (_("Starred"));
+        }
         if (g_strcmp0 (name, "name") == 0 || !g_action_name_is_valid (name))
         {
             continue;
         }
         action = g_simple_action_new_stateful (name, NULL, g_variant_new_boolean (
-                                                   g_strv_contains ((const char * const *) visible, name)));
+                                                   g_str_equal (name, "starred")
+                                                   ? g_settings_get_boolean (nautilus_flier_settings (), "list-stars")
+                                                   : g_strv_contains ((const char * const *) visible, name)));
         g_signal_connect (action, "change-state", G_CALLBACK (on_column_toggled), self);
         g_action_map_add_action (G_ACTION_MAP (group), G_ACTION (action));
         detailed = g_strconcat ("column-header.", name, NULL);
@@ -1413,6 +1434,9 @@ nautilus_list_view_init (NautilusListView *self)
                              G_CALLBACK (on_density_changed), self, G_CONNECT_SWAPPED);
 
     g_signal_connect_object (nautilus_flier_settings (), "changed::columns-stars",
+                             G_CALLBACK (update_columns_settings_from_metadata_and_preferences),
+                             self, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::list-stars",
                              G_CALLBACK (update_columns_settings_from_metadata_and_preferences),
                              self, G_CONNECT_SWAPPED);
     g_signal_connect_object (nautilus_list_view_preferences,

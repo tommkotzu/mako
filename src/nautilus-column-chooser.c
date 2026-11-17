@@ -32,6 +32,7 @@
 #include "nautilus-file.h"
 #include "nautilus-global-preferences.h"
 #include "nautilus-metadata.h"
+#include "nautilus-labels.h"
 
 #include "nautilus-column-utilities.h"
 
@@ -99,6 +100,12 @@ list_changed (NautilusColumnChooser *chooser)
 {
     g_auto (GStrv) column_order = get_column_names (chooser, FALSE);
     g_auto (GStrv) visible_columns = get_column_names (chooser, TRUE);
+    gboolean stars = g_strv_contains ((const char * const *) visible_columns, "starred");
+
+    if (stars != g_settings_get_boolean (nautilus_flier_settings (), "list-stars"))
+    {
+        g_settings_set_boolean (nautilus_flier_settings (), "list-stars", stars);
+    }
 
     g_signal_emit (chooser, signals[CHANGED], 0, column_order, visible_columns);
 }
@@ -342,6 +349,12 @@ add_list_box_row (GObject  *item,
     GtkEventController *controller;
 
     g_object_get (column, "label", &label, "name", &name, NULL);
+    /* The star column's header is empty; here it needs a name. */
+    if (g_strcmp0 (name, "starred") == 0)
+    {
+        g_free (label);
+        label = g_strdup (_("Starred"));
+    }
 
     if (g_strcmp0 (name, "name") == 0)
     {
@@ -470,7 +483,10 @@ set_visible_columns (NautilusColumnChooser  *chooser,
         gboolean visible;
 
         g_object_get (column, "name", &name, NULL);
-        visible = g_strv_contains ((const char **) visible_columns, name);
+        /* The star column follows its own setting, in every folder. */
+        visible = g_str_equal (name, "starred")
+                  ? g_settings_get_boolean (nautilus_flier_settings (), "list-stars")
+                  : g_strv_contains ((const char **) visible_columns, name);
         g_object_set (column, "visible", visible, NULL);
     }
 }
@@ -514,11 +530,6 @@ populate_list (NautilusColumnChooser *chooser)
         g_autofree char *name = NULL;
 
         g_object_get (l->data, "name", &name, NULL);
-
-        if (strcmp (name, "starred") == 0)
-        {
-            continue;
-        }
 
         g_list_store_append (G_LIST_STORE (chooser->model), l->data);
     }
