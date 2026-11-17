@@ -705,3 +705,13 @@ button.jump-reset { min-height: 22px; min-width: 22px; padding: 0; }
 .jump-hint-text { opacity: 0.5; }
 .jump-drive { font-size: 0.75em; padding: 0 4px; border-radius: 4px; border: 1px solid var(--border-color); opacity: 0.75; }
 .jump-opened { font-size: 0.85em; opacity: 0.4; font-feature-settings: "tnum"; }
+
+/* Quick Look: which page of a PDF */
+.pdf-page-counter {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: rgb(0 0 0 / 0.55);
+  color: white;
+  font-size: 0.85em;
+  font-feature-settings: "tnum";
+}

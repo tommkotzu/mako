@@ -63,6 +63,7 @@ struct _NautilusQuickLook
     GtkWidget *rating_box;
     GtkWidget *stars[5];
     GtkWidget *canvas_buttons;
+    GtkWidget *pdf_buttons;
     GtkWidget *open_button;
     GtkStack *stack;
 
@@ -388,6 +389,8 @@ update_keys_hint (NautilusQuickLook *self)
     const char *page = gtk_stack_get_visible_child_name (self->stack);
     const char *text;
 
+    gtk_widget_set_visible (self->pdf_buttons, g_strcmp0 (page, "pdf") == 0);
+
     if (g_strcmp0 (page, "media") == 0)
     {
         text = _("K play · J/L −5/+5 s · Shift+A/D or ,/. frame · M mute · A/D previous/next · Tab full screen · Space close");
@@ -398,7 +401,7 @@ update_keys_hint (NautilusQuickLook *self)
     }
     else if (g_strcmp0 (page, "pdf") == 0)
     {
-        text = _("W/S or Ctrl+scroll zoom · Q fit · Z actual size · ↑/↓ scroll · A/D previous/next · 1–5 rate · Enter open · Tab full screen · Space close");
+        text = _("←/→ ↑/↓ pages · P two pages · W/S or Ctrl+scroll zoom · Q whole page · Z actual size · A/D previous/next · 1–5 rate · Enter open · Space close");
     }
     else if (g_strcmp0 (page, "canvas") == 0)
     {
@@ -636,15 +639,43 @@ on_key_pressed (GtkEventControllerKey *controller,
 
     /* Scrolling through a document; left and right only when it's wider
      * than the view, otherwise they go to the previous or next item. */
+    /* A document: the arrows turn pages while a whole page is in view,
+     * left and right going on to the previous or next item past the first
+     * or last; zoomed in, they scroll. */
     if (on_pdf && mods == 0)
     {
         double dx = 0, dy = 0;
         int pages = 0;
+        gboolean fits = nautilus_pdf_preview_fits (self->pdf);
 
         switch (keyval)
         {
-            case GDK_KEY_Up: dy = -80; break;
-            case GDK_KEY_Down: dy = 80; break;
+            case GDK_KEY_Up:
+            {
+                if (fits)
+                {
+                    pages = -1;
+                }
+                else
+                {
+                    dy = -80;
+                }
+            }
+            break;
+
+            case GDK_KEY_Down:
+            {
+                if (fits)
+                {
+                    pages = 1;
+                }
+                else
+                {
+                    dy = 80;
+                }
+            }
+            break;
+
             case GDK_KEY_Left: dx = -80; break;
             case GDK_KEY_Right: dx = 80; break;
             case GDK_KEY_Page_Up: pages = -1; break;
@@ -655,12 +686,19 @@ on_key_pressed (GtkEventControllerKey *controller,
         }
         if (dx != 0 && !nautilus_pdf_preview_is_wider (self->pdf))
         {
-            dx = 0;
+            if (nautilus_pdf_preview_step (self->pdf, dx < 0 ? -1 : 1))
+            {
+                return GDK_EVENT_STOP;
+            }
         }
-        else if (dx != 0 || dy != 0 || pages != 0)
+        else if (pages != 0)
+        {
+            nautilus_pdf_preview_step (self->pdf, pages);
+            return GDK_EVENT_STOP;
+        }
+        else if (dx != 0 || dy != 0)
         {
             nautilus_pdf_preview_scroll (self->pdf, dx, dy);
-            nautilus_pdf_preview_page (self->pdf, pages);
             return GDK_EVENT_STOP;
         }
     }
@@ -872,6 +910,18 @@ on_key_pressed (GtkEventControllerKey *controller,
         break;
 
         /* The canvas */
+        case GDK_KEY_p:
+        {
+            if (on_pdf)
+            {
+                GSettings *flier = nautilus_flier_settings ();
+
+                g_settings_set_boolean (flier, "quick-look-pdf-dual",
+                                        !g_settings_get_boolean (flier, "quick-look-pdf-dual"));
+            }
+        }
+        break;
+
         case GDK_KEY_n:
         {
             toggle_setting ("quick-look-names");
@@ -1030,6 +1080,12 @@ on_backdrop_pressed (GtkGestureClick   *gesture,
 
 /* --------------------------------------------------------- Building */
 
+static void
+on_pdf_fit (NautilusQuickLook *self)
+{
+    nautilus_pdf_preview_fit (self->pdf);
+}
+
 static GtkWidget *
 build_header (NautilusQuickLook *self)
 {
@@ -1094,6 +1150,24 @@ build_header (NautilusQuickLook *self)
     gtk_box_append (GTK_BOX (self->canvas_buttons), button);
 
     adw_header_bar_pack_start (ADW_HEADER_BAR (header), self->canvas_buttons);
+
+    /* Switches of a document. */
+    self->pdf_buttons = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+    button = gtk_toggle_button_new ();
+    gtk_button_set_icon_name (GTK_BUTTON (button), "view-dual-symbolic");
+    gtk_widget_set_tooltip_text (button, _("Two Pages Side by Side (P)"));
+    gtk_widget_add_css_class (button, "flat");
+    gtk_widget_set_focus_on_click (button, FALSE);
+    g_settings_bind (nautilus_flier_settings (), "quick-look-pdf-dual", button, "active", G_SETTINGS_BIND_DEFAULT);
+    gtk_box_append (GTK_BOX (self->pdf_buttons), button);
+    button = gtk_button_new_from_icon_name ("zoom-fit-best-symbolic");
+    gtk_widget_set_tooltip_text (button, _("Whole Page (Q)"));
+    gtk_widget_add_css_class (button, "flat");
+    gtk_widget_set_focus_on_click (button, FALSE);
+    g_signal_connect_swapped (button, "clicked", G_CALLBACK (on_pdf_fit), self);
+    gtk_box_append (GTK_BOX (self->pdf_buttons), button);
+    gtk_widget_set_visible (self->pdf_buttons, FALSE);
+    adw_header_bar_pack_start (ADW_HEADER_BAR (header), self->pdf_buttons);
 
     self->open_button = gtk_button_new_with_mnemonic (_("_Open"));
     gtk_widget_add_css_class (self->open_button, "suggested-action");

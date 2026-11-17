@@ -34,5 +34,11 @@ void       nautilus_pdf_preview_scroll      (NautilusPdfPreview *self,
 void       nautilus_pdf_preview_page        (NautilusPdfPreview *self,
                                              int                 pages);
 gboolean   nautilus_pdf_preview_is_wider    (NautilusPdfPreview *self);
+/* To the previous or next page (or pair of pages), its top at the top of
+ * the view; FALSE if there is none that way. */
+gboolean   nautilus_pdf_preview_step        (NautilusPdfPreview *self,
+                                             int                 rows);
+/* Whether a whole page (or pair) fits in the view at its zoom. */
+gboolean   nautilus_pdf_preview_fits        (NautilusPdfPreview *self);
 
 G_END_DECLS

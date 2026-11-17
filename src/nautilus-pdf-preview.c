@@ -20,6 +20,7 @@
 #include <gmodule.h>
 
 #include "nautilus-file.h"
+#include "nautilus-labels.h"
 
 #define PAD 16.0
 #define GAP 12.0
@@ -109,6 +110,9 @@ typedef struct
     PopplerPage *page;
     GdkTexture *texture;       /* the whole page */
     double texture_scale;      /* its pixels per point */
+    double x;                  /* where it is laid out, in the view's */
+    double y;                  /* pixels, at the current zoom */
+    double row_y;              /* the top of its row */
 } Page;
 
 typedef struct
@@ -135,6 +139,12 @@ struct _PdfPages
     GObject *document;         /* PopplerDocument */
     GArray *pages;             /* of Page */
     double widest;             /* in points */
+    /* Pages side by side; the widest and tallest row, in points. */
+    gboolean dual;
+    double row_width;
+    double row_height;
+    /* A page to bring into view on the next layout. */
+    int pending_page;
 
     double zoom;               /* logical pixels per point */
     gboolean fit;
@@ -182,26 +192,122 @@ page_clear (Page *page)
     g_clear_object (&page->texture);
 }
 
-static double
-page_top (PdfPages *self,
-          guint     index)
+static guint
+per_row (PdfPages *self)
 {
-    double y = PAD;
+    return self->dual ? 2 : 1;
+}
 
-    for (guint i = 0; i < index; i++)
+/* The widest and tallest row, for fitting a whole one in view. */
+static void
+measure (PdfPages *self)
+{
+    guint cols = per_row (self);
+
+    self->row_width = 0;
+    self->row_height = 0;
+    for (guint i = 0; i < self->pages->len; i += cols)
     {
-        y += g_array_index (self->pages, Page, i).height * self->zoom + GAP;
+        double width = 0;
+        double height = 0;
+
+        for (guint j = i; j < MIN (i + cols, self->pages->len); j++)
+        {
+            Page *page = &g_array_index (self->pages, Page, j);
+
+            width += page->width;
+            height = MAX (height, page->height);
+        }
+        self->row_width = MAX (self->row_width, width);
+        self->row_height = MAX (self->row_height, height);
     }
-    return y;
 }
 
-static double
-page_left (PdfPages *self,
-           Page     *page)
+/* Places the pages in rows, centred, and sizes the content. Fitted, each
+ * row has a view's height to itself, so no other page peeks in. */
+static void
+layout (PdfPages *self,
+        double    view_width,
+        double    view_height)
 {
-    return floor ((self->content_width - page->width * self->zoom) / 2);
+    guint cols = per_row (self);
+    double y = PAD;
+    double pitch = self->fit ? MAX (view_height, ceil (self->row_height * self->zoom) + 2 * PAD) : 0;
+
+    self->content_width = MAX (view_width, ceil (self->row_width * self->zoom + (cols - 1) * GAP + 2 * PAD));
+    for (guint i = 0; i < self->pages->len; i += cols)
+    {
+        guint end = MIN (i + cols, self->pages->len);
+        double width = (end - i - 1) * GAP;
+        double height = 0;
+        double x;
+
+        for (guint j = i; j < end; j++)
+        {
+            Page *page = &g_array_index (self->pages, Page, j);
+
+            width += page->width * self->zoom;
+            height = MAX (height, page->height * self->zoom);
+        }
+        x = floor ((self->content_width - width) / 2);
+        for (guint j = i; j < end; j++)
+        {
+            Page *page = &g_array_index (self->pages, Page, j);
+
+            page->x = x;
+            if (pitch > 0)
+            {
+                double slot = (i / cols) * pitch;
+
+                page->y = slot + floor ((pitch - page->height * self->zoom) / 2);
+                page->row_y = slot + PAD;
+            }
+            else
+            {
+                page->y = y + floor ((height - page->height * self->zoom) / 2);
+                page->row_y = y;
+            }
+            x += page->width * self->zoom + GAP;
+        }
+        y += height + GAP;
+    }
+    if (pitch > 0)
+    {
+        self->content_height = ((self->pages->len + cols - 1) / cols) * pitch;
+    }
+    else
+    {
+        self->content_height = self->pages->len > 0 ? y - GAP + PAD : 0;
+    }
 }
 
+
+
+/* The first page of the row at the top of the view. */
+static int
+current_page (PdfPages *self)
+{
+    double value = self->vadjustment != NULL ? gtk_adjustment_get_value (self->vadjustment) : 0;
+    guint cols = per_row (self);
+    int result = 0;
+
+    for (guint i = 0; i < self->pages->len; i += cols)
+    {
+        Page *page = &g_array_index (self->pages, Page, i);
+
+        /* The row whose top is in the upper half of the view. */
+        if (page->row_y - PAD <= value + 1 ||
+            (self->vadjustment != NULL &&
+             page->row_y < value + gtk_adjustment_get_page_size (self->vadjustment) / 2 &&
+             value + gtk_adjustment_get_page_size (self->vadjustment) >= gtk_adjustment_get_upper (self->vadjustment) - 1))
+        {
+            result = i;
+        }
+    }
+    return result;
+}
+
+/* A whole row of pages in view. */
 static double
 fit_zoom (PdfPages *self,
           double    width,
@@ -209,18 +315,13 @@ fit_zoom (PdfPages *self,
 {
     double zoom;
 
-    if (self->pages->len == 0 || self->widest <= 0)
+    if (self->pages->len == 0 || self->row_width <= 0)
     {
         return 1;
     }
 
-    zoom = (width - 2 * PAD) / self->widest;
-    if (self->pages->len == 1)
-    {
-        Page *page = &g_array_index (self->pages, Page, 0);
-
-        zoom = MIN (zoom, (height - 2 * PAD) / page->height);
-    }
+    zoom = MIN ((width - 2 * PAD - (per_row (self) - 1) * GAP) / self->row_width,
+                (height - 2 * PAD) / self->row_height);
     return CLAMP (zoom, ZOOM_MIN, ZOOM_MAX);
 }
 
@@ -231,6 +332,7 @@ pixel_scale (PdfPages *self)
 }
 
 /* The page under a point of the view, and where in it. */
+/* The page under a point of the view, and where in it. */
 static void
 anchor_at (PdfPages *self,
            double    x,
@@ -238,29 +340,33 @@ anchor_at (PdfPages *self,
 {
     double cx = x + gtk_adjustment_get_value (self->hadjustment);
     double cy = y + gtk_adjustment_get_value (self->vadjustment);
-    double top = PAD;
-    guint i;
+    double nearest = G_MAXDOUBLE;
+    guint best = 0;
+    Page *page;
 
     if (self->pages->len == 0)
     {
         return;
     }
 
-    for (i = 0; i + 1 < self->pages->len; i++)
+    for (guint i = 0; i < self->pages->len; i++)
     {
-        double bottom = top + g_array_index (self->pages, Page, i).height * self->zoom;
+        Page *p = &g_array_index (self->pages, Page, i);
+        double dx = cx < p->x ? p->x - cx : MAX (0, cx - p->x - p->width * self->zoom);
+        double dy = cy < p->y ? p->y - cy : MAX (0, cy - p->y - p->height * self->zoom);
 
-        if (cy < bottom + GAP / 2)
+        if (dx + dy < nearest)
         {
-            break;
+            nearest = dx + dy;
+            best = i;
         }
-        top = bottom + GAP;
     }
 
+    page = &g_array_index (self->pages, Page, best);
     self->anchored = TRUE;
-    self->anchor_page = i;
-    self->anchor_x = (cx - page_left (self, &g_array_index (self->pages, Page, i))) / self->zoom;
-    self->anchor_y = (cy - top) / self->zoom;
+    self->anchor_page = best;
+    self->anchor_x = (cx - page->x) / self->zoom;
+    self->anchor_y = (cy - page->y) / self->zoom;
     self->anchor_at_x = x;
     self->anchor_at_y = y;
 }
@@ -312,17 +418,22 @@ pdf_pages_size_allocate (GtkWidget *widget,
         self->zoom = fit_zoom (self, width, height);
     }
 
-    self->content_width = MAX (width, ceil (self->widest * self->zoom + 2 * PAD));
-    self->content_height = self->pages->len > 0 ? page_top (self, self->pages->len) - GAP + PAD : 0;
+    layout (self, width, height);
 
-    if (self->anchored && self->anchor_page < (int) self->pages->len)
+    if (self->pending_page >= 0 && self->pending_page < (int) self->pages->len)
+    {
+        vvalue = g_array_index (self->pages, Page, self->pending_page).row_y - PAD;
+        self->anchored = FALSE;
+    }
+    else if (self->anchored && self->anchor_page < (int) self->pages->len)
     {
         Page *page = &g_array_index (self->pages, Page, self->anchor_page);
 
-        hvalue = page_left (self, page) + self->anchor_x * self->zoom - self->anchor_at_x;
-        vvalue = page_top (self, self->anchor_page) + self->anchor_y * self->zoom - self->anchor_at_y;
+        hvalue = page->x + self->anchor_x * self->zoom - self->anchor_at_x;
+        vvalue = page->y + self->anchor_y * self->zoom - self->anchor_at_y;
     }
     self->anchored = FALSE;
+    self->pending_page = -1;
 
     if (self->hadjustment != NULL)
     {
@@ -344,7 +455,6 @@ pdf_pages_snapshot (GtkWidget   *widget,
     double vvalue = gtk_adjustment_get_value (self->vadjustment);
     GdkRGBA paper = { 1, 1, 1, 1 };
     GdkRGBA shade = { 0, 0, 0, 0.25 };
-    double y = PAD;
 
     gtk_snapshot_save (snapshot);
     gtk_snapshot_translate (snapshot, &GRAPHENE_POINT_INIT (-hvalue, -vvalue));
@@ -356,17 +466,16 @@ pdf_pages_snapshot (GtkWidget   *widget,
         graphene_rect_t rect;
         GskRoundedRect outline;
 
-        if (y > vvalue + height)
+        if (page->y > vvalue + height)
         {
             break;
         }
-        if (y + h < vvalue)
+        if (page->y + h < vvalue)
         {
-            y += h + GAP;
             continue;
         }
 
-        rect = GRAPHENE_RECT_INIT (page_left (self, page), y, page->width * self->zoom, h);
+        rect = GRAPHENE_RECT_INIT (page->x, page->y, page->width * self->zoom, h);
         gsk_rounded_rect_init_from_rect (&outline, &rect, 0);
         gtk_snapshot_append_outset_shadow (snapshot, &outline, &shade, 0, 1, 0, 4);
         gtk_snapshot_append_color (snapshot, &paper, &rect);
@@ -390,7 +499,6 @@ pdf_pages_snapshot (GtkWidget   *widget,
                                                                      area.size.height * self->zoom));
             gtk_snapshot_pop (snapshot);
         }
-        y += h + GAP;
     }
 
     gtk_snapshot_restore (snapshot);
@@ -539,7 +647,6 @@ pump (PdfPages *self)
     double vvalue, hvalue, height, width;
     gboolean settled;
     int first = -1, last = -1;
-    double y = PAD;
 
     if (self->rendering || self->pages->len == 0 ||
         self->hadjustment == NULL || self->vadjustment == NULL)
@@ -558,9 +665,10 @@ pump (PdfPages *self)
 
     for (guint i = 0; i < self->pages->len; i++)
     {
-        double h = g_array_index (self->pages, Page, i).height * self->zoom;
+        Page *page = &g_array_index (self->pages, Page, i);
+        double h = page->height * self->zoom;
 
-        if (y + h >= vvalue && y <= vvalue + height)
+        if (page->y + h >= vvalue && page->y <= vvalue + height)
         {
             if (first < 0)
             {
@@ -568,7 +676,6 @@ pump (PdfPages *self)
             }
             last = i;
         }
-        y += h + GAP;
     }
     if (first < 0)
     {
@@ -615,8 +722,8 @@ pump (PdfPages *self)
         {
             Page *page = &g_array_index (self->pages, Page, i);
             double scale = pixel_scale (self);
-            double top = page_top (self, i);
-            double left = page_left (self, page);
+            double top = page->y;
+            double left = page->x;
             graphene_rect_t view, area;
 
             if (page->texture_scale >= scale * 0.98)
@@ -915,8 +1022,11 @@ pdf_pages_clear (PdfPages *self)
     g_clear_object (&self->detail.texture);
     g_clear_object (&self->document);
     self->widest = 0;
+    self->row_width = 0;
+    self->row_height = 0;
     self->fit = TRUE;
     self->anchored = FALSE;
+    self->pending_page = -1;
 }
 
 static void
@@ -979,6 +1089,7 @@ pdf_pages_init (PdfPages *self)
     g_array_set_clear_func (self->pages, (GDestroyNotify) page_clear);
     self->zoom = 1;
     self->fit = TRUE;
+    self->pending_page = -1;
     gtk_widget_set_overflow (GTK_WIDGET (self), GTK_OVERFLOW_HIDDEN);
 
     scroll = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_VERTICAL);
@@ -1012,6 +1123,7 @@ struct _NautilusPdfPreview
     GtkWidget *stack;
     GtkWidget *scrolled;
     PdfPages *pages;
+    GtkWidget *counter;
     GtkWidget *message;
     GCancellable *cancellable;
 };
@@ -1055,10 +1167,11 @@ on_loaded (GObject      *source,
     {
         pages->widest = MAX (pages->widest, g_array_index (pages->pages, Page, i).width);
     }
+    measure (pages);
 
     gtk_adjustment_set_value (pages->vadjustment, 0);
     gtk_adjustment_set_value (pages->hadjustment, 0);
-    gtk_stack_set_visible_child (GTK_STACK (self->stack), self->scrolled);
+    gtk_stack_set_visible_child (GTK_STACK (self->stack), gtk_widget_get_parent (self->scrolled));
     gtk_widget_queue_allocate (GTK_WIDGET (pages));
 }
 
@@ -1072,7 +1185,7 @@ nautilus_pdf_preview_set_file (NautilusPdfPreview *self,
     g_clear_object (&self->cancellable);
     pdf_pages_clear (self->pages);
     gtk_widget_queue_allocate (GTK_WIDGET (self->pages));
-    gtk_stack_set_visible_child (GTK_STACK (self->stack), self->scrolled);
+    gtk_stack_set_visible_child (GTK_STACK (self->stack), gtk_widget_get_parent (self->scrolled));
 
     if (file == NULL || !poppler_load ())
     {
@@ -1114,9 +1227,9 @@ nautilus_pdf_preview_fit (NautilusPdfPreview *self)
 
     anchor_at (pages, gtk_widget_get_width (GTK_WIDGET (pages)) / 2,
                gtk_widget_get_height (GTK_WIDGET (pages)) / 2);
-    /* Fitted, a page's left edge is the view's. */
-    pages->anchor_x = pages->widest / 2;
     pages->fit = TRUE;
+    /* The page in view, from its top. */
+    pages->pending_page = current_page (pages);
     pages->zoomed_at = g_get_monotonic_time ();
     gtk_widget_queue_allocate (GTK_WIDGET (pages));
 }
@@ -1137,10 +1250,84 @@ void
 nautilus_pdf_preview_page (NautilusPdfPreview *self,
                            int                 pages)
 {
+    if (pages != 0)
+    {
+        nautilus_pdf_preview_step (self, pages);
+    }
+}
+
+gboolean
+nautilus_pdf_preview_step (NautilusPdfPreview *self,
+                           int                 rows)
+{
+    PdfPages *pages = self->pages;
+    GtkAdjustment *v = pages->vadjustment;
+    double value = gtk_adjustment_get_value (v);
+    guint cols = per_row (pages);
+    int n_rows = (pages->pages->len + cols - 1) / cols;
+    int row = current_page (pages) / cols;
+    double top;
+    int target;
+
+    if (n_rows == 0)
+    {
+        return FALSE;
+    }
+
+    /* Partway into a row, back goes to its top first. */
+    top = g_array_index (pages->pages, Page, row * cols).row_y - PAD;
+    target = rows < 0 && value > top + 1 ? row + rows + 1 : row + rows;
+    if (target < 0 || target >= n_rows)
+    {
+        return FALSE;
+    }
+
+    gtk_adjustment_set_value (v, g_array_index (pages->pages, Page, target * cols).row_y - PAD);
+    return !G_APPROX_VALUE (gtk_adjustment_get_value (v), value, 0.5);
+}
+
+gboolean
+nautilus_pdf_preview_fits (NautilusPdfPreview *self)
+{
     GtkAdjustment *v = self->pages->vadjustment;
 
-    gtk_adjustment_set_value (v, gtk_adjustment_get_value (v) +
-                              pages * gtk_adjustment_get_page_increment (v));
+    return self->pages->row_height * self->pages->zoom + 2 * PAD <= gtk_adjustment_get_page_size (v) + 1;
+}
+
+static void
+update_counter (NautilusPdfPreview *self)
+{
+    guint n = self->pages->pages->len;
+    int page = current_page (self->pages);
+    g_autofree char *text = NULL;
+
+    gtk_widget_set_visible (self->counter, n > 1);
+    if (n <= 1)
+    {
+        return;
+    }
+    if (self->pages->dual && (guint) page + 1 < n)
+    {
+        text = g_strdup_printf (_("%d–%d of %u"), page + 1, page + 2, n);
+    }
+    else
+    {
+        text = g_strdup_printf (_("%d of %u"), page + 1, n);
+    }
+    gtk_label_set_text (GTK_LABEL (self->counter), text);
+}
+
+static void
+on_dual_changed (NautilusPdfPreview *self)
+{
+    PdfPages *pages = self->pages;
+    int page = current_page (pages);
+
+    pages->dual = g_settings_get_boolean (nautilus_flier_settings (), "quick-look-pdf-dual");
+    measure (pages);
+    pages->fit = TRUE;
+    pages->pending_page = page;
+    gtk_widget_queue_allocate (GTK_WIDGET (pages));
 }
 
 gboolean
@@ -1176,13 +1363,34 @@ nautilus_pdf_preview_class_init (NautilusPdfPreviewClass *klass)
 static void
 nautilus_pdf_preview_init (NautilusPdfPreview *self)
 {
+    GtkWidget *overlay;
+
     self->stack = gtk_stack_new ();
     gtk_widget_set_parent (self->stack, GTK_WIDGET (self));
 
     self->pages = g_object_new (PDF_TYPE_PAGES, NULL);
     self->scrolled = gtk_scrolled_window_new ();
     gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (self->scrolled), GTK_WIDGET (self->pages));
-    gtk_stack_add_child (GTK_STACK (self->stack), self->scrolled);
+    overlay = gtk_overlay_new ();
+    gtk_overlay_set_child (GTK_OVERLAY (overlay), self->scrolled);
+    gtk_stack_add_child (GTK_STACK (self->stack), overlay);
+
+    /* Which page, at the bottom. */
+    self->counter = gtk_label_new (NULL);
+    gtk_widget_add_css_class (self->counter, "pdf-page-counter");
+    gtk_widget_set_halign (self->counter, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign (self->counter, GTK_ALIGN_END);
+    gtk_widget_set_margin_bottom (self->counter, 12);
+    gtk_widget_set_can_target (self->counter, FALSE);
+    gtk_widget_set_visible (self->counter, FALSE);
+    gtk_overlay_add_overlay (GTK_OVERLAY (overlay), self->counter);
+    g_signal_connect_object (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled)),
+                             "value-changed", G_CALLBACK (update_counter), self, G_CONNECT_SWAPPED);
+    g_signal_connect_object (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (self->scrolled)),
+                             "changed", G_CALLBACK (update_counter), self, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::quick-look-pdf-dual",
+                             G_CALLBACK (on_dual_changed), self, G_CONNECT_SWAPPED);
+    self->pages->dual = g_settings_get_boolean (nautilus_flier_settings (), "quick-look-pdf-dual");
 
     self->message = gtk_label_new (NULL);
     gtk_label_set_wrap (GTK_LABEL (self->message), TRUE);
