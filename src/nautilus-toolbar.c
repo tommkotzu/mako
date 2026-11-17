@@ -298,6 +298,18 @@ action_jump_to (GtkWidget  *widget,
     nautilus_toolbar_open_location_entry (self, "");
 }
 
+/* F1: the commands and their keys. */
+static void
+action_jump_commands (GtkWidget  *widget,
+                      const char *action_name,
+                      GVariant   *parameter)
+{
+    NautilusToolbar *self = NAUTILUS_TOOLBAR (widget);
+
+    action_jump_to (widget, action_name, parameter);
+    nautilus_jump_show_commands (self->jump);
+}
+
 static void
 on_entry_changed (NautilusToolbar *self)
 {
@@ -624,6 +636,7 @@ nautilus_toolbar_class_init (NautilusToolbarClass *klass)
     gtk_widget_class_install_action (widget_class, "toolbar.edit-location", NULL, action_edit_location);
     gtk_widget_class_install_action (widget_class, "toolbar.prompt-root-location", NULL, action_prompt_root_location);
     gtk_widget_class_install_action (widget_class, "toolbar.jump-to", NULL, action_jump_to);
+    gtk_widget_class_install_action (widget_class, "toolbar.jump-commands", NULL, action_jump_commands);
     gtk_widget_class_install_action (widget_class, "toolbar.prompt-home-location", NULL, action_prompt_home_location);
 }
 

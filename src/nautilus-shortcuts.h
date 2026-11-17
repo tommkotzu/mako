@@ -1,6 +1,6 @@
 /*
  * nautilus-shortcuts.h: every command with its keys, the shortcuts
- * overview (F1), changeable keys and the left-hand layout
+ * jump menu's Commands (F1), changeable keys and the left-hand layout
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
@@ -15,8 +15,6 @@ G_BEGIN_DECLS
  * left-hand ones and any changed in the overview. */
 void nautilus_shortcuts_attach         (GtkWindow *window);
 
-/* The overview: search commands and keys, run a command, change its keys. */
-void nautilus_shortcuts_dialog_present (GtkWindow *window);
 
 /* The key to show next to @detailed_action in menus ("<alt>1"), the
  * left-hand one if it has one, or NULL. */
@@ -39,5 +37,15 @@ const char  *nautilus_shortcuts_command_action  (guint i);
 GStrv        nautilus_shortcuts_command_keys    (guint i);
 void         nautilus_shortcuts_run             (GtkWindow *window,
                                                  guint      i);
+
+/* Changing a command's keys, from the jump menu: records a new key for
+ * @slot (-1 adds one) in a small dialog over @window. */
+void         nautilus_shortcuts_record_key      (GtkWindow *window,
+                                                 guint      i,
+                                                 int        slot);
+void         nautilus_shortcuts_remove_key      (guint      i,
+                                                 int        slot);
+void         nautilus_shortcuts_reset_keys      (guint      i);
+gboolean     nautilus_shortcuts_command_changed (guint      i);
 
 G_END_DECLS

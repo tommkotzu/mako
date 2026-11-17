@@ -25,6 +25,8 @@ void          nautilus_jump_set_slot (NautilusJump       *jump,
 
 /* Shows the menu for what is typed, or hides it for a path. */
 void          nautilus_jump_update   (NautilusJump *jump);
+/* Shows the menu on its Commands tab. */
+void          nautilus_jump_show_commands (NautilusJump *jump);
 void          nautilus_jump_hide     (NautilusJump *jump);
 gboolean      nautilus_jump_contains (NautilusJump *jump,
                                       GtkWidget    *widget);

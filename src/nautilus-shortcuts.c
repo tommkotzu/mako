@@ -53,6 +53,8 @@ static const Command commands[] =
     { SECTION_NAVIGATE, N_("Parent Folder"), "slot.up", "<alt>Up", "<alt>w" },
     { SECTION_NAVIGATE, N_("Home Folder"), "win.go-home", "<alt>Home", "<alt><shift>w" },
     { SECTION_NAVIGATE, N_("Jump To"), "toolbar.jump-to", NULL, "<ctrl>e" },
+    { SECTION_APP, N_("Commands"), "toolbar.jump-commands", NULL,
+      "F1|<ctrl>k|<ctrl><shift>p|<ctrl>question" },
     { SECTION_NAVIGATE, N_("Enter Location"), "toolbar.edit-location", "<ctrl>l", NULL },
     { SECTION_NAVIGATE, N_("Search"), "slot.focus-search", "<ctrl>f", NULL },
     { SECTION_NAVIGATE, N_("Search Everywhere"), "slot.search-global", "<ctrl><shift>f", NULL },
@@ -138,8 +140,6 @@ static const Command commands[] =
     { SECTION_ORGANIZE, N_("Tags"), "view.edit-tags", "<ctrl><alt>a", NULL },
     { SECTION_ORGANIZE, N_("Ratings and Tags on Grid Items"), "view.toggle-marks-on-tiles", "<ctrl><shift>r", NULL },
 
-    { SECTION_APP, N_("Commands and Shortcuts"), "win.keyboard-shortcuts", NULL,
-      "F1|<ctrl>k|<ctrl><shift>p|<ctrl>question" },
     { SECTION_APP, N_("Help"), "app.help", "<shift>F1", NULL },
     { SECTION_APP, N_("Preferences"), "app.preferences", "<ctrl>comma", NULL },
     { SECTION_APP, N_("Main Menu"), "win.current-location-menu", "F10", NULL },
@@ -814,7 +814,14 @@ action_keyboard_shortcuts (GSimpleAction *action,
                            GVariant      *parameter,
                            gpointer       user_data)
 {
-    nautilus_shortcuts_dialog_present (GTK_WINDOW (user_data));
+    /* The command list is the jump menu's Commands. */
+    for (guint i = 0; i < G_N_ELEMENTS (commands); i++)
+    {
+        if (g_str_equal (commands[i].action, "toolbar.jump-commands"))
+        {
+            run_command (GTK_WINDOW (user_data), &commands[i]);
+        }
+    }
 }
 
 void
@@ -838,95 +845,23 @@ nautilus_shortcuts_attach (GtkWindow *window)
                              G_CALLBACK (fill_controller), controller, G_CONNECT_SWAPPED);
 }
 
-/* ---------------------------------------------------------- Overview */
+/* ------------------------------------------------------ Changing keys */
 
-typedef struct
+/* What is being recorded: for which command, replacing which of its
+ * keys (-1: a new one). */
+static struct
 {
+    const Command *command;
+    int slot;
     AdwDialog *dialog;
     GtkWindow *window;
-    GtkListBox *list;
-    GtkSearchEntry *search;
-    AdwToastOverlay *toasts;
-
-    /* Recording a key: for which command, replacing which key (-1: a new one). */
-    const Command *recording;
-    int recording_slot;
-    AdwDialog *recorder;
-    guint rebuild_idle;
-    guint select_idle;
-} Overview;
-
-static void rebuild_rows (Overview *overview);
+} recording;
 
 static void
-overview_free (Overview *overview)
+assign_key (const Command *command,
+            int            slot,
+            const char    *accel)
 {
-    g_clear_handle_id (&overview->rebuild_idle, g_source_remove);
-    g_clear_handle_id (&overview->select_idle, g_source_remove);
-    g_free (overview);
-}
-
-static gboolean
-rebuild_idle (gpointer user_data)
-{
-    Overview *overview = user_data;
-
-    overview->rebuild_idle = 0;
-    rebuild_rows (overview);
-    return G_SOURCE_REMOVE;
-}
-
-/* Later: the change may come from a button of the rows being replaced. */
-static void
-on_custom_changed (GSettings  *settings,
-                   const char *key,
-                   AdwDialog  *dialog)
-{
-    Overview *overview = g_object_get_data (G_OBJECT (dialog), "overview");
-
-    if (overview->rebuild_idle == 0)
-    {
-        overview->rebuild_idle = g_idle_add (rebuild_idle, overview);
-    }
-}
-
-static void
-on_row_activated (GtkListBox    *list,
-                  GtkListBoxRow *row,
-                  Overview      *overview)
-{
-    const Command *command = g_object_get_data (G_OBJECT (row), "command");
-    GFile *location = g_object_get_data (G_OBJECT (row), "location");
-    GtkWindow *window = overview->window;
-
-    if (location != NULL)
-    {
-        g_autoptr (NautilusWindowSlot) slot = NULL;
-        g_autoptr (GFile) keep = g_object_ref (location);
-
-        g_object_get (window, "active-slot", &slot, NULL);
-        adw_dialog_close (overview->dialog);
-        if (slot != NULL)
-        {
-            nautilus_window_slot_open_location_full (slot, keep, NULL);
-        }
-        return;
-    }
-
-    if (command == NULL)
-    {
-        return;
-    }
-
-    adw_dialog_close (overview->dialog);
-    run_command (window, command);
-}
-
-static void
-assign_key (Overview   *overview,
-            const char *accel)
-{
-    const Command *command = overview->recording;
     g_auto (GStrv) keys = command_keys (command, NULL);
     g_autoptr (GStrvBuilder) builder = g_strv_builder_new ();
 
@@ -961,18 +896,15 @@ assign_key (Overview   *overview,
             if (had)
             {
                 g_auto (GStrv) left = g_strv_builder_end (rest);
-                g_autofree char *message = g_strdup_printf (_("Taken from “%s”"),
-                                                            _(commands[i].title));
 
                 set_command_keys (&commands[i], (const char * const *) left);
-                adw_toast_overlay_add_toast (overview->toasts, adw_toast_new (message));
             }
         }
     }
 
     for (int k = 0; keys[k] != NULL; k++)
     {
-        if (k == overview->recording_slot)
+        if (k == slot)
         {
             if (accel != NULL)
             {
@@ -984,7 +916,7 @@ assign_key (Overview   *overview,
             g_strv_builder_add (builder, keys[k]);
         }
     }
-    if (overview->recording_slot < 0 && accel != NULL)
+    if (slot < 0 && accel != NULL)
     {
         g_strv_builder_add (builder, accel);
     }
@@ -999,10 +931,11 @@ on_recorder_key (GtkEventControllerKey *controller,
                  guint                  keyval,
                  guint                  keycode,
                  GdkModifierType        state,
-                 Overview              *overview)
+                 gpointer               user_data)
 {
     GdkModifierType mods = state & gtk_accelerator_get_default_mod_mask ();
-    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (overview->dialog));
+    GdkDisplay *display = gtk_widget_get_display (GTK_WIDGET (recording.dialog));
+    const Command *command = recording.command;
     guint key;
 
     /* What the key is without Shift's effect, as accelerators are written. */
@@ -1035,7 +968,7 @@ on_recorder_key (GtkEventControllerKey *controller,
         {
             if (mods == 0)
             {
-                adw_dialog_close (overview->recorder);
+                adw_dialog_close (recording.dialog);
                 return GDK_EVENT_STOP;
             }
         }
@@ -1046,11 +979,11 @@ on_recorder_key (GtkEventControllerKey *controller,
             if (mods == 0)
             {
                 /* Removes the key being replaced. */
-                if (overview->recording_slot >= 0)
+                if (recording.slot >= 0)
                 {
-                    assign_key (overview, NULL);
+                    assign_key (command, recording.slot, NULL);
                 }
-                adw_dialog_close (overview->recorder);
+                adw_dialog_close (recording.dialog);
                 return GDK_EVENT_STOP;
             }
         }
@@ -1064,17 +997,23 @@ on_recorder_key (GtkEventControllerKey *controller,
 
     g_autofree char *accel = gtk_accelerator_name (key, mods);
 
-    assign_key (overview, accel);
-    adw_dialog_close (overview->recorder);
+    assign_key (command, recording.slot, accel);
+    adw_dialog_close (recording.dialog);
+    /* Says what the key does now. */
+    if (recording.window != NULL)
+    {
+        show_hint (recording.window, command, accel);
+    }
 
     return GDK_EVENT_STOP;
 }
 
-static void
-record_key (Overview      *overview,
-            const Command *command,
-            int            slot)
+void
+nautilus_shortcuts_record_key (GtkWindow *window,
+                               guint      i,
+                               int        slot)
 {
+    const Command *command = &commands[i];
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
     GtkWidget *title = gtk_label_new (_(command->title));
     GtkWidget *hint = gtk_label_new (slot >= 0
@@ -1083,11 +1022,12 @@ record_key (Overview      *overview,
     GtkWidget *toolbar = adw_toolbar_view_new ();
     GtkEventController *keys = gtk_event_controller_key_new ();
 
-    overview->recording = command;
-    overview->recording_slot = slot;
-    overview->recorder = adw_dialog_new ();
-    adw_dialog_set_title (overview->recorder, _("New Shortcut"));
-    adw_dialog_set_content_width (overview->recorder, 360);
+    recording.command = command;
+    recording.slot = slot;
+    recording.window = window;
+    recording.dialog = adw_dialog_new ();
+    adw_dialog_set_title (recording.dialog, _("New Shortcut"));
+    adw_dialog_set_content_width (recording.dialog, 360);
 
     gtk_widget_add_css_class (title, "title-3");
     gtk_label_set_wrap (GTK_LABEL (hint), TRUE);
@@ -1104,681 +1044,35 @@ record_key (Overview      *overview,
 
     adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar), adw_header_bar_new ());
     adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar), box);
-    adw_dialog_set_child (overview->recorder, toolbar);
+    adw_dialog_set_child (recording.dialog, toolbar);
 
     /* Every key, before the dialog's own (Esc would just close it). */
     gtk_event_controller_set_propagation_phase (keys, GTK_PHASE_CAPTURE);
-    g_signal_connect (keys, "key-pressed", G_CALLBACK (on_recorder_key), overview);
-    gtk_widget_add_controller (GTK_WIDGET (overview->recorder), keys);
-
-    adw_dialog_present (overview->recorder, GTK_WIDGET (overview->dialog));
-    gtk_widget_grab_focus (GTK_WIDGET (overview->recorder));
-}
-
-static void
-on_key_clicked (GtkButton *button,
-                Overview  *overview)
-{
-    record_key (overview,
-                g_object_get_data (G_OBJECT (button), "command"),
-                GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot")));
-}
-
-static void
-on_key_secondary (GtkGestureClick *gesture,
-                  int              n_press,
-                  double           x,
-                  double           y,
-                  Overview        *overview)
-{
-    GtkWidget *button = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
-
-    /* Right-click removes a key. */
-    overview->recording = g_object_get_data (G_OBJECT (button), "command");
-    overview->recording_slot = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot"));
-    assign_key (overview, NULL);
-    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
-}
-
-static void
-on_reset_clicked (GtkButton *button,
-                  Overview  *overview)
-{
-    set_command_keys (g_object_get_data (G_OBJECT (button), "command"), NULL);
-}
-
-static void
-on_reset_all (Overview *overview)
-{
-    g_settings_reset (nautilus_flier_settings (), "custom-shortcuts");
-    adw_toast_overlay_add_toast (overview->toasts, adw_toast_new (_("All shortcuts reset")));
-}
-
-static GtkWidget *
-key_button (Overview      *overview,
-            const Command *command,
-            const char    *accel,
-            int            slot)
-{
-    GtkWidget *button = gtk_button_new ();
-    GtkWidget *label = gtk_shortcut_label_new (accel);
-    GtkGesture *secondary = gtk_gesture_click_new ();
-
-    gtk_button_set_child (GTK_BUTTON (button), label);
-    gtk_widget_add_css_class (button, "flat");
-    gtk_widget_add_css_class (button, "shortcut-key");
-    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_widget_set_tooltip_text (button, _("Change (right-click removes)"));
-    g_object_set_data (G_OBJECT (button), "command", (gpointer) command);
-    g_object_set_data (G_OBJECT (button), "slot", GINT_TO_POINTER (slot));
-    g_signal_connect (button, "clicked", G_CALLBACK (on_key_clicked), overview);
-
-    gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (secondary), GDK_BUTTON_SECONDARY);
-    g_signal_connect (secondary, "pressed", G_CALLBACK (on_key_secondary), overview);
-    gtk_widget_add_controller (button, GTK_EVENT_CONTROLLER (secondary));
-
-    return button;
-}
-
-static GtkWidget *
-command_row (Overview      *overview,
-             const Command *command)
-{
-    GtkWidget *row = gtk_list_box_row_new ();
-    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-    GtkWidget *title = gtk_label_new (_(command->title));
-    GtkWidget *button;
-    gboolean changed;
-    g_auto (GStrv) keys = command_keys (command, &changed);
-    g_autoptr (GString) search = g_string_new (_(command->title));
-
-    g_string_append_printf (search, " %s %s", _(command->section), command->action);
-
-    gtk_label_set_xalign (GTK_LABEL (title), 0);
-    gtk_label_set_ellipsize (GTK_LABEL (title), PANGO_ELLIPSIZE_END);
-    gtk_widget_set_hexpand (title, TRUE);
-    gtk_box_append (GTK_BOX (box), title);
-
-    if (changed)
-    {
-        GtkWidget *dot = gtk_image_new_from_icon_name ("document-edit-symbolic");
-
-        gtk_widget_add_css_class (dot, "accent");
-        gtk_widget_set_tooltip_text (dot, _("Changed"));
-        gtk_box_append (GTK_BOX (box), dot);
-    }
-
-    for (int k = 0; keys[k] != NULL; k++)
-    {
-        g_autofree char *label = accel_label (keys[k]);
-
-        g_string_append_printf (search, " %s", label);
-        gtk_box_append (GTK_BOX (box), key_button (overview, command, keys[k], k));
-    }
-
-    button = gtk_button_new_from_icon_name ("list-add-symbolic");
-    gtk_widget_add_css_class (button, "flat");
-    gtk_widget_add_css_class (button, "circular");
-    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_widget_set_tooltip_text (button, _("Add Shortcut"));
-    g_object_set_data (G_OBJECT (button), "command", (gpointer) command);
-    g_object_set_data (G_OBJECT (button), "slot", GINT_TO_POINTER (-1));
-    g_signal_connect (button, "clicked", G_CALLBACK (on_key_clicked), overview);
-    gtk_box_append (GTK_BOX (box), button);
-
-    button = gtk_button_new_from_icon_name ("edit-undo-symbolic");
-    gtk_widget_add_css_class (button, "flat");
-    gtk_widget_add_css_class (button, "circular");
-    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
-    gtk_widget_set_tooltip_text (button, _("Reset"));
-    gtk_widget_set_opacity (button, changed ? 1 : 0);
-    gtk_widget_set_sensitive (button, changed);
-    g_object_set_data (G_OBJECT (button), "command", (gpointer) command);
-    g_signal_connect (button, "clicked", G_CALLBACK (on_reset_clicked), overview);
-    gtk_box_append (GTK_BOX (box), button);
-
-    gtk_widget_set_margin_start (box, 12);
-    gtk_widget_set_margin_end (box, 6);
-    gtk_widget_set_margin_top (box, 3);
-    gtk_widget_set_margin_bottom (box, 3);
-    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
-    gtk_widget_set_tooltip_text (row, _("Enter runs it"));
-
-    g_object_set_data (G_OBJECT (row), "command", (gpointer) command);
-    g_object_set_data (G_OBJECT (row), "section", (gpointer) _(command->section));
-    g_object_set_data_full (G_OBJECT (row), "search", g_string_free (g_steal_pointer (&search), FALSE), g_free);
-
-    return row;
-}
-
-static GtkWidget *
-basic_row (guint i)
-{
-    GtkWidget *row = adw_action_row_new ();
-    GtkWidget *keys = gtk_label_new (_(basics[i].keys));
-    g_autofree char *search = g_strdup_printf ("%s %s", _(basics[i].title), _(basics[i].keys));
-
-    adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _(basics[i].title));
-    adw_preferences_row_set_use_markup (ADW_PREFERENCES_ROW (row), FALSE);
-    gtk_widget_add_css_class (keys, "dim-label");
-    adw_action_row_add_suffix (ADW_ACTION_ROW (row), keys);
-    gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
-
-    g_object_set_data (G_OBJECT (row), "section", (gpointer) _("Mouse and Quick Look"));
-    g_object_set_data_full (G_OBJECT (row), "search", g_steal_pointer (&search), g_free);
-
-    return row;
-}
-
-/* ---------------------------------------------------- Go To rows */
-
-static GtkWidget *
-place_row (GFile      *location,
-           const char *name,
-           const char *icon_name,
-           guint       order)
-{
-    GtkWidget *row = gtk_list_box_row_new ();
-    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
-    GtkWidget *title = gtk_label_new (name);
-    g_autofree char *path = g_file_get_parse_name (location);
-    GtkWidget *where = gtk_label_new (path);
-    g_autofree char *search = g_strdup_printf ("%s %s", name, path);
-
-    gtk_box_append (GTK_BOX (box), gtk_image_new_from_icon_name (icon_name));
-    gtk_label_set_xalign (GTK_LABEL (title), 0);
-    gtk_box_append (GTK_BOX (box), title);
-    gtk_label_set_xalign (GTK_LABEL (where), 1);
-    gtk_label_set_ellipsize (GTK_LABEL (where), PANGO_ELLIPSIZE_START);
-    gtk_widget_set_hexpand (where, TRUE);
-    gtk_widget_add_css_class (where, "dim-label");
-    gtk_box_append (GTK_BOX (box), where);
-
-    gtk_widget_set_margin_start (box, 12);
-    gtk_widget_set_margin_end (box, 12);
-    gtk_widget_set_margin_top (box, 9);
-    gtk_widget_set_margin_bottom (box, 9);
-    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
-
-    g_object_set_data_full (G_OBJECT (row), "location", g_object_ref (location), g_object_unref);
-    g_object_set_data (G_OBJECT (row), "section", (gpointer) _("Go To"));
-    g_object_set_data (G_OBJECT (row), "order", GUINT_TO_POINTER (order));
-    g_object_set_data_full (G_OBJECT (row), "search", g_steal_pointer (&search), g_free);
-
-    return row;
-}
-
-static gint
-by_modified (gconstpointer a,
-             gconstpointer b)
-{
-    GDateTime *ta = gtk_recent_info_get_modified ((GtkRecentInfo *) a);
-    GDateTime *tb = gtk_recent_info_get_modified ((GtkRecentInfo *) b);
-
-    return -g_date_time_compare (ta, tb);
-}
-
-/* Home and the standard folders, bookmarks, then folders of recent files. */
-static void
-append_places (Overview *overview,
-               guint    *order)
-{
-    static const GUserDirectory dirs[] =
-    {
-        G_USER_DIRECTORY_DESKTOP, G_USER_DIRECTORY_DOCUMENTS, G_USER_DIRECTORY_DOWNLOAD,
-        G_USER_DIRECTORY_MUSIC, G_USER_DIRECTORY_PICTURES, G_USER_DIRECTORY_VIDEOS,
-    };
-    g_autoptr (GHashTable) seen = g_hash_table_new_full (g_file_hash, (GEqualFunc) g_file_equal,
-                                                         g_object_unref, NULL);
-    g_autoptr (GFile) home = g_file_new_for_path (g_get_home_dir ());
-    NautilusBookmarkList *bookmarks = nautilus_application_get_bookmarks (nautilus_application_get_default ());
-    GList *recent = gtk_recent_manager_get_items (gtk_recent_manager_get_default ());
-    guint recent_folders = 0;
-
-#define ADD_PLACE(file, name, icon) \
-        G_STMT_START { \
-            if (!g_hash_table_contains (seen, (file))) \
-            { \
-                g_hash_table_add (seen, g_object_ref (file)); \
-                gtk_list_box_append (overview->list, place_row ((file), (name), (icon), (*order)++)); \
-            } \
-        } G_STMT_END
-
-    ADD_PLACE (home, _("Home"), "user-home-symbolic");
-    for (guint i = 0; i < G_N_ELEMENTS (dirs); i++)
-    {
-        const char *path = g_get_user_special_dir (dirs[i]);
-
-        if (path != NULL && g_strcmp0 (path, g_get_home_dir ()) != 0)
-        {
-            g_autoptr (GFile) file = g_file_new_for_path (path);
-            g_autofree char *name = g_file_get_basename (file);
-
-            ADD_PLACE (file, name, "folder-symbolic");
-        }
-    }
-
-    for (GList *l = nautilus_bookmark_list_get_all (bookmarks); l != NULL; l = l->next)
-    {
-        NautilusBookmark *bookmark = l->data;
-
-        ADD_PLACE (nautilus_bookmark_get_location (bookmark), nautilus_bookmark_get_name (bookmark),
-                   "user-bookmarks-symbolic");
-    }
-
-    recent = g_list_sort (recent, by_modified);
-    for (GList *l = recent; l != NULL && recent_folders < 8; l = l->next)
-    {
-        const char *uri = gtk_recent_info_get_uri (l->data);
-        g_autoptr (GFile) file = NULL;
-        g_autoptr (GFile) parent = NULL;
-        g_autofree char *name = NULL;
-
-        if (!g_str_has_prefix (uri, "file://"))
-        {
-            continue;
-        }
-
-        file = g_file_new_for_uri (uri);
-        parent = g_file_get_parent (file);
-        if (parent == NULL || g_hash_table_contains (seen, parent))
-        {
-            continue;
-        }
-
-        name = g_file_get_basename (parent);
-        ADD_PLACE (parent, name, "document-open-recent-symbolic");
-        recent_folders++;
-    }
-    g_list_free_full (recent, (GDestroyNotify) gtk_recent_info_unref);
-
-#undef ADD_PLACE
-}
-
-static void
-rebuild_rows (Overview *overview)
-{
-    GtkWidget *child;
-
-    while ((child = gtk_widget_get_first_child (GTK_WIDGET (overview->list))) != NULL)
-    {
-        gtk_list_box_remove (overview->list, child);
-    }
-
-    guint order = 0;
-
-    for (guint i = 0; i < G_N_ELEMENTS (commands); i++)
-    {
-        GtkWidget *row = command_row (overview, &commands[i]);
-
-        g_object_set_data (G_OBJECT (row), "order", GUINT_TO_POINTER (order++));
-        gtk_list_box_append (overview->list, row);
-    }
-    append_places (overview, &order);
-    for (guint i = 0; i < G_N_ELEMENTS (basics); i++)
-    {
-        GtkWidget *row = basic_row (i);
-
-        g_object_set_data (G_OBJECT (row), "order", GUINT_TO_POINTER (order++));
-        gtk_list_box_append (overview->list, row);
-    }
-
-    gtk_list_box_invalidate_filter (overview->list);
-    gtk_list_box_invalidate_sort (overview->list);
-}
-
-static gboolean
-searching (Overview *overview)
-{
-    const char *query = gtk_editable_get_text (GTK_EDITABLE (overview->search));
-
-    return query != NULL && *query != '\0';
-}
-
-static gboolean
-runnable (GtkListBoxRow *row)
-{
-    return g_object_get_data (G_OBJECT (row), "command") != NULL ||
-           g_object_get_data (G_OBJECT (row), "location") != NULL;
-}
-
-/* While searching: names that start with what was typed first, then
- * names with a word that does, then the rest (matching the key, say). */
-static guint
-rank (GtkListBoxRow *row,
-      const char    *query)
-{
-    const char *search = g_object_get_data (G_OBJECT (row), "search");
-    g_autofree char *folded_query = g_utf8_casefold (query, -1);
-    g_autofree char *folded = g_utf8_casefold (search, -1);
-    guint score = 3;
-
-    if (g_str_has_prefix (folded, folded_query))
-    {
-        score = 0;
-    }
-    else if (g_str_match_string (query, search, TRUE))
-    {
-        score = 1;
-    }
-
-    /* Things to run before the mouse list. */
-    return score * 2 + (runnable (row) ? 0 : 1);
-}
-
-static int
-sort_rows (GtkListBoxRow *a,
-           GtkListBoxRow *b,
-           gpointer       user_data)
-{
-    Overview *overview = user_data;
-    guint oa = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (a), "order"));
-    guint ob = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (b), "order"));
-
-    if (searching (overview))
-    {
-        const char *query = gtk_editable_get_text (GTK_EDITABLE (overview->search));
-        guint ra = rank (a, query);
-        guint rb = rank (b, query);
-
-        if (ra != rb)
-        {
-            return ra < rb ? -1 : 1;
-        }
-    }
-
-    return oa < ob ? -1 : (oa > ob ? 1 : 0);
-}
-
-static gboolean
-filter_row (GtkListBoxRow *row,
-            gpointer       user_data)
-{
-    Overview *overview = user_data;
-    const char *query = gtk_editable_get_text (GTK_EDITABLE (overview->search));
-    const char *text = g_object_get_data (G_OBJECT (row), "search");
-    g_auto (GStrv) words = NULL;
-
-    if (query == NULL || *query == '\0')
-    {
-        return TRUE;
-    }
-
-    /* Every word typed matches the start of a word of the row. */
-    words = g_str_tokenize_and_fold (query, NULL, NULL);
-    for (guint i = 0; words[i] != NULL; i++)
-    {
-        if (!g_str_match_string (words[i], text, TRUE))
-        {
-            return FALSE;
-        }
-    }
-
-    return TRUE;
-}
-
-static void
-header_row (GtkListBoxRow *row,
-            GtkListBoxRow *before,
-            gpointer       user_data)
-{
-    Overview *overview = user_data;
-
-    /* Ranked by match while searching; sections would repeat. */
-    if (searching (overview))
-    {
-        gtk_list_box_row_set_header (row, NULL);
-        return;
-    }
-
-    const char *section = g_object_get_data (G_OBJECT (row), "section");
-    const char *previous = before != NULL ? g_object_get_data (G_OBJECT (before), "section") : NULL;
-
-    if (g_strcmp0 (section, previous) == 0)
-    {
-        gtk_list_box_row_set_header (row, NULL);
-        return;
-    }
-
-    GtkWidget *label = gtk_label_new (section);
-
-    gtk_label_set_xalign (GTK_LABEL (label), 0);
-    gtk_widget_add_css_class (label, "heading");
-    gtk_widget_set_margin_start (label, 12);
-    gtk_widget_set_margin_top (label, before != NULL ? 18 : 6);
-    gtk_widget_set_margin_bottom (label, 6);
-    gtk_list_box_row_set_header (row, label);
-}
-
-static GtkListBoxRow *
-next_runnable (Overview      *overview,
-               GtkListBoxRow *from,
-               gboolean       forward)
-{
-    GtkWidget *child;
-
-    if (from == NULL)
-    {
-        child = gtk_widget_get_first_child (GTK_WIDGET (overview->list));
-    }
-    else
-    {
-        child = forward ? gtk_widget_get_next_sibling (GTK_WIDGET (from))
-                        : gtk_widget_get_prev_sibling (GTK_WIDGET (from));
-    }
-
-    for (; child != NULL;
-         child = forward ? gtk_widget_get_next_sibling (child) : gtk_widget_get_prev_sibling (child))
-    {
-        if (GTK_IS_LIST_BOX_ROW (child) && gtk_widget_get_child_visible (child) &&
-            runnable (GTK_LIST_BOX_ROW (child)))
-        {
-            return GTK_LIST_BOX_ROW (child);
-        }
-    }
-
-    return NULL;
-}
-
-static void
-select_row (Overview      *overview,
-            GtkListBoxRow *row)
-{
-    if (row == NULL)
-    {
-        gtk_list_box_unselect_all (overview->list);
-        return;
-    }
-
-    gtk_list_box_select_row (overview->list, row);
-    /* Keeps the row in view without taking focus from the entry. */
-    {
-        GtkWidget *scroller = gtk_widget_get_ancestor (GTK_WIDGET (row), GTK_TYPE_SCROLLED_WINDOW);
-        graphene_rect_t bounds;
-
-        if (scroller != NULL &&
-            gtk_widget_compute_bounds (GTK_WIDGET (row), scroller, &bounds))
-        {
-            GtkAdjustment *adj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (scroller));
-            double page = gtk_adjustment_get_page_size (adj);
-            double value = gtk_adjustment_get_value (adj);
-
-            if (bounds.origin.y < 0)
-            {
-                gtk_adjustment_set_value (adj, value + bounds.origin.y - 6);
-            }
-            else if (bounds.origin.y + bounds.size.height > page)
-            {
-                gtk_adjustment_set_value (adj, value + bounds.origin.y + bounds.size.height - page + 6);
-            }
-        }
-    }
-}
-
-static gboolean
-select_first_idle (gpointer user_data)
-{
-    Overview *overview = user_data;
-
-    overview->select_idle = 0;
-    select_row (overview, searching (overview) ? next_runnable (overview, NULL, TRUE) : NULL);
-    return G_SOURCE_REMOVE;
-}
-
-static void
-on_search_changed (GtkSearchEntry *entry,
-                   Overview       *overview)
-{
-    gtk_list_box_invalidate_filter (overview->list);
-    gtk_list_box_invalidate_sort (overview->list);
-    gtk_list_box_invalidate_headers (overview->list);
-    /* Once the rows are sorted and laid out. */
-    if (overview->select_idle == 0)
-    {
-        overview->select_idle = g_idle_add (select_first_idle, overview);
-    }
-}
-
-static void
-on_search_activate (GtkSearchEntry *entry,
-                    Overview       *overview)
-{
-    GtkListBoxRow *row = gtk_list_box_get_selected_row (overview->list);
-
-    if (row == NULL)
-    {
-        row = next_runnable (overview, NULL, TRUE);
-    }
-    if (row != NULL)
-    {
-        on_row_activated (overview->list, row, overview);
-    }
-}
-
-/* Up and Down pick the command Enter runs; Tab goes into the list. */
-static gboolean
-on_search_key (GtkEventControllerKey *controller,
-               guint                  keyval,
-               guint                  keycode,
-               GdkModifierType        state,
-               Overview              *overview)
-{
-    GtkListBoxRow *selected = gtk_list_box_get_selected_row (overview->list);
-
-    if (keyval == GDK_KEY_Down || keyval == GDK_KEY_Up)
-    {
-        gboolean down = keyval == GDK_KEY_Down;
-        GtkListBoxRow *row = selected != NULL ? next_runnable (overview, selected, down)
-                                              : next_runnable (overview, NULL, TRUE);
-
-        if (row != NULL)
-        {
-            select_row (overview, row);
-        }
-        return GDK_EVENT_STOP;
-    }
-
-    if (keyval == GDK_KEY_Tab)
-    {
-        GtkListBoxRow *row = selected != NULL ? selected : next_runnable (overview, NULL, TRUE);
-
-        if (row != NULL)
-        {
-            gtk_widget_grab_focus (GTK_WIDGET (row));
-            return GDK_EVENT_STOP;
-        }
-    }
-
-    return GDK_EVENT_PROPAGATE;
-}
-
-/* Esc closes at once, also with text typed; F1 again too. */
-static gboolean
-on_dialog_key (GtkEventControllerKey *controller,
-               guint                  keyval,
-               guint                  keycode,
-               GdkModifierType        state,
-               Overview              *overview)
-{
-    if ((state & gtk_accelerator_get_default_mod_mask ()) == 0 &&
-        (keyval == GDK_KEY_Escape || keyval == GDK_KEY_F1))
-    {
-        adw_dialog_close (overview->dialog);
-        return GDK_EVENT_STOP;
-    }
-
-    return GDK_EVENT_PROPAGATE;
+    g_signal_connect (keys, "key-pressed", G_CALLBACK (on_recorder_key), NULL);
+    gtk_widget_add_controller (GTK_WIDGET (recording.dialog), keys);
+
+    adw_dialog_present (recording.dialog, GTK_WIDGET (window));
+    gtk_widget_grab_focus (GTK_WIDGET (recording.dialog));
 }
 
 void
-nautilus_shortcuts_dialog_present (GtkWindow *window)
+nautilus_shortcuts_remove_key (guint i,
+                               int   slot)
 {
-    Overview *overview = g_new0 (Overview, 1);
-    GtkWidget *toolbar = adw_toolbar_view_new ();
-    GtkWidget *header = adw_header_bar_new ();
-    GtkWidget *scroller = gtk_scrolled_window_new ();
-    GtkWidget *clamp = adw_clamp_new ();
-    GtkWidget *reset = gtk_button_new_with_mnemonic (_("_Reset All"));
-    GtkEventController *keys = gtk_event_controller_key_new ();
+    assign_key (&commands[i], slot, NULL);
+}
 
-    overview->window = window;
-    overview->dialog = adw_dialog_new ();
-    adw_dialog_set_title (overview->dialog, _("Commands"));
-    adw_dialog_set_content_width (overview->dialog, 640);
-    adw_dialog_set_content_height (overview->dialog, 720);
+void
+nautilus_shortcuts_reset_keys (guint i)
+{
+    set_command_keys (&commands[i], NULL);
+}
 
-    overview->search = GTK_SEARCH_ENTRY (gtk_search_entry_new ());
-    gtk_search_entry_set_placeholder_text (overview->search, _("Run a command, go to a folder, find a key"));
-    gtk_widget_set_hexpand (GTK_WIDGET (overview->search), TRUE);
-    gtk_widget_set_size_request (GTK_WIDGET (overview->search), 320, -1);
-    g_signal_connect (overview->search, "search-changed", G_CALLBACK (on_search_changed), overview);
-    g_signal_connect (overview->search, "activate", G_CALLBACK (on_search_activate), overview);
-    g_signal_connect (keys, "key-pressed", G_CALLBACK (on_search_key), overview);
-    gtk_widget_add_controller (GTK_WIDGET (overview->search), keys);
-    adw_header_bar_set_title_widget (ADW_HEADER_BAR (header), GTK_WIDGET (overview->search));
+gboolean
+nautilus_shortcuts_command_changed (guint i)
+{
+    gboolean changed = FALSE;
+    g_auto (GStrv) keys = command_keys (&commands[i], &changed);
 
-    gtk_widget_set_tooltip_text (reset, _("Back to the keys Files comes with"));
-    g_signal_connect_swapped (reset, "clicked", G_CALLBACK (on_reset_all), overview);
-    adw_header_bar_pack_start (ADW_HEADER_BAR (header), reset);
-
-    overview->list = GTK_LIST_BOX (gtk_list_box_new ());
-    gtk_list_box_set_selection_mode (overview->list, GTK_SELECTION_SINGLE);
-    gtk_widget_add_css_class (GTK_WIDGET (overview->list), "boxed-list-separate");
-    gtk_widget_add_css_class (GTK_WIDGET (overview->list), "shortcuts-overview");
-    gtk_list_box_set_filter_func (overview->list, filter_row, overview, NULL);
-    gtk_list_box_set_header_func (overview->list, header_row, overview, NULL);
-    gtk_list_box_set_sort_func (overview->list, sort_rows, overview, NULL);
-    g_signal_connect (overview->list, "row-activated", G_CALLBACK (on_row_activated), overview);
-
-    gtk_widget_set_margin_start (GTK_WIDGET (overview->list), 12);
-    gtk_widget_set_margin_end (GTK_WIDGET (overview->list), 12);
-    gtk_widget_set_margin_bottom (GTK_WIDGET (overview->list), 18);
-    adw_clamp_set_child (ADW_CLAMP (clamp), GTK_WIDGET (overview->list));
-    adw_clamp_set_maximum_size (ADW_CLAMP (clamp), 720);
-    gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (scroller), clamp);
-    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroller), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_widget_set_vexpand (scroller, TRUE);
-
-    overview->toasts = ADW_TOAST_OVERLAY (adw_toast_overlay_new ());
-    adw_toast_overlay_set_child (overview->toasts, scroller);
-
-    adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar), header);
-    adw_toolbar_view_set_content (ADW_TOOLBAR_VIEW (toolbar), GTK_WIDGET (overview->toasts));
-    adw_dialog_set_child (overview->dialog, toolbar);
-
-    keys = gtk_event_controller_key_new ();
-    gtk_event_controller_set_propagation_phase (keys, GTK_PHASE_CAPTURE);
-    g_signal_connect (keys, "key-pressed", G_CALLBACK (on_dialog_key), overview);
-    gtk_widget_add_controller (GTK_WIDGET (overview->dialog), keys);
-
-    /* Typing anywhere searches. */
-    gtk_search_entry_set_key_capture_widget (overview->search, GTK_WIDGET (overview->dialog));
-
-    rebuild_rows (overview);
-    g_object_set_data_full (G_OBJECT (overview->dialog), "overview", overview, (GDestroyNotify) overview_free);
-    g_signal_connect_object (nautilus_flier_settings (), "changed::custom-shortcuts",
-                             G_CALLBACK (on_custom_changed), overview->dialog, 0);
-
-    adw_dialog_present (overview->dialog, GTK_WIDGET (window));
-    gtk_widget_grab_focus (GTK_WIDGET (overview->search));
+    return changed;
 }

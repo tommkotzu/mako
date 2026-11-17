@@ -44,7 +44,7 @@ https://github.com/user-attachments/assets/1a1a578e-7426-485a-a1e6-026c1ab35ce3
 | **Inspector** | A side panel with the preview, rating, tags and details of the selection. Drag its grip to any side of the window, or out of the window to pop it out into its own window. |
 | **Ratings and tags** | Stored on the files as extended attributes, the same ones Dolphin uses (`user.baloo.rating`, `user.xdg.tags`). |
 | **Sidebar** | Groups you can fold and reorder (Bookmarks, Places, Recent, Tags, Storage). Every item can get a color. |
-| **Commands** | `F1` or `Ctrl+K` opens a searchable list of every command, and any key can be changed there. |
+| **Commands** | `F1` or `Ctrl+K` opens the jump menu on its Commands tab: every command with its keys. Click a key to change it, right-click it to remove it, **Add key** for one more. |
 | **Jump to** | `Ctrl+E` and a name: every folder of that name on the computer, each with its path to click into, plus the matching commands and settings, switched and changed right in the list. `Tab` goes through All, Folders, Commands and Settings. A path (`/…`, `~/…`) still goes straight there. |
 | **Key hints** | Each shortcut you press briefly shows its name at the bottom of the window, which helps you learn them. Tooltips show keys too. |
 | **Copy progress** | Copies and moves show in a panel in the corner of the window. Paste again while one is running and the new one waits below it, then starts as soon as the first is done. |
@@ -191,8 +191,8 @@ The layout follows a few simple rules:
 </table>
 
 Keys in brackets are GNOME's own keys, which keep working. Every key can
-be changed in the command list (`F1`): search for a command, click its key
-and press a new one.
+be changed in the command list (`F1`): type a command's name, click its
+key and press a new one.
 
 ![The command list with every key](docs/media/shortcuts.png)
 

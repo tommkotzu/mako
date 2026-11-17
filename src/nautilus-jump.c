@@ -593,13 +593,18 @@ highlight (const char *text,
             g_autofree char *match = g_markup_escape_text (text + start, len);
             g_autofree char *after = g_markup_escape_text (text + start + len, -1);
 
-            /* The accent the selection is tinted with, lighter on dark. */
-            g_autoptr (GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (style);
-            double lift = adw_style_manager_get_dark (style) ? 0.35 : 0.0;
+            /* As in the design: with the purple accent its violet,
+             * #8b7cf6, which the selected row is tinted with too. */
+            if (adw_style_manager_get_accent_color (style) == ADW_ACCENT_COLOR_PURPLE)
+            {
+                gdk_rgba_parse (&rgba, "#8b7cf6");
+            }
+            else
+            {
+                g_autoptr (GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (style);
 
-            rgba.red = accent->red + (1 - accent->red) * lift;
-            rgba.green = accent->green + (1 - accent->green) * lift;
-            rgba.blue = accent->blue + (1 - accent->blue) * lift;
+                rgba = *accent;
+            }
             return g_strdup_printf ("%s<span foreground=\"#%02x%02x%02x\" weight=\"bold\">%s</span>%s",
                                     before, (int) (rgba.red * 255), (int) (rgba.green * 255),
                                     (int) (rgba.blue * 255), match, after);
@@ -737,33 +742,94 @@ folder_row (NautilusJump *jump,
     return row;
 }
 
+/* Keys are changed over the window, once the menu is closed. */
 static void
-on_add_key (GtkButton    *button,
-            NautilusJump *jump)
+record (NautilusJump *jump,
+        guint         i,
+        int           slot)
 {
     GtkWindow *window = jump_window (jump);
 
     close_entry (jump);
     if (window != NULL)
     {
-        gtk_widget_activate_action (GTK_WIDGET (window), "win.keyboard-shortcuts", NULL);
+        nautilus_shortcuts_record_key (window, i, slot);
     }
 }
 
+static void
+on_key_clicked (GtkButton    *button,
+                NautilusJump *jump)
+{
+    record (jump, GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (button), "index")),
+            GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot")));
+}
+
+static void
+on_key_secondary (GtkGestureClick *gesture,
+                  int              n_press,
+                  double           x,
+                  double           y,
+                  NautilusJump    *jump)
+{
+    GtkWidget *button = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+
+    /* Right-click removes the key; the rows are made again for it. */
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+    nautilus_shortcuts_remove_key (GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (button), "index")),
+                                   GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot")));
+}
+
+static void
+on_reset_clicked (GtkButton    *button,
+                  NautilusJump *jump)
+{
+    nautilus_shortcuts_reset_keys (GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (button), "index")));
+}
+
 static GtkWidget *
-key_chip (const char *accel)
+key_chip (NautilusJump *jump,
+          guint         i,
+          int           slot,
+          const char   *accel)
 {
     guint key = 0;
     GdkModifierType mods = 0;
     g_autofree char *text = NULL;
-    GtkWidget *label;
+    GtkWidget *button;
+    GtkGesture *secondary = gtk_gesture_click_new ();
 
-    gtk_accelerator_parse (accel, &key, &mods);
-    text = gtk_accelerator_get_label (key, mods);
-    label = gtk_label_new (text);
-    gtk_widget_add_css_class (label, "jump-kbd");
-    gtk_widget_set_valign (label, GTK_ALIGN_CENTER);
-    return label;
+    if (accel != NULL)
+    {
+        gtk_accelerator_parse (accel, &key, &mods);
+        text = gtk_accelerator_get_label (key, mods);
+    }
+    button = gtk_button_new_with_label (accel != NULL ? text : _("Add key"));
+    gtk_widget_add_css_class (button, "flat");
+    gtk_widget_add_css_class (button, "jump-kbd");
+    if (accel == NULL)
+    {
+        gtk_widget_add_css_class (button, "jump-add");
+    }
+    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+    gtk_widget_set_focusable (button, FALSE);
+    gtk_widget_set_focus_on_click (button, FALSE);
+    gtk_widget_set_tooltip_text (button, accel != NULL ? _("Click to change, right-click to remove")
+                                                       : _("Click, then press the keys"));
+    g_object_set_data (G_OBJECT (button), "index", GUINT_TO_POINTER (i));
+    g_object_set_data (G_OBJECT (button), "slot", GINT_TO_POINTER (slot));
+    g_signal_connect (button, "clicked", G_CALLBACK (on_key_clicked), jump);
+    if (accel != NULL)
+    {
+        gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (secondary), GDK_BUTTON_SECONDARY);
+        g_signal_connect (secondary, "pressed", G_CALLBACK (on_key_secondary), jump);
+        gtk_widget_add_controller (button, GTK_EVENT_CONTROLLER (secondary));
+    }
+    else
+    {
+        g_object_unref (secondary);
+    }
+    return button;
 }
 
 static GtkWidget *
@@ -781,21 +847,27 @@ command_row (NautilusJump *jump,
     gtk_box_append (GTK_BOX (box), two_lines (title, nautilus_shortcuts_command_section (i)));
     for (guint k = 0; keys[k] != NULL && k < 3; k++)
     {
-        gtk_box_append (GTK_BOX (keys_box), key_chip (keys[k]));
+        gtk_box_append (GTK_BOX (keys_box), key_chip (jump, i, (int) k, keys[k]));
     }
-    if (keys[0] == NULL)
+    /* On the Commands tab every command can get one more. */
+    if (keys[0] == NULL || jump->scope == SCOPE_COMMANDS)
     {
-        GtkWidget *add = gtk_button_new_with_label (_("Add key"));
+        gtk_box_append (GTK_BOX (keys_box), key_chip (jump, i, -1, NULL));
+    }
+    if (nautilus_shortcuts_command_changed (i))
+    {
+        GtkWidget *reset = gtk_button_new_from_icon_name ("edit-undo-symbolic");
 
-        gtk_widget_add_css_class (add, "flat");
-        gtk_widget_add_css_class (add, "jump-kbd");
-        gtk_widget_add_css_class (add, "jump-add");
-        gtk_widget_set_valign (add, GTK_ALIGN_CENTER);
-        gtk_widget_set_focusable (add, FALSE);
-        gtk_widget_set_focus_on_click (add, FALSE);
-        gtk_widget_set_tooltip_text (add, _("Opens the command list, where keys are set"));
-        g_signal_connect (add, "clicked", G_CALLBACK (on_add_key), jump);
-        gtk_box_append (GTK_BOX (keys_box), add);
+        gtk_widget_add_css_class (reset, "flat");
+        gtk_widget_add_css_class (reset, "circular");
+        gtk_widget_add_css_class (reset, "jump-reset");
+        gtk_widget_set_valign (reset, GTK_ALIGN_CENTER);
+        gtk_widget_set_focusable (reset, FALSE);
+        gtk_widget_set_focus_on_click (reset, FALSE);
+        gtk_widget_set_tooltip_text (reset, _("Back to the keys it came with"));
+        g_object_set_data (G_OBJECT (reset), "index", GUINT_TO_POINTER (i));
+        g_signal_connect (reset, "clicked", G_CALLBACK (on_reset_clicked), jump);
+        gtk_box_append (GTK_BOX (keys_box), reset);
     }
     gtk_box_append (GTK_BOX (box), keys_box);
 
@@ -830,6 +902,39 @@ sync_choices (GSettings  *gsettings,
         gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (b),
                                       g_str_equal (now, g_object_get_data (G_OBJECT (b), "value")));
     }
+}
+
+static gboolean
+on_choices_scroll (GtkEventControllerScroll *controller,
+                   double                    dx,
+                   double                    dy,
+                   gpointer                  user_data)
+{
+    GtkWidget *box = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (controller));
+    double step = dy != 0 ? dy : dx;
+    GtkWidget *active = NULL;
+    GtkWidget *next;
+
+    for (GtkWidget *b = gtk_widget_get_first_child (box); b != NULL; b = gtk_widget_get_next_sibling (b))
+    {
+        if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (b)))
+        {
+            active = b;
+        }
+    }
+    if (step == 0)
+    {
+        return GDK_EVENT_PROPAGATE;
+    }
+    next = active == NULL ? gtk_widget_get_first_child (box)
+           : step > 0 ? gtk_widget_get_next_sibling (active) : gtk_widget_get_prev_sibling (active);
+    if (next != NULL)
+    {
+        gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (next), TRUE);
+    }
+
+    /* Not the list under it. */
+    return GDK_EVENT_STOP;
 }
 
 static GtkWidget *
@@ -924,6 +1029,14 @@ setting_control (const Setting *setting)
             g_signal_connect (b, "toggled", G_CALLBACK (on_choice_toggled), (gpointer) setting);
         }
         g_signal_connect_object (gsettings, signal, G_CALLBACK (sync_choices), box, 0);
+        {
+            /* The wheel steps through the choices. */
+            GtkEventController *wheel = gtk_event_controller_scroll_new (GTK_EVENT_CONTROLLER_SCROLL_BOTH_AXES |
+                                                                          GTK_EVENT_CONTROLLER_SCROLL_DISCRETE);
+
+            g_signal_connect (wheel, "scroll", G_CALLBACK (on_choices_scroll), NULL);
+            gtk_widget_add_controller (box, wheel);
+        }
         return box;
     }
 }
@@ -1203,7 +1316,7 @@ pick (const char *query,
                                                                   : settings[i].words);
             gboolean prefix = !empty && g_str_match_string (query, title, TRUE);
 
-            if ((commands && g_str_equal (nautilus_shortcuts_command_action (i), "toolbar.jump-to")) ||
+            if ((commands && g_str_has_prefix (nautilus_shortcuts_command_action (i), "toolbar.jump-")) ||
                 !(empty || matches (query, haystack)) ||
                 (pass == 0) != (empty || prefix))
             {
@@ -1369,6 +1482,41 @@ on_scope_toggled (GtkToggleButton *button,
 
 /* ------------------------------------------------------------- API */
 
+static gboolean
+rebuild_later (gpointer popover)
+{
+    NautilusJump *jump = g_object_get_data (G_OBJECT (popover), "jump");
+
+    if (jump != NULL && gtk_widget_get_visible (popover))
+    {
+        rebuild (jump);
+    }
+    g_object_unref (popover);
+    return G_SOURCE_REMOVE;
+}
+
+/* Not at once: the button that changed them is in a row being replaced. */
+static void
+on_keys_changed (GtkWidget *popover)
+{
+    g_idle_add (rebuild_later, g_object_ref (popover));
+}
+
+static void
+follow_accent (AdwStyleManager *style,
+               GParamSpec      *pspec,
+               GtkWidget       *popover)
+{
+    if (adw_style_manager_get_accent_color (style) == ADW_ACCENT_COLOR_PURPLE)
+    {
+        gtk_widget_add_css_class (popover, "jump-violet");
+    }
+    else
+    {
+        gtk_widget_remove_css_class (popover, "jump-violet");
+    }
+}
+
 NautilusJump *
 nautilus_jump_new (GtkWidget *entry,
                    GtkWidget *anchor)
@@ -1453,8 +1601,14 @@ nautilus_jump_new (GtkWidget *entry,
     gtk_popover_set_position (GTK_POPOVER (jump->popover), GTK_POS_BOTTOM);
     gtk_widget_set_focusable (jump->popover, FALSE);
     gtk_widget_add_css_class (jump->popover, "jump-menu");
+    g_signal_connect_object (adw_style_manager_get_default (), "notify::accent-color",
+                             G_CALLBACK (follow_accent), jump->popover, 0);
+    follow_accent (adw_style_manager_get_default (), NULL, jump->popover);
     gtk_popover_set_child (GTK_POPOVER (jump->popover), box);
     gtk_widget_set_parent (jump->popover, anchor);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::custom-shortcuts",
+                             G_CALLBACK (on_keys_changed), jump->popover, G_CONNECT_SWAPPED);
+    g_object_set_data (G_OBJECT (jump->popover), "jump", jump);
 
     return jump;
 }
@@ -1569,6 +1723,16 @@ nautilus_jump_update (NautilusJump *jump)
         {
             jump->size_idle = g_idle_add (size_later, jump);
         }
+    }
+}
+
+void
+nautilus_jump_show_commands (NautilusJump *jump)
+{
+    nautilus_jump_update (jump);
+    if (gtk_widget_get_visible (jump->popover))
+    {
+        set_scope (jump, SCOPE_COMMANDS);
     }
 }
 
