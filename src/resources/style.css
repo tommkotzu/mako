@@ -753,18 +753,20 @@ window.framed-panels .tile-tab-strip:hover > .tile-new-tab { opacity: 1; }
 /* Room at the end of the tab bar, so the + never covers a tab. */
 window.framed-panels nautilus-tile tabbar .box { padding-right: 36px; }
 window.framed-panels nautilus-inspector {
-  background-color: var(--sidebar-bg-color);
+  background-color: var(--mako-tile-bg);
   border-radius: 10px;
   margin: 0 6px 6px 0;
 }
-window.framed-panels nautilus-inspector:backdrop { background-color: var(--sidebar-backdrop-color); }
+/* The sidebar in the panels' colour too, as it is otherwise (flush). */
+window.framed-panels .sidebar-pane,
+window.framed-panels .sidebar-pane:backdrop { background-color: var(--mako-tile-bg); }
 window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
 window.framed-panels nautilus-inspector.docked-top,
 window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
 window.framed-panels nautilus-inspector .inspector-header { border-top: none; }
-/* The preview sunk into the card rather than raised from it. */
+/* The preview straight on the card, no frame behind it. */
 window.framed-panels nautilus-inspector .inspector-preview {
-  background-color: color-mix(in srgb, black 22%, transparent);
+  background-color: transparent;
   box-shadow: none;
 }
 window.framed-panels paned.inspector-paned > separator { min-width: 0; min-height: 0; }
