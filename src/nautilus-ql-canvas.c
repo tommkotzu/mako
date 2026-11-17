@@ -32,8 +32,11 @@
 #define GAP 6.0
 #define PICTURE 168.0
 #define NAME_ROOM 26.0
-/* Rows tried when fitting the canvas's shape. */
-#define MAX_ROWS 40
+/* Row widths tried when fitting the canvas's shape. */
+#define WIDTH_STEPS 240
+/* How much a picture's cell may differ from its shape (the picture then
+ * covers it, cropped), so the whole fills the canvas's shape. */
+#define MAX_CROP 0.12
 #define MARGIN 16.0
 #define MAX_ITEMS 400
 /* Full pictures kept at once on a canvas of several. */
@@ -235,8 +238,46 @@ layout_rows (NautilusQlCanvas *self,
     return y - GAP;
 }
 
-/* Lays the items out for the canvas's current size: of the widths that
- * give 1 to MAX_ROWS rows, the one whose pictures show biggest. */
+/* Rows a bit taller or shorter so the whole takes the canvas's shape:
+ * by FACTOR at most MAX_CROP, the widths kept, each picture cropped to its
+ * cell. */
+static void
+stretch_rows (NautilusQlCanvas *self,
+              double            target_h)
+{
+    Cell *cells = (Cell *) self->cells->data;
+    guint n = self->cells->len;
+    double name = self->show_names ? NAME_ROOM : 0;
+    double pictures = 0, other, factor, y = 0;
+    int rows = cells[n - 1].row + 1;
+
+    for (guint i = 0; i < n; i++)
+    {
+        if (i == 0 || cells[i].row != cells[i - 1].row)
+        {
+            pictures += cells[i].pic.size.height;
+        }
+    }
+    other = self->content_h - pictures;
+    factor = CLAMP ((target_h - other) / pictures, 1 - MAX_CROP, 1 + MAX_CROP);
+
+    for (int row = 0, i = 0; row < rows; row++)
+    {
+        double h = cells[i].pic.size.height * factor;
+
+        for (; i < (int) n && cells[i].row == row; i++)
+        {
+            cells[i].pic.origin.y = y;
+            cells[i].pic.size.height = h;
+        }
+        y += h + name + GAP;
+    }
+    self->content_h = y - GAP;
+}
+
+/* Lays the items out for the canvas's current size: of the row widths
+ * from the widest picture alone to all in one row, the one whose pictures
+ * show biggest; then the rows are stretched a little to fill the rest. */
 static void
 update_layout (NautilusQlCanvas *self)
 {
@@ -245,7 +286,7 @@ update_layout (NautilusQlCanvas *self)
     double avail_h = MAX (gtk_widget_get_height (GTK_WIDGET (self)) - 2 * MARGIN, 1);
     g_autofree double *aspects = g_new (double, MAX (n, 1));
     g_autofree Cell *trial = g_new (Cell, MAX (n, 1));
-    double sum = 0, best = -1;
+    double sum = 0, widest = 0, best = -1, min_w, max_w;
 
     g_array_set_size (self->cells, n);
     if (n < 2)
@@ -256,12 +297,20 @@ update_layout (NautilusQlCanvas *self)
     {
         aspects[i] = item_aspect (self, i);
         sum += aspects[i];
+        widest = MAX (widest, aspects[i]);
     }
-    for (guint rows = 1; rows <= MIN (n, MAX_ROWS); rows++)
+    min_w = widest * PICTURE;
+    max_w = MAX (sum * PICTURE + (n - 1) * GAP, min_w);
+    for (int step = 0; step <= WIDTH_STEPS; step++)
     {
-        double width = MAX ((sum * PICTURE + (n - rows) * GAP) / rows, PICTURE * 0.3);
+        /* Spread evenly on a log scale: as many tries for few rows as for many. */
+        double width = min_w * pow (max_w / min_w, step / (double) WIDTH_STEPS);
         double height = layout_rows (self, aspects, width, trial);
-        double fit = MIN (avail_w / width, avail_h / height);
+        double fit_w = avail_w / width;
+        double fit_h = avail_h / height;
+        /* Counting what stretching wins back: too wide fills out at no
+         * cost, too tall shrinks by up to MAX_CROP. */
+        double fit = MIN (fit_w, fit_h / (1 - MAX_CROP));
 
         if (fit > best)
         {
@@ -271,6 +320,7 @@ update_layout (NautilusQlCanvas *self)
             memcpy (self->cells->data, trial, n * sizeof (Cell));
         }
     }
+    stretch_rows (self, self->content_w * avail_h / avail_w);
 }
 
 static Cell *
@@ -403,7 +453,11 @@ picture_rect (NautilusQlCanvas *self,
         h = MAX (nat_h, 1);
     }
 
-    double s = MIN (box.size.width / w, box.size.height / h);
+    /* On a canvas of several a picture covers its cell, which may be a
+     * little off its shape (cropped by the drawing); anything else fits. */
+    double s = !is_single (self) && (item->is_picture || item->full != NULL)
+               ? MAX (box.size.width / w, box.size.height / h)
+               : MIN (box.size.width / w, box.size.height / h);
 
     return GRAPHENE_RECT_INIT (box.origin.x + (box.size.width - w * s) / 2,
                                box.origin.y + (box.size.height - h * s) / 2,
@@ -463,7 +517,8 @@ stars_bounds (NautilusQlCanvas *self,
         return FALSE;
     }
 
-    pic = picture_rect (self, i);
+    /* Where it's drawn: the cell, as the picture may be cropped to it. */
+    pic = picture_box (self, i);
     size = CLAMP (self->zoom * TILE / 12, 10, 17);
     *bounds = GRAPHENE_RECT_INIT (pic.origin.x + (pic.size.width - 5 * size) / 2,
                                   pic.origin.y + pic.size.height - size - 4,
@@ -952,7 +1007,7 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
     {
         Item *item = get_item (self, i);
         graphene_rect_t tile = tile_rect (self, i);
-        graphene_rect_t pic;
+        graphene_rect_t pic, box;
 
         if (!rect_visible (self, &tile))
         {
@@ -960,6 +1015,8 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
         }
 
         pic = picture_rect (self, i);
+        box = is_single (self) ? pic : picture_box (self, i);
+        gtk_snapshot_push_clip (snapshot, &box);
 
         if (item->full != NULL)
         {
@@ -979,6 +1036,7 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
         {
             gtk_widget_snapshot_child (widget, item->image, snapshot);
         }
+        gtk_snapshot_pop (snapshot);
 
         if ((int) i == self->hovered && !is_single (self))
         {
@@ -986,7 +1044,7 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
             GskRoundedRect outline;
             graphene_rect_t r;
 
-            graphene_rect_inset_r (&pic, -3, -3, &r);
+            graphene_rect_inset_r (&box, -3, -3, &r);
             gsk_rounded_rect_init_from_rect (&outline, &r, 5);
             gtk_snapshot_append_border (snapshot, &outline, (float[4]) { 2, 2, 2, 2 },
                                         (GdkRGBA[4]) { *accent, *accent, *accent, *accent });
@@ -994,7 +1052,7 @@ nautilus_ql_canvas_snapshot (GtkWidget   *widget,
 
         if (marks_wanted (self))
         {
-            snapshot_marks (self, snapshot, i, &pic);
+            snapshot_marks (self, snapshot, i, &box);
         }
 
         if (names)
