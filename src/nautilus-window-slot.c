@@ -3186,14 +3186,20 @@ nautilus_window_slot_set_active (NautilusWindowSlot *self,
 
         self->active = active;
 
+        /* Without a window (between windows, or closing) there's nobody
+         * to give the actions to; the next window takes them when the slot
+         * becomes active there. */
         if (active)
         {
             /* sync window to new slot */
             nautilus_window_slot_sync_actions (self);
 
-            gtk_widget_insert_action_group (GTK_WIDGET (window), "slot", self->slot_action_group);
+            if (window != NULL)
+            {
+                gtk_widget_insert_action_group (GTK_WIDGET (window), "slot", self->slot_action_group);
+            }
         }
-        else
+        else if (window != NULL)
         {
             gtk_widget_insert_action_group (GTK_WIDGET (window), "slot", NULL);
         }

@@ -85,13 +85,16 @@ nautilus_view_controls_set_window_slot (NautilusViewControls *self,
 
     disconnect_toolbar_menu_sections_change_handler (self);
 
-    self->window_slot = window_slot;
+    /* Weak: the slot can be closed (or moved to another window and closed
+     * there) before the window gives us the next one. */
+    g_set_weak_pointer (&self->window_slot, window_slot);
 
     if (self->window_slot != NULL)
     {
         on_slot_toolbar_menu_sections_changed (self, NULL, self->window_slot);
-        g_signal_connect_swapped (self->window_slot, "notify::toolbar-menu-sections",
-                                  G_CALLBACK (on_slot_toolbar_menu_sections_changed), self);
+        g_signal_connect_object (self->window_slot, "notify::toolbar-menu-sections",
+                                 G_CALLBACK (on_slot_toolbar_menu_sections_changed), self,
+                                 G_CONNECT_SWAPPED);
     }
 
     g_object_notify_by_pspec (G_OBJECT (self), properties[PROP_WINDOW_SLOT]);
@@ -162,7 +165,7 @@ nautilus_view_controls_finalize (GObject *obj)
     if (self->window_slot != NULL)
     {
         g_signal_handlers_disconnect_by_data (self->window_slot, self);
-        self->window_slot = NULL;
+        g_clear_weak_pointer (&self->window_slot);
     }
 
     G_OBJECT_CLASS (nautilus_view_controls_parent_class)->finalize (obj);

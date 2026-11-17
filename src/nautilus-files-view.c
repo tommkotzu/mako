@@ -3226,16 +3226,24 @@ slot_active_changed (NautilusWindowSlot *slot,
 
         schedule_update_context_menus (view);
 
-        gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (view))),
-                                        "view",
-                                        G_ACTION_GROUP (view->view_action_group));
+        /* Not while it's between windows (a tab or panel being moved, or
+         * closing): it gets them once it's in a window again. */
+        if (gtk_widget_get_root (GTK_WIDGET (view)) != NULL)
+        {
+            gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (view))),
+                                            "view",
+                                            G_ACTION_GROUP (view->view_action_group));
+        }
     }
     else
     {
         remove_update_context_menus_timeout_callback (view);
-        gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (view))),
-                                        "view",
-                                        NULL);
+        if (gtk_widget_get_root (GTK_WIDGET (view)) != NULL)
+        {
+            gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (view))),
+                                            "view",
+                                            NULL);
+        }
     }
 }
 
@@ -9204,7 +9212,7 @@ on_parent_changed (GObject    *object,
 
     if (parent != NULL)
     {
-        if (nautilus_window_slot_get_active (self->slot))
+        if (nautilus_window_slot_get_active (self->slot) && gtk_widget_get_root (widget) != NULL)
         {
             self->active = TRUE;
             gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (widget)),
@@ -9219,7 +9227,7 @@ on_parent_changed (GObject    *object,
          * Otherwise we might be removing an action group set by a different
          * view i.e. if slot_active_changed() is called before this one.
          */
-        if (self->active)
+        if (self->active && gtk_widget_get_root (GTK_WIDGET (self->slot)) != NULL)
         {
             gtk_widget_insert_action_group (GTK_WIDGET (gtk_widget_get_root (GTK_WIDGET (self->slot))),
                                             "view",

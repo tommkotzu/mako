@@ -620,6 +620,14 @@ remove_slot_from_window (NautilusWindowSlot *slot,
 
     disconnect_slot (window, slot);
     window->slots = g_list_remove (window->slots, slot);
+
+    /* Gone to another window (or closing): no longer this one's active
+     * slot, and inactive until the window it lands in makes it active. */
+    if (window->active_slot == slot)
+    {
+        nautilus_window_slot_set_active (slot, FALSE);
+        g_clear_weak_pointer (&window->active_slot);
+    }
     g_signal_emit (window, signals[LOCATIONS_CHANGED], 0);
 }
 
@@ -2854,8 +2862,10 @@ set_active_slot (NautilusWindow     *window,
 
     g_debug ("Setting new slot %p as active, old slot inactive %p", new_slot, old_slot);
 
-    /* make old slot inactive if it exists (may be NULL after init, for example) */
-    if (old_slot != NULL)
+    /* make old slot inactive if it exists (may be NULL after init, for
+     * example) and is still ours: one moved to another window is that
+     * window's business. */
+    if (old_slot != NULL && gtk_widget_is_ancestor (GTK_WIDGET (old_slot), GTK_WIDGET (window)))
     {
         /* inform slot & view */
         nautilus_window_slot_set_active (old_slot, FALSE);
