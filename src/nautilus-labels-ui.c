@@ -767,6 +767,10 @@ nautilus_labels_preferences_page_new (void)
         g_settings_bind (nautilus_flier_settings (), "window-opacity", opacity_row, "value", G_SETTINGS_BIND_DEFAULT);
         adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), opacity_row);
     }
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("_Panel Buttons"),
+                                               _("The sidebar and inspector buttons at the ends of the header bar. Without them, use F9 and F4, or the view menu"),
+                                               "panel-buttons"));
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
 
     /* Copying and moving */

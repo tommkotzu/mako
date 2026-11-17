@@ -427,6 +427,7 @@ build_views_popover (void)
 
     append_item (panels, _("_Inspector"), "win.inspector-visible");
     append_item (panels, _("_Bottom Bar"), "win.bottom-bar");
+    append_item (panels, _("_Panel Buttons"), "win.panel-buttons");
     g_menu_append_section (menu, NULL, G_MENU_MODEL (panels));
 
     popover = gtk_popover_menu_new_from_model (G_MENU_MODEL (menu));

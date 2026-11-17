@@ -92,6 +92,7 @@ template $NautilusToolbar: Adw.Bin {
 
     [end]
     ToggleButton show_inspector_button {
+      visible: bind template.show-inspector-button;
       tooltip-text: _("Show Inspector");
       icon-name: "sidebar-show-right-symbolic";
       action-name: "win.inspector-visible";

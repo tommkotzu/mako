@@ -3442,6 +3442,29 @@ apply_window_opacity (NautilusWindow *window)
     }
 }
 
+/* The sidebar and inspector buttons, unless turned off; a narrow window
+ * keeps the sidebar's, the only way to its folded-away sidebar by mouse. */
+static gboolean
+apply_panel_buttons (gpointer user_data)
+{
+    NautilusWindow *window = user_data;
+    gboolean shown = g_settings_get_boolean (nautilus_flier_settings (), "panel-buttons");
+    gboolean collapsed = adw_overlay_split_view_get_collapsed (ADW_OVERLAY_SPLIT_VIEW (window->split_view));
+
+    g_object_set (window->toolbar,
+                  "show-sidebar-button", shown || collapsed,
+                  "show-inspector-button", shown,
+                  NULL);
+    return G_SOURCE_REMOVE;
+}
+
+static void
+panel_buttons_later (NautilusWindow *window)
+{
+    /* After a breakpoint has put back what it changed. */
+    g_idle_add_full (G_PRIORITY_DEFAULT, apply_panel_buttons, g_object_ref (window), g_object_unref);
+}
+
 static void
 setup_inspector (NautilusWindow *window)
 {
@@ -3451,6 +3474,7 @@ setup_inspector (NautilusWindow *window)
     g_autoptr (GAction) side = g_settings_create_action (nautilus_flier_settings (), "inspector-side");
     g_autoptr (GAction) bottom_bar = g_settings_create_action (nautilus_flier_settings (), "bottom-bar");
     g_autoptr (GAction) hints = g_settings_create_action (nautilus_flier_settings (), "shortcut-hints");
+    g_autoptr (GAction) panel_buttons = g_settings_create_action (nautilus_flier_settings (), "panel-buttons");
     g_autoptr (GAction) groups = g_settings_create_action (nautilus_flier_settings (), "sidebar-groups");
     g_autoptr (GAction) columns_stars = g_settings_create_action (nautilus_flier_settings (), "columns-stars");
     static const GActionEntry entries[] =
@@ -3511,6 +3535,7 @@ setup_inspector (NautilusWindow *window)
     g_action_map_add_action (G_ACTION_MAP (window), side);
     g_action_map_add_action (G_ACTION_MAP (window), bottom_bar);
     g_action_map_add_action (G_ACTION_MAP (window), hints);
+    g_action_map_add_action (G_ACTION_MAP (window), panel_buttons);
     g_action_map_add_action (G_ACTION_MAP (window), groups);
     g_action_map_add_action (G_ACTION_MAP (window), columns_stars);
     g_action_map_add_action_entries (G_ACTION_MAP (window), entries, G_N_ELEMENTS (entries), window);
@@ -3915,6 +3940,11 @@ nautilus_window_init (NautilusWindow *window)
     nautilus_quick_look_attach (ADW_APPLICATION_WINDOW (window));
     nautilus_shortcuts_attach (GTK_WINDOW (window));
     setup_inspector (window);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::panel-buttons",
+                             G_CALLBACK (panel_buttons_later), window, G_CONNECT_SWAPPED);
+    g_signal_connect_object (window->split_view, "notify::collapsed",
+                             G_CALLBACK (panel_buttons_later), window, G_CONNECT_SWAPPED);
+    apply_panel_buttons (window);
 
     update_density (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::density",

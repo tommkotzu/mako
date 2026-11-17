@@ -77,6 +77,7 @@ static const Setting settings[] =
     { N_("Inspector Side"), N_("Inspector"), "details dock panel", SCHEMA_FLIER, "inspector-side",
       N_("left=Left|right=Right|top=Top|bottom=Bottom|window=Window") },
     { N_("Bottom Bar"), N_("View"), "filter status", SCHEMA_FLIER, "bottom-bar", NULL },
+    { N_("Panel Buttons"), N_("View"), "sidebar inspector header toggle", SCHEMA_FLIER, "panel-buttons", NULL },
     { N_("Columns View"), N_("View"), "miller", SCHEMA_FLIER, "columns-view", NULL },
     { N_("Tree View for New Tabs"), N_("View"), "expand list", SCHEMA_FLIER, "tree-view", NULL },
     { N_("Ratings"), N_("Rate and Tag"), "stars", SCHEMA_FLIER, "ratings", NULL },

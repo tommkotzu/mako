@@ -132,6 +132,11 @@
       <summary>Tree view for new tabs</summary>
       <description>Whether new tabs show the list with expandable folders. The last choice of View is remembered.</description>
     </key>
+    <key type="b" name="panel-buttons">
+      <default>true</default>
+      <summary>Panel buttons</summary>
+      <description>Show the buttons for the sidebar and the inspector at the ends of the header bar. Without them the panels open with F9 and F4 (or the view menu); in a narrow window the sidebar button still shows.</description>
+    </key>
     <key type="b" name="bottom-bar">
       <default>true</default>
       <summary>Bottom bar</summary>
