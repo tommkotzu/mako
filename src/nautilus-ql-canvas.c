@@ -12,6 +12,9 @@
 
 #include "nautilus-ql-canvas.h"
 
+#include <math.h>
+#include <string.h>
+
 #include <adwaita.h>
 #include <glycin.h>
 #include <glycin-gtk4.h>
@@ -21,16 +24,16 @@
 #include "nautilus-labels.h"
 #include "nautilus-text-preview.h"
 
-/* TILE is the nominal size the zoom thresholds (names, marks) are measured
- * against; an item's real cell is the picture with a thin border, plus
- * room for its name below when names show. */
+/* Several items are laid out bento style: in rows of one height each,
+ * every picture at its own shape, each row filling the width. PICTURE is
+ * the row height aimed for (in canvas units, before zoom); TILE the size
+ * the zoom thresholds (marks) are measured against. */
 #define TILE 200.0
-#define GAP 4.0
+#define GAP 6.0
 #define PICTURE 168.0
-#define CELL_SIDE 3.0
-#define CELL_TOP 3.0
 #define NAME_ROOM 26.0
-#define CELL_W (PICTURE + 2 * CELL_SIDE)
+/* Rows tried when fitting the canvas's shape. */
+#define MAX_ROWS 40
 #define MARGIN 16.0
 #define MAX_ITEMS 400
 /* Full pictures kept at once on a canvas of several. */
@@ -78,6 +81,11 @@ struct _NautilusQlCanvas
 
     gboolean show_names;
     gboolean show_marks;
+
+    /* The bento layout: each item's picture in canvas units, its row, and
+     * the size of the whole. */
+    GArray *cells;
+    double content_w, content_h;
 
     guint full_idle;
 };
@@ -141,25 +149,139 @@ is_single (NautilusQlCanvas *self)
 
 /* ----------------------------------------------------------- Geometry */
 
-static void
-grid_shape (NautilusQlCanvas *self,
-            guint            *cols,
-            guint            *rows)
+typedef struct
 {
-    guint n = MAX (self->items->len, 1);
-    double width = MAX (gtk_widget_get_width (GTK_WIDGET (self)), 1);
-    double height = MAX (gtk_widget_get_height (GTK_WIDGET (self)), 1);
-    double aspect = CLAMP (width / height, 0.1, 10.0);
+    graphene_rect_t pic;
+    int row;
+} Cell;
 
-    *cols = CLAMP ((guint) round (sqrt (n * aspect)), 1, n);
-    *rows = (n + *cols - 1) / *cols;
+/* An item's width over height. */
+static double
+item_aspect (NautilusQlCanvas *self,
+             guint             i)
+{
+    Item *item = get_item (self, i);
+    double w, h;
+
+    if (item->full != NULL)
+    {
+        w = gdk_texture_get_width (item->full);
+        h = gdk_texture_get_height (item->full);
+    }
+    else if (item->text != NULL)
+    {
+        return 0.77;
+    }
+    else
+    {
+        int nat_w, nat_h;
+
+        gtk_widget_measure (item->image, GTK_ORIENTATION_HORIZONTAL, -1, NULL, &nat_w, NULL, NULL);
+        gtk_widget_measure (item->image, GTK_ORIENTATION_VERTICAL, -1, NULL, &nat_h, NULL, NULL);
+        w = MAX (nat_w, 1);
+        h = MAX (nat_h, 1);
+    }
+    /* A panorama or a strip still gets a usable cell. */
+    return CLAMP (w / h, 0.3, 4.0);
 }
 
-/* An item's cell height: room for the name only when names show. */
+/* Justified rows WIDTH wide: items join a row until it would be wider at
+ * the aimed-for height, then the row is scaled to fill the width exactly.
+ * The last row grows at most half again as tall, then is centred. */
 static double
-cell_h (NautilusQlCanvas *self)
+layout_rows (NautilusQlCanvas *self,
+             const double     *aspects,
+             double            width,
+             Cell             *cells)
 {
-    return PICTURE + CELL_TOP + (self->show_names ? NAME_ROOM : CELL_TOP);
+    guint n = self->items->len;
+    double name = self->show_names ? NAME_ROOM : 0;
+    double y = 0;
+    int row = 0;
+
+    for (guint i = 0; i < n;)
+    {
+        guint j = i;
+        double sum = 0;
+        double h, row_w, x;
+
+        while (j < n)
+        {
+            sum += aspects[j++];
+            if (sum * PICTURE + (j - i - 1) * GAP >= width)
+            {
+                break;
+            }
+        }
+        h = (width - (j - i - 1) * GAP) / sum;
+        /* A short last row grows a little to fill the width, then stops
+         * and is centred. */
+        if (j == n)
+        {
+            h = MIN (h, PICTURE * 1.5);
+        }
+        row_w = sum * h + (j - i - 1) * GAP;
+        x = (width - row_w) / 2;
+        for (guint k = i; k < j; k++)
+        {
+            cells[k].pic = GRAPHENE_RECT_INIT (x, y, aspects[k] * h, h);
+            cells[k].row = row;
+            x += aspects[k] * h + GAP;
+        }
+        y += h + name + GAP;
+        row++;
+        i = j;
+    }
+    return y - GAP;
+}
+
+/* Lays the items out for the canvas's current size: of the widths that
+ * give 1 to MAX_ROWS rows, the one whose pictures show biggest. */
+static void
+update_layout (NautilusQlCanvas *self)
+{
+    guint n = self->items->len;
+    double avail_w = MAX (gtk_widget_get_width (GTK_WIDGET (self)) - 2 * MARGIN, 1);
+    double avail_h = MAX (gtk_widget_get_height (GTK_WIDGET (self)) - 2 * MARGIN, 1);
+    g_autofree double *aspects = g_new (double, MAX (n, 1));
+    g_autofree Cell *trial = g_new (Cell, MAX (n, 1));
+    double sum = 0, best = -1;
+
+    g_array_set_size (self->cells, n);
+    if (n < 2)
+    {
+        return;
+    }
+    for (guint i = 0; i < n; i++)
+    {
+        aspects[i] = item_aspect (self, i);
+        sum += aspects[i];
+    }
+    for (guint rows = 1; rows <= MIN (n, MAX_ROWS); rows++)
+    {
+        double width = MAX ((sum * PICTURE + (n - rows) * GAP) / rows, PICTURE * 0.3);
+        double height = layout_rows (self, aspects, width, trial);
+        double fit = MIN (avail_w / width, avail_h / height);
+
+        if (fit > best)
+        {
+            best = fit;
+            self->content_w = width;
+            self->content_h = height;
+            memcpy (self->cells->data, trial, n * sizeof (Cell));
+        }
+    }
+}
+
+static Cell *
+get_cell (NautilusQlCanvas *self,
+          guint             i)
+{
+    if (self->cells->len != self->items->len)
+    {
+        update_layout (self);
+    }
+    return &g_array_index (self->cells, Cell, i);
 }
 
 static void
@@ -184,11 +306,12 @@ content_size (NautilusQlCanvas *self,
         return;
     }
 
-    guint cols, rows;
-
-    grid_shape (self, &cols, &rows);
-    *width = cols * (CELL_W + GAP) - GAP;
-    *height = rows * (cell_h (self) + GAP) - GAP;
+    if (self->cells->len != self->items->len)
+    {
+        update_layout (self);
+    }
+    *width = self->content_w;
+    *height = self->content_h;
 }
 
 static double
@@ -212,7 +335,8 @@ fit_zoom (NautilusQlCanvas *self)
     return fit;
 }
 
-/* The square an item takes on the canvas, in widget coordinates. */
+/* The space an item takes on the canvas, its name included, in widget
+ * coordinates. */
 static graphene_rect_t
 tile_rect (NautilusQlCanvas *self,
            guint             i)
@@ -229,14 +353,13 @@ tile_rect (NautilusQlCanvas *self,
         return GRAPHENE_RECT_INIT (cx - cw * z / 2, cy - ch * z / 2, cw * z, ch * z);
     }
 
-    guint cols, rows;
+    Cell *cell = get_cell (self, i);
+    double name = self->show_names ? NAME_ROOM : 0;
 
-    grid_shape (self, &cols, &rows);
-
-    double qx = (i % cols) * (CELL_W + GAP) - cw / 2;
-    double qy = (i / cols) * (cell_h (self) + GAP) - ch / 2;
-
-    return GRAPHENE_RECT_INIT (cx + qx * z, cy + qy * z, CELL_W * z, cell_h (self) * z);
+    return GRAPHENE_RECT_INIT (cx + (cell->pic.origin.x - cw / 2) * z,
+                               cy + (cell->pic.origin.y - ch / 2) * z,
+                               cell->pic.size.width * z,
+                               (cell->pic.size.height + name) * z);
 }
 
 /* The box the picture is fitted into, inside its tile. */
@@ -252,9 +375,8 @@ picture_box (NautilusQlCanvas *self,
         return tile;
     }
 
-    return GRAPHENE_RECT_INIT (tile.origin.x + CELL_SIDE * z,
-                               tile.origin.y + CELL_TOP * z,
-                               PICTURE * z, PICTURE * z);
+    return GRAPHENE_RECT_INIT (tile.origin.x, tile.origin.y, tile.size.width,
+                               get_cell (self, i)->pic.size.height * z);
 }
 
 /* Where the picture itself is drawn: its box, fitted to its shape. */
@@ -441,7 +563,6 @@ nautilus_ql_canvas_move_hovered (NautilusQlCanvas *self,
 {
     int n = self->items->len;
     int i = self->hovered;
-    guint cols, rows;
 
     if (n < 2)
     {
@@ -459,33 +580,46 @@ nautilus_ql_canvas_move_hovered (NautilusQlCanvas *self,
     }
     else
     {
-        grid_shape (self, &cols, &rows);
+        int row = get_cell (self, i)->row;
+        int last_row = get_cell (self, n - 1)->row;
+
         switch (direction)
         {
             case GTK_DIR_LEFT:
             {
-                i -= (i % (int) cols) > 0 ? 1 : 0;
+                i -= i > 0 && get_cell (self, i - 1)->row == row ? 1 : 0;
             }
             break;
 
             case GTK_DIR_RIGHT:
             {
-                i += (i % (int) cols) < (int) cols - 1 ? 1 : 0;
+                i += i < n - 1 && get_cell (self, i + 1)->row == row ? 1 : 0;
             }
             break;
 
             case GTK_DIR_UP:
-            {
-                i -= i >= (int) cols ? (int) cols : 0;
-            }
-            break;
-
             case GTK_DIR_DOWN:
             {
-                /* Into a shorter last row: its last item, as the grid view does. */
-                if (i / (int) cols < (n - 1) / (int) cols)
+                /* The item in the row above or below nearest across. */
+                int to = row + (direction == GTK_DIR_UP ? -1 : 1);
+                graphene_rect_t *from = &get_cell (self, i)->pic;
+                double x = from->origin.x + from->size.width / 2;
+                double nearest = G_MAXDOUBLE;
+
+                if (to < 0 || to > last_row)
                 {
-                    i = MIN (i + (int) cols, n - 1);
+                    break;
+                }
+                for (int k = 0; k < n; k++)
+                {
+                    graphene_rect_t *r = &get_cell (self, k)->pic;
+                    double d = fabs (r->origin.x + r->size.width / 2 - x);
+
+                    if (get_cell (self, k)->row == to && d < nearest)
+                    {
+                        nearest = d;
+                        i = k;
+                    }
                 }
             }
             break;
@@ -686,6 +820,7 @@ nautilus_ql_canvas_size_allocate (GtkWidget *widget,
 {
     NautilusQlCanvas *self = NAUTILUS_QL_CANVAS (widget);
 
+    update_layout (self);
     if (self->at_fit)
     {
         self->zoom = fit_zoom (self);
@@ -1132,6 +1267,7 @@ nautilus_ql_canvas_set_files (NautilusQlCanvas *self,
                               GList            *files)
 {
     g_ptr_array_set_size (self->items, 0);
+    g_array_set_size (self->cells, 0);
     self->hovered = -1;
 
     for (GList *l = files; l != NULL && self->items->len < MAX_ITEMS; l = l->next)
@@ -1280,6 +1416,7 @@ nautilus_ql_canvas_dispose (GObject *object)
 
     g_clear_handle_id (&self->full_idle, g_source_remove);
     g_clear_pointer (&self->items, g_ptr_array_unref);
+    g_clear_pointer (&self->cells, g_array_unref);
 
     G_OBJECT_CLASS (nautilus_ql_canvas_parent_class)->dispose (object);
 }
@@ -1291,6 +1428,7 @@ nautilus_ql_canvas_init (NautilusQlCanvas *self)
     GtkGesture *gesture;
 
     self->items = g_ptr_array_new_with_free_func ((GDestroyNotify) item_free);
+    self->cells = g_array_new (FALSE, TRUE, sizeof (Cell));
     self->zoom = 1.0;
     self->at_fit = TRUE;
     self->hovered = -1;
