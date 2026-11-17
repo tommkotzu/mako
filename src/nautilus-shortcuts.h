@@ -39,13 +39,16 @@ void         nautilus_shortcuts_run             (GtkWindow *window,
                                                  guint      i);
 
 /* Changing a command's keys, from the jump menu: records a new key for
- * @slot (-1 adds one) in a small dialog over @window. */
-void         nautilus_shortcuts_record_key      (GtkWindow *window,
+ * @slot (-1 adds one) in a small dialog over @parent. */
+void         nautilus_shortcuts_record_key      (GtkWidget *parent,
                                                  guint      i,
                                                  int        slot);
 void         nautilus_shortcuts_remove_key      (guint      i,
                                                  int        slot);
 void         nautilus_shortcuts_reset_keys      (guint      i);
 gboolean     nautilus_shortcuts_command_changed (guint      i);
+
+/* Preferences' Shortcuts page: every command by group, keys to change. */
+GtkWidget   *nautilus_shortcuts_preferences_page_new (void);
 
 G_END_DECLS

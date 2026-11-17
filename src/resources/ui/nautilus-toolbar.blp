@@ -25,13 +25,17 @@ template $NautilusToolbar: Adw.Bin {
           name: "location";
 
           child: Box {
-            styles [
-              "linked",
-            ]
+            spacing: 6;
 
             $NautilusLocationEntry location_entry {}
 
             Button {
+              styles [
+                "circular",
+                "flat",
+              ]
+
+              valign: center;
               icon-name: "window-close-symbolic";
               tooltip-text: _("Cancel");
               clicked => $nautilus_toolbar_close_location_entry() swapped;

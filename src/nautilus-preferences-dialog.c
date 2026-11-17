@@ -24,6 +24,7 @@
 #include <config.h>
 
 #include "nautilus-preferences-dialog.h"
+#include "nautilus-shortcuts.h"
 
 #include "nautilus-labels-ui.h"
 
@@ -210,6 +211,13 @@ nautilus_preferences_dialog_setup (GtkBuilder *builder)
 void
 nautilus_preferences_dialog_show (GtkWidget *parent)
 {
+    nautilus_preferences_dialog_show_page (parent, NULL);
+}
+
+void
+nautilus_preferences_dialog_show_page (GtkWidget  *parent,
+                                       const char *page)
+{
     static AdwPreferencesDialog *preferences_dialog = NULL;
     g_autoptr (GtkBuilder) builder = NULL;
     g_autoptr (GSimpleActionGroup) action_group = g_simple_action_group_new ();
@@ -238,6 +246,12 @@ nautilus_preferences_dialog_show (GtkWidget *parent)
 
     adw_preferences_dialog_add (preferences_dialog,
                                 ADW_PREFERENCES_PAGE (nautilus_labels_preferences_page_new ()));
+    adw_preferences_dialog_add (preferences_dialog,
+                                ADW_PREFERENCES_PAGE (nautilus_shortcuts_preferences_page_new ()));
 
+    if (page != NULL)
+    {
+        adw_preferences_dialog_set_visible_page_name (preferences_dialog, page);
+    }
     adw_dialog_present (ADW_DIALOG (preferences_dialog), parent);
 }

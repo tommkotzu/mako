@@ -753,7 +753,7 @@ record (NautilusJump *jump,
     close_entry (jump);
     if (window != NULL)
     {
-        nautilus_shortcuts_record_key (window, i, slot);
+        nautilus_shortcuts_record_key (GTK_WIDGET (window), i, slot);
     }
 }
 
@@ -1599,6 +1599,8 @@ nautilus_jump_new (GtkWidget *entry,
     gtk_popover_set_autohide (GTK_POPOVER (jump->popover), FALSE);
     gtk_popover_set_has_arrow (GTK_POPOVER (jump->popover), FALSE);
     gtk_popover_set_position (GTK_POPOVER (jump->popover), GTK_POS_BOTTOM);
+    /* A little apart from the path bar. */
+    gtk_popover_set_offset (GTK_POPOVER (jump->popover), 0, 8);
     gtk_widget_set_focusable (jump->popover, FALSE);
     gtk_widget_add_css_class (jump->popover, "jump-menu");
     g_signal_connect_object (adw_style_manager_get_default (), "notify::accent-color",
@@ -1652,7 +1654,7 @@ static void
 size_popover (NautilusJump *jump)
 {
     gtk_widget_set_size_request (gtk_popover_get_child (GTK_POPOVER (jump->popover)),
-                                 MAX (gtk_widget_get_width (jump->anchor) - 2, 560), -1);
+                                 MAX (gtk_widget_get_width (jump->anchor) + 48, 560), -1);
 }
 
 static gboolean

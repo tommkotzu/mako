@@ -29,5 +29,8 @@
 G_BEGIN_DECLS
 
 void nautilus_preferences_dialog_show (GtkWidget *widget);
+/* Opens on the page named @page ("shortcuts"). */
+void nautilus_preferences_dialog_show_page (GtkWidget  *widget,
+                                            const char *page);
 
 G_END_DECLS

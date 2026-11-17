@@ -25,6 +25,7 @@
 #include "nautilus-bookmark.h"
 #include "nautilus-bookmark-list.h"
 #include "nautilus-labels.h"
+#include "nautilus-preferences-dialog.h"
 #include "nautilus-quick-look.h"
 #include "nautilus-window-slot.h"
 
@@ -814,14 +815,7 @@ action_keyboard_shortcuts (GSimpleAction *action,
                            GVariant      *parameter,
                            gpointer       user_data)
 {
-    /* The command list is the jump menu's Commands. */
-    for (guint i = 0; i < G_N_ELEMENTS (commands); i++)
-    {
-        if (g_str_equal (commands[i].action, "toolbar.jump-commands"))
-        {
-            run_command (GTK_WINDOW (user_data), &commands[i]);
-        }
-    }
+    nautilus_preferences_dialog_show_page (GTK_WIDGET (user_data), "shortcuts");
 }
 
 void
@@ -1009,10 +1003,12 @@ on_recorder_key (GtkEventControllerKey *controller,
 }
 
 void
-nautilus_shortcuts_record_key (GtkWindow *window,
+nautilus_shortcuts_record_key (GtkWidget *parent,
                                guint      i,
                                int        slot)
 {
+    GtkRoot *root = gtk_widget_get_root (parent);
+    GtkWindow *window = GTK_IS_WINDOW (root) ? GTK_WINDOW (root) : NULL;
     const Command *command = &commands[i];
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
     GtkWidget *title = gtk_label_new (_(command->title));
@@ -1051,7 +1047,7 @@ nautilus_shortcuts_record_key (GtkWindow *window,
     g_signal_connect (keys, "key-pressed", G_CALLBACK (on_recorder_key), NULL);
     gtk_widget_add_controller (GTK_WIDGET (recording.dialog), keys);
 
-    adw_dialog_present (recording.dialog, GTK_WIDGET (window));
+    adw_dialog_present (recording.dialog, parent);
     gtk_widget_grab_focus (GTK_WIDGET (recording.dialog));
 }
 
@@ -1075,4 +1071,252 @@ nautilus_shortcuts_command_changed (guint i)
     g_auto (GStrv) keys = command_keys (&commands[i], &changed);
 
     return changed;
+}
+
+/* ------------------------------------------------ The Shortcuts page */
+
+/* In Preferences: every command by group, with its keys to change. */
+
+typedef struct
+{
+    const Command *command;
+    GtkWidget *keys; /* the row's suffix, refilled when keys change */
+} KeyRow;
+
+static void fill_keys (KeyRow *key_row);
+
+static void
+on_page_key_clicked (GtkButton *button,
+                     gpointer   user_data)
+{
+    const Command *command = g_object_get_data (G_OBJECT (button), "command");
+
+    nautilus_shortcuts_record_key (GTK_WIDGET (button), command - commands,
+                                   GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot")));
+}
+
+static void
+on_page_key_secondary (GtkGestureClick *gesture,
+                       int              n_press,
+                       double           x,
+                       double           y,
+                       gpointer         user_data)
+{
+    GtkWidget *button = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+    const Command *command = g_object_get_data (G_OBJECT (button), "command");
+
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+    assign_key (command, GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "slot")), NULL);
+}
+
+static void
+on_page_reset (GtkButton *button,
+               gpointer   user_data)
+{
+    set_command_keys (g_object_get_data (G_OBJECT (button), "command"), NULL);
+}
+
+static GtkWidget *
+page_button (const Command *command,
+             int            slot,
+             const char    *accel)
+{
+    GtkWidget *button;
+
+    if (accel != NULL)
+    {
+        GtkGesture *secondary = gtk_gesture_click_new ();
+
+        g_autofree char *text = accel_label (accel);
+
+        /* A compact key chip ("Alt+←"), as in the jump menu. */
+        button = gtk_button_new_with_label (text);
+        gtk_widget_add_css_class (button, "jump-kbd");
+        gtk_widget_set_tooltip_text (button, _("Change (right-click removes)"));
+        gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (secondary), GDK_BUTTON_SECONDARY);
+        g_signal_connect (secondary, "pressed", G_CALLBACK (on_page_key_secondary), NULL);
+        gtk_widget_add_controller (button, GTK_EVENT_CONTROLLER (secondary));
+    }
+    else
+    {
+        button = gtk_button_new_from_icon_name ("list-add-symbolic");
+        gtk_widget_add_css_class (button, "circular");
+        gtk_widget_set_tooltip_text (button, _("Add Shortcut"));
+    }
+    gtk_widget_add_css_class (button, "flat");
+    gtk_widget_set_valign (button, GTK_ALIGN_CENTER);
+    g_object_set_data (G_OBJECT (button), "command", (gpointer) command);
+    g_object_set_data (G_OBJECT (button), "slot", GINT_TO_POINTER (slot));
+    g_signal_connect (button, "clicked", G_CALLBACK (on_page_key_clicked), NULL);
+    return button;
+}
+
+static void
+fill_keys (KeyRow *key_row)
+{
+    gboolean changed = FALSE;
+    g_auto (GStrv) keys = command_keys (key_row->command, &changed);
+    GtkWidget *child;
+    GtkWidget *reset;
+
+    while ((child = gtk_widget_get_first_child (key_row->keys)) != NULL)
+    {
+        gtk_box_remove (GTK_BOX (key_row->keys), child);
+    }
+
+    if (changed)
+    {
+        GtkWidget *dot = gtk_image_new_from_icon_name ("document-edit-symbolic");
+
+        gtk_widget_add_css_class (dot, "accent");
+        gtk_widget_set_tooltip_text (dot, _("Changed"));
+        gtk_box_append (GTK_BOX (key_row->keys), dot);
+    }
+    for (int k = 0; keys[k] != NULL; k++)
+    {
+        gtk_box_append (GTK_BOX (key_row->keys), page_button (key_row->command, k, keys[k]));
+    }
+    gtk_box_append (GTK_BOX (key_row->keys), page_button (key_row->command, -1, NULL));
+
+    reset = gtk_button_new_from_icon_name ("edit-undo-symbolic");
+    gtk_widget_add_css_class (reset, "flat");
+    gtk_widget_add_css_class (reset, "circular");
+    gtk_widget_set_valign (reset, GTK_ALIGN_CENTER);
+    gtk_widget_set_tooltip_text (reset, _("Back to the keys it came with"));
+    gtk_widget_set_opacity (reset, changed ? 1 : 0);
+    gtk_widget_set_sensitive (reset, changed);
+    g_object_set_data (G_OBJECT (reset), "command", (gpointer) key_row->command);
+    g_signal_connect (reset, "clicked", G_CALLBACK (on_page_reset), NULL);
+    gtk_box_append (GTK_BOX (key_row->keys), reset);
+}
+
+static gboolean
+refill_later (gpointer page)
+{
+    GPtrArray *rows = g_object_get_data (G_OBJECT (page), "key-rows");
+
+    g_object_set_data (G_OBJECT (page), "refill", NULL);
+    for (guint i = 0; rows != NULL && i < rows->len; i++)
+    {
+        fill_keys (rows->pdata[i]);
+    }
+    g_object_unref (page);
+    return G_SOURCE_REMOVE;
+}
+
+/* Later: the change may come from a button being replaced. */
+static void
+on_page_keys_changed (GtkWidget *page)
+{
+    if (g_object_get_data (G_OBJECT (page), "refill") == NULL)
+    {
+        g_object_set_data (G_OBJECT (page), "refill", GINT_TO_POINTER (1));
+        g_idle_add (refill_later, g_object_ref (page));
+    }
+}
+
+static void
+on_reset_all (GtkButton *button,
+              gpointer   user_data)
+{
+    g_settings_reset (nautilus_flier_settings (), "custom-shortcuts");
+}
+
+GtkWidget *
+nautilus_shortcuts_preferences_page_new (void)
+{
+    static const char *sections[] =
+    {
+        SECTION_NAVIGATE, SECTION_TABS, SECTION_OPEN, SECTION_EDIT, SECTION_SELECT,
+        SECTION_VIEW, SECTION_ORGANIZE, SECTION_APP,
+    };
+    static const char *descriptions[] =
+    {
+        N_("Folders, the path bar, search and the sidebar"),
+        N_("Tabs, split tiles and windows"),
+        N_("Opening files and folders, Quick Look"),
+        N_("Copy, move, rename and delete"),
+        NULL,
+        N_("Views, sorting, zoom and panels"),
+        N_("Ratings, tags and folder colors"),
+        NULL,
+    };
+    GtkWidget *page = adw_preferences_page_new ();
+    GPtrArray *rows = g_ptr_array_new_with_free_func (g_free);
+    GtkWidget *group;
+    GtkWidget *reset;
+
+    adw_preferences_page_set_title (ADW_PREFERENCES_PAGE (page), _("Shortcuts"));
+    adw_preferences_page_set_icon_name (ADW_PREFERENCES_PAGE (page), "preferences-desktop-keyboard-shortcuts-symbolic");
+    adw_preferences_page_set_name (ADW_PREFERENCES_PAGE (page), "shortcuts");
+    adw_preferences_page_set_description (ADW_PREFERENCES_PAGE (page),
+                                          _("Click a key to change it and press the new one. Right-click "
+                                            "a key to remove it, + adds another. A key taken from another "
+                                            "command is removed there."));
+
+    for (guint s = 0; s < G_N_ELEMENTS (sections); s++)
+    {
+        group = adw_preferences_group_new ();
+        adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _(sections[s]));
+        if (descriptions[s] != NULL)
+        {
+            adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group), _(descriptions[s]));
+        }
+        if (s == 0)
+        {
+            reset = gtk_button_new_with_mnemonic (_("_Reset All"));
+            gtk_widget_add_css_class (reset, "flat");
+            gtk_widget_set_valign (reset, GTK_ALIGN_CENTER);
+            gtk_widget_set_tooltip_text (reset, _("Back to the keys every command came with"));
+            g_signal_connect (reset, "clicked", G_CALLBACK (on_reset_all), NULL);
+            adw_preferences_group_set_header_suffix (ADW_PREFERENCES_GROUP (group), reset);
+        }
+
+        for (guint i = 0; i < G_N_ELEMENTS (commands); i++)
+        {
+            KeyRow *key_row;
+            GtkWidget *row;
+
+            if (commands[i].section != sections[s])
+            {
+                continue;
+            }
+            key_row = g_new0 (KeyRow, 1);
+            key_row->command = &commands[i];
+            key_row->keys = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+            gtk_widget_set_valign (key_row->keys, GTK_ALIGN_CENTER);
+            fill_keys (key_row);
+            g_ptr_array_add (rows, key_row);
+
+            row = adw_action_row_new ();
+            adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _(commands[i].title));
+            adw_preferences_row_set_use_markup (ADW_PREFERENCES_ROW (row), FALSE);
+            adw_action_row_add_suffix (ADW_ACTION_ROW (row), key_row->keys);
+            adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), row);
+        }
+        adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
+    }
+
+    /* For reference: what isn't a command. */
+    group = adw_preferences_group_new ();
+    adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Mouse and Quick Look"));
+    adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group), _("These keys can't be changed."));
+    for (guint i = 0; i < G_N_ELEMENTS (basics); i++)
+    {
+        GtkWidget *row = adw_action_row_new ();
+        GtkWidget *keys = gtk_label_new (_(basics[i].keys));
+
+        adw_preferences_row_set_title (ADW_PREFERENCES_ROW (row), _(basics[i].title));
+        adw_preferences_row_set_use_markup (ADW_PREFERENCES_ROW (row), FALSE);
+        gtk_widget_add_css_class (keys, "dim-label");
+        adw_action_row_add_suffix (ADW_ACTION_ROW (row), keys);
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), row);
+    }
+    adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));
+
+    g_object_set_data_full (G_OBJECT (page), "key-rows", rows, (GDestroyNotify) g_ptr_array_unref);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::custom-shortcuts",
+                             G_CALLBACK (on_page_keys_changed), page, G_CONNECT_SWAPPED);
+
+    return page;
 }
