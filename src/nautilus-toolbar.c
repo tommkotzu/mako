@@ -296,6 +296,7 @@ action_jump_to (GtkWidget  *widget,
         return;
     }
     nautilus_toolbar_open_location_entry (self, "");
+    nautilus_jump_restore (self->jump);
 }
 
 /* F1: the commands and their keys. */
@@ -308,6 +309,14 @@ action_jump_commands (GtkWidget  *widget,
 
     action_jump_to (widget, action_name, parameter);
     nautilus_jump_show_commands (self->jump);
+}
+
+static void
+on_slot_location (NautilusWindowSlot *slot,
+                  GParamSpec         *pspec,
+                  NautilusToolbar    *self)
+{
+    nautilus_jump_note_visit (nautilus_window_slot_get_location (slot));
 }
 
 static void
@@ -721,6 +730,8 @@ nautilus_toolbar_set_window_slot_real (NautilusToolbar    *self,
 
         on_slot_location_changed (self);
 
+        g_signal_connect (self->window_slot, "notify::location",
+                          G_CALLBACK (on_slot_location), self);
         g_signal_connect_swapped (self->window_slot, "notify::location",
                                   G_CALLBACK (on_slot_location_changed), self);
         g_signal_connect_swapped (self->window_slot, "notify::extensions-background-menu",

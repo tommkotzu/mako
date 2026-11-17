@@ -21,12 +21,15 @@
 #include "nautilus-global-preferences.h"
 #include "nautilus-labels.h"
 #include "nautilus-localsearch-utilities.h"
+#include "nautilus-file.h"
 #include "nautilus-shortcuts.h"
+#include "nautilus-window.h"
 
 typedef enum
 {
     SCOPE_ALL,
     SCOPE_FOLDERS,
+    SCOPE_FILES,
     SCOPE_COMMANDS,
     SCOPE_SETTINGS,
     N_SCOPES
@@ -37,6 +40,7 @@ typedef enum
     ROW_FOLDER = 1,
     ROW_COMMAND,
     ROW_SETTING,
+    ROW_FILE,
     ROW_NONE,
 } RowKind;
 
@@ -111,6 +115,8 @@ typedef struct
     char *name;
     const char *icon;
     gboolean place;
+    gboolean visited;
+    gboolean is_file;
 } Folder;
 
 struct _NautilusJump
@@ -130,6 +136,13 @@ struct _NautilusJump
     GPtrArray *found;
     char *found_for;
     TrackerSparqlStatement *statement;
+    TrackerSparqlStatement *statement_files;
+    /* Files from the index for files_for. */
+    GPtrArray *found_files;
+    char *files_for;
+    /* What was typed when the menu last closed, and on which tab. */
+    char *last_query;
+    Scope last_scope;
     GCancellable *cancellable;
     guint search_timeout;
     guint size_idle;
@@ -140,6 +153,7 @@ struct _NautilusJump
 };
 
 static void rebuild (NautilusJump *jump);
+static gboolean matches (const char *query, const char *haystack);
 
 static GSettings *
 schema_settings (int schema)
@@ -180,10 +194,305 @@ folder_new (GFile      *file,
     Folder *folder = g_new0 (Folder, 1);
 
     folder->file = g_object_ref (file);
-    folder->name = name != NULL ? g_strdup (name) : g_file_get_basename (file);
     folder->icon = icon;
+    folder->name = name != NULL ? g_strdup (name) : g_file_get_basename (file);
+    if (name == NULL)
+    {
+        g_autoptr (GFile) home = g_file_new_for_path (g_get_home_dir ());
+
+        if (g_file_equal (file, home))
+        {
+            g_free (folder->name);
+            folder->name = g_strdup (_("Home"));
+            folder->icon = "user-home-symbolic";
+        }
+    }
     folder->place = place;
     return folder;
+}
+
+/* ------------------------------------------------------------ Visits */
+
+/* How often and how lately each folder was opened, to rank the ones in
+ * use first: ~/.local/share/mako/jump-visits, "count<TAB>time<TAB>uri". */
+typedef struct
+{
+    guint count;
+    gint64 last;
+} Visit;
+
+static GHashTable *visits;
+static guint visits_save;
+
+static char *
+visits_path (void)
+{
+    return g_build_filename (g_get_user_data_dir (), "mako", "jump-visits", NULL);
+}
+
+static GHashTable *
+get_visits (void)
+{
+    g_autofree char *path = NULL;
+    g_autofree char *text = NULL;
+
+    if (visits != NULL)
+    {
+        return visits;
+    }
+
+    visits = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    path = visits_path ();
+    if (g_file_get_contents (path, &text, NULL, NULL))
+    {
+        g_auto (GStrv) lines = g_strsplit (text, "\n", -1);
+
+        for (guint i = 0; lines[i] != NULL; i++)
+        {
+            g_auto (GStrv) fields = g_strsplit (lines[i], "\t", 3);
+
+            if (g_strv_length (fields) == 3)
+            {
+                Visit *visit = g_new0 (Visit, 1);
+
+                visit->count = (guint) g_ascii_strtoull (fields[0], NULL, 10);
+                visit->last = g_ascii_strtoll (fields[1], NULL, 10);
+                g_hash_table_replace (visits, g_strdup (fields[2]), visit);
+            }
+        }
+    }
+
+    return visits;
+}
+
+static double
+visit_weight (const Visit *visit)
+{
+    gint64 days = (g_get_real_time () / G_USEC_PER_SEC - visit->last) / (24 * 3600);
+    double recent = days < 4 ? 1.0 : days < 14 ? 0.6 : days < 90 ? 0.3 : 0.1;
+
+    return visit->count * recent;
+}
+
+static double
+frecency (GFile *file)
+{
+    g_autofree char *uri = g_file_get_uri (file);
+    Visit *visit = g_hash_table_lookup (get_visits (), uri);
+
+    return visit != NULL ? visit_weight (visit) : 0;
+}
+
+static guint
+visit_count (GFile *file)
+{
+    g_autofree char *uri = g_file_get_uri (file);
+    Visit *visit = g_hash_table_lookup (get_visits (), uri);
+
+    return visit != NULL ? visit->count : 0;
+}
+
+static gboolean
+save_visits (gpointer user_data)
+{
+    g_autoptr (GString) out = g_string_new (NULL);
+    g_autofree char *path = visits_path ();
+    g_autofree char *dir = g_path_get_dirname (path);
+    GHashTableIter iter;
+    gpointer key;
+    gpointer value;
+
+    visits_save = 0;
+    g_hash_table_iter_init (&iter, get_visits ());
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        Visit *visit = value;
+
+        g_string_append_printf (out, "%u\t%" G_GINT64_FORMAT "\t%s\n", visit->count, visit->last, (char *) key);
+    }
+    g_mkdir_with_parents (dir, 0700);
+    g_file_set_contents (path, out->str, out->len, NULL);
+
+    return G_SOURCE_REMOVE;
+}
+
+void
+nautilus_jump_note_visit (GFile *location)
+{
+    g_autofree char *uri = NULL;
+    Visit *visit;
+
+    if (location == NULL)
+    {
+        return;
+    }
+    uri = g_file_get_uri (location);
+    /* Folders, not searches, Recent, Starred or the Trash. */
+    if (g_str_has_prefix (uri, "x-nautilus-") || g_str_has_prefix (uri, "recent:") ||
+        g_str_has_prefix (uri, "starred:") || g_str_has_prefix (uri, "trash:") ||
+        g_str_has_prefix (uri, "other-locations:"))
+    {
+        return;
+    }
+
+    visit = g_hash_table_lookup (get_visits (), uri);
+    if (visit == NULL)
+    {
+        visit = g_new0 (Visit, 1);
+        g_hash_table_replace (visits, g_strdup (uri), visit);
+    }
+    visit->count++;
+    visit->last = g_get_real_time () / G_USEC_PER_SEC;
+
+    /* At most the 800 most used. */
+    if (g_hash_table_size (visits) > 1000)
+    {
+        GHashTableIter iter;
+        gpointer key;
+        gpointer value;
+
+        g_hash_table_iter_init (&iter, visits);
+        while (g_hash_table_iter_next (&iter, &key, &value))
+        {
+            if (visit_weight (value) < 1.0 && value != visit)
+            {
+                g_hash_table_iter_remove (&iter);
+            }
+        }
+    }
+
+    if (visits_save == 0)
+    {
+        visits_save = g_timeout_add_seconds (2, save_visits, NULL);
+    }
+}
+
+/* The folders opened most and lately, best first. */
+static GPtrArray *
+visited_folders (void)
+{
+    GPtrArray *result = g_ptr_array_new_with_free_func ((GDestroyNotify) folder_free);
+    GHashTableIter iter;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init (&iter, get_visits ());
+    while (g_hash_table_iter_next (&iter, &key, &value))
+    {
+        g_autoptr (GFile) file = g_file_new_for_uri (key);
+        Folder *folder = folder_new (file, NULL, "folder-symbolic", FALSE);
+
+        folder->visited = TRUE;
+        g_ptr_array_add (result, folder);
+    }
+
+    return result;
+}
+
+/* ---------------------------------------------------------- Matching */
+
+/* "dl" for Downloads, "ql" for Quick Look: the letters in order, the
+ * first starting a word. */
+static gboolean
+fuzzy (const char *query,
+       const char *name)
+{
+    g_autofree char *folded_query = g_utf8_casefold (query, -1);
+    g_autofree char *folded = g_utf8_casefold (name, -1);
+    g_autoptr (GString) q = g_string_new (NULL);
+
+    for (const char *p = folded_query; *p != '\0'; p++)
+    {
+        if (!g_ascii_isspace (*p))
+        {
+            g_string_append_c (q, *p);
+        }
+    }
+    if (q->len < 2)
+    {
+        return FALSE;
+    }
+
+    for (const char *start = folded; *start != '\0'; start++)
+    {
+        gboolean word_start = start == folded || !g_ascii_isalnum (start[-1]);
+        const char *at = start;
+        gsize matched = 0;
+
+        if (!word_start || *start != q->str[0])
+        {
+            continue;
+        }
+        for (; *at != '\0' && matched < q->len; at++)
+        {
+            if (*at == q->str[matched])
+            {
+                matched++;
+            }
+        }
+        if (matched == q->len)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static gboolean
+matches_name (const char *query,
+              const char *name)
+{
+    return matches (query, name) || fuzzy (query, name);
+}
+
+/* --------------------------------------------------------- Drives */
+
+/* A short name for the drive @file is on, if not the computer's own:
+ * "USB Stick", "Network". */
+static char *
+drive_label (GFile *file)
+{
+    g_autofree char *path = g_file_get_path (file);
+    g_autofree char *scheme = g_file_get_uri_scheme (file);
+    const char *rest = NULL;
+
+    if (path == NULL)
+    {
+        return g_strcmp0 (scheme, "file") == 0 ? NULL : g_strdup (_("Network"));
+    }
+    if (strstr (path, "/gvfs/") != NULL)
+    {
+        return g_strdup (_("Network"));
+    }
+    if (g_str_has_prefix (path, "/media/"))
+    {
+        rest = path + strlen ("/media/");
+    }
+    else if (g_str_has_prefix (path, "/run/media/"))
+    {
+        rest = path + strlen ("/run/media/");
+    }
+    if (rest != NULL)
+    {
+        /* /media/USER/NAME/… */
+        const char *name = strchr (rest, '/');
+
+        if (name != NULL)
+        {
+            const char *end = strchr (name + 1, '/');
+
+            return end != NULL ? g_strndup (name + 1, end - name - 1) : g_strdup (name + 1);
+        }
+    }
+    if (g_str_has_prefix (path, "/mnt/"))
+    {
+        const char *end = strchr (path + 5, '/');
+
+        return end != NULL ? g_strndup (path + 5, end - path - 5) : g_strdup (path + 5);
+    }
+
+    return NULL;
 }
 
 gboolean
@@ -345,6 +654,10 @@ folders_here (NautilusJump *jump)
 
 /* Lower is better: the name as typed, then starting with it; places,
  * then ordinary folders, then hidden and app-data ones; shallow first. */
+/* Lower is better: the name as typed, then starting with it, then
+ * containing it, then only its letters in order; opened often and lately,
+ * places, then ordinary folders, then hidden and app-data ones; shallow
+ * first. */
 static int
 folder_score (const Folder *folder,
               const char   *query)
@@ -356,11 +669,14 @@ folder_score (const Folder *folder,
     int depth = 0;
 
     g_strstrip (wanted);
-    score = g_str_equal (name, wanted) ? 0 : g_str_has_prefix (name, wanted) ? 1000 : 2000;
+    score = g_str_equal (name, wanted) ? 0
+            : g_str_has_prefix (name, wanted) ? 1000
+            : strstr (name, wanted) != NULL || matches (query, folder->name) ? 2000 : 3000;
     if (folder->place)
     {
         score -= 500;
     }
+    score -= (int) MIN (frecency (folder->file) * 60, 900);
     if (path != NULL)
     {
         if (strstr (path, "/.") != NULL)
@@ -380,41 +696,89 @@ folder_score (const Folder *folder,
     return score + depth * 10;
 }
 
-static void
-on_query_done (GObject      *source,
-               GAsyncResult *result,
-               gpointer      user_data)
+
+
+static GPtrArray *
+read_results (TrackerSparqlStatement *statement,
+              GAsyncResult           *result,
+              gboolean                files,
+              gboolean               *cancelled)
 {
     g_autoptr (GError) error = NULL;
     g_autoptr (TrackerSparqlCursor) cursor = NULL;
-    NautilusJump *jump = user_data;
     GPtrArray *found;
 
-    cursor = tracker_sparql_statement_execute_finish (TRACKER_SPARQL_STATEMENT (source), result, &error);
-    if (g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-    {
-        return;
-    }
+    cursor = tracker_sparql_statement_execute_finish (statement, result, &error);
+    *cancelled = g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED);
     if (cursor == NULL)
     {
-        g_debug ("Jump: folder search failed: %s", error != NULL ? error->message : "");
-        return;
+        if (!*cancelled)
+        {
+            g_debug ("Jump: search failed: %s", error != NULL ? error->message : "");
+        }
+        return NULL;
     }
 
     found = g_ptr_array_new_with_free_func ((GDestroyNotify) folder_free);
     while (tracker_sparql_cursor_next (cursor, NULL, NULL))
     {
         g_autoptr (GFile) file = g_file_new_for_uri (tracker_sparql_cursor_get_string (cursor, 0, NULL));
+        Folder *folder = folder_new (file, NULL, "folder-symbolic", FALSE);
 
-        g_ptr_array_add (found, folder_new (file, NULL, "folder-symbolic", FALSE));
+        folder->is_file = files;
+        g_ptr_array_add (found, folder);
     }
     tracker_sparql_cursor_close (cursor);
 
+    return found;
+}
+
+static void
+on_query_done (GObject      *source,
+               GAsyncResult *result,
+               gpointer      user_data)
+{
+    gboolean cancelled = FALSE;
+    GPtrArray *found = read_results (TRACKER_SPARQL_STATEMENT (source), result, FALSE, &cancelled);
+    NautilusJump *jump = user_data;
+
+    if (cancelled)
+    {
+        return;
+    }
     g_clear_pointer (&jump->found, g_ptr_array_unref);
     jump->found = found;
     g_free (jump->found_for);
     jump->found_for = g_strdup (jump->query);
     rebuild (jump);
+}
+
+static void
+on_files_done (GObject      *source,
+               GAsyncResult *result,
+               gpointer      user_data)
+{
+    gboolean cancelled = FALSE;
+    GPtrArray *found = read_results (TRACKER_SPARQL_STATEMENT (source), result, TRUE, &cancelled);
+    NautilusJump *jump = user_data;
+
+    if (cancelled)
+    {
+        return;
+    }
+    g_clear_pointer (&jump->found_files, g_ptr_array_unref);
+    jump->found_files = found;
+    g_free (jump->files_for);
+    jump->files_for = g_strdup (jump->query);
+    rebuild (jump);
+}
+
+static TrackerSparqlStatement *
+statement_for (const char *sparql)
+{
+    TrackerSparqlConnection *connection = nautilus_localsearch_get_miner_fs_connection (NULL);
+
+    return connection != NULL ? tracker_sparql_connection_query_statement (connection, sparql, NULL, NULL) : NULL;
 }
 
 static gboolean
@@ -452,25 +816,25 @@ search_folders (gpointer user_data)
 
     if (jump->statement == NULL)
     {
-        TrackerSparqlConnection *connection = nautilus_localsearch_get_miner_fs_connection (NULL);
-
-        if (connection == NULL)
-        {
-            return G_SOURCE_REMOVE;
-        }
-        jump->statement = tracker_sparql_connection_query_statement (
-            connection,
-            "SELECT DISTINCT ?url WHERE {"
-            "  GRAPH tracker:FileSystem {"
-            "    ?folder a nfo:Folder ; nie:isStoredAs ?file ."
-            "    ?file nie:url ?url ; fts:match ~match ."
-            "  }"
-            "} LIMIT 300",
-            NULL, NULL);
-        if (jump->statement == NULL)
-        {
-            return G_SOURCE_REMOVE;
-        }
+        jump->statement = statement_for ("SELECT DISTINCT ?url WHERE {"
+                                         "  GRAPH tracker:FileSystem {"
+                                         "    ?folder a nfo:Folder ; nie:isStoredAs ?file ."
+                                         "    ?file nie:url ?url ; fts:match ~match ."
+                                         "  }"
+                                         "} LIMIT 300");
+    }
+    if (jump->statement_files == NULL)
+    {
+        jump->statement_files = statement_for ("SELECT DISTINCT ?url WHERE {"
+                                               "  GRAPH tracker:FileSystem {"
+                                               "    ?file a nfo:FileDataObject ; nie:url ?url ; fts:match ~match ."
+                                               "    FILTER NOT EXISTS { ?folder a nfo:Folder ; nie:isStoredAs ?file }"
+                                               "  }"
+                                               "} LIMIT 300");
+    }
+    if (jump->statement == NULL || jump->statement_files == NULL)
+    {
+        return G_SOURCE_REMOVE;
     }
 
     g_cancellable_cancel (jump->cancellable);
@@ -478,6 +842,8 @@ search_folders (gpointer user_data)
     jump->cancellable = g_cancellable_new ();
     tracker_sparql_statement_bind_string (jump->statement, "match", match->str);
     tracker_sparql_statement_execute_async (jump->statement, jump->cancellable, on_query_done, jump);
+    tracker_sparql_statement_bind_string (jump->statement_files, "match", match->str);
+    tracker_sparql_statement_execute_async (jump->statement_files, jump->cancellable, on_files_done, jump);
 
     return G_SOURCE_REMOVE;
 }
@@ -724,6 +1090,58 @@ path_line (NautilusJump *jump,
     return box;
 }
 
+static GdkContentProvider *
+on_row_drag_prepare (GtkDragSource *source,
+                     double         x,
+                     double         y,
+                     GtkWidget     *row)
+{
+    GFile *file = g_object_get_data (G_OBJECT (row), "file");
+    GSList *list = g_slist_prepend (NULL, file);
+    GdkFileList *files = gdk_file_list_new_from_list (list);
+    GdkContentProvider *provider = gdk_content_provider_new_typed (GDK_TYPE_FILE_LIST, files);
+
+    g_slist_free (list);
+    g_boxed_free (GDK_TYPE_FILE_LIST, files);
+    return provider;
+}
+
+/* A row dragged out drops its folder or file, as from the files. */
+static void
+add_drag (GtkWidget *row)
+{
+    GtkDragSource *source = gtk_drag_source_new ();
+
+    gtk_drag_source_set_actions (source, GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK);
+    g_signal_connect (source, "prepare", G_CALLBACK (on_row_drag_prepare), row);
+    gtk_widget_add_controller (row, GTK_EVENT_CONTROLLER (source));
+}
+
+static void
+add_suffix (GtkWidget *box,
+            GFile     *file,
+            guint      opened)
+{
+    g_autofree char *drive = drive_label (file);
+
+    if (drive != NULL)
+    {
+        GtkWidget *chip = gtk_label_new (drive);
+
+        gtk_widget_add_css_class (chip, "jump-drive");
+        gtk_widget_set_valign (chip, GTK_ALIGN_CENTER);
+        gtk_box_append (GTK_BOX (box), chip);
+    }
+    if (opened > 1)
+    {
+        g_autofree char *text = g_strdup_printf (_("opened %u×"), opened);
+        GtkWidget *label = gtk_label_new (text);
+
+        gtk_widget_add_css_class (label, "jump-opened");
+        gtk_box_append (GTK_BOX (box), label);
+    }
+}
+
 static GtkWidget *
 folder_row (NautilusJump *jump,
             Folder       *folder,
@@ -735,10 +1153,38 @@ folder_row (NautilusJump *jump,
     gtk_box_append (GTK_BOX (box), row_icon (g_str_has_prefix (folder->icon, "user-home") ? "user-home" : "folder",
                                              FALSE));
     gtk_box_append (GTK_BOX (box), path_line (jump, folder, query));
+    add_suffix (box, folder->file, visit_count (folder->file));
 
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
-    gtk_widget_set_tooltip_text (row, _("Enter opens it, Ctrl+Enter in a new tab"));
+    gtk_widget_set_tooltip_text (row, _("Enter opens it, Ctrl+Enter in a new tab, Shift+Enter in a split, "
+                                        "Alt+Enter copies its path. Drag it to drop it elsewhere."));
     g_object_set_data_full (G_OBJECT (row), "file", g_object_ref (folder->file), g_object_unref);
+    add_drag (row);
+    return row;
+}
+
+static GtkWidget *
+file_row (NautilusJump *jump,
+          Folder       *file,
+          const char   *query)
+{
+    GtkWidget *row = row_new (ROW_FILE);
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+    g_autofree char *type = g_content_type_guess (file->name, NULL, 0, NULL);
+    g_autoptr (GIcon) gicon = g_content_type_get_icon (type);
+    GtkWidget *icon = gtk_image_new_from_gicon (gicon);
+
+    gtk_image_set_pixel_size (GTK_IMAGE (icon), 20);
+    gtk_widget_set_size_request (icon, 22, -1);
+    gtk_box_append (GTK_BOX (box), icon);
+    gtk_box_append (GTK_BOX (box), path_line (jump, file, query));
+    add_suffix (box, file->file, 0);
+
+    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
+    gtk_widget_set_tooltip_text (row, _("Enter opens it, Ctrl+Enter shows it in its folder, Shift+Enter "
+                                        "there in a split, Alt+Enter copies its path"));
+    g_object_set_data_full (G_OBJECT (row), "file", g_object_ref (file->file), g_object_unref);
+    add_drag (row);
     return row;
 }
 
@@ -1105,18 +1551,112 @@ run_later (gpointer data)
 }
 
 static void
-activate_row (NautilusJump  *jump,
-              GtkListBoxRow *row,
-              gboolean       new_tab)
+copy_path (NautilusJump *jump,
+           GFile        *file)
+{
+    g_autofree char *path = g_file_get_parse_name (file);
+    g_autofree char *message = g_strdup_printf (_("Copied “%s”"), path);
+    GtkWindow *window = jump_window (jump);
+
+    gdk_clipboard_set_text (gtk_widget_get_clipboard (jump->entry), path);
+    close_entry (jump);
+    if (NAUTILUS_IS_WINDOW (window))
+    {
+        nautilus_window_show_toast (NAUTILUS_WINDOW (window), adw_toast_new (message));
+    }
+}
+
+/* Opens @folder in the active tile, or in a new tile beside it, with
+ * @select selected in it. */
+static void
+show_in (NautilusJump *jump,
+         GFile        *folder,
+         GFile        *select,
+         gboolean      split)
+{
+    GtkWindow *window = jump_window (jump);
+    g_autoptr (GFile) keep = g_object_ref (folder);
+    g_autoptr (NautilusWindowSlot) slot = NULL;
+    GList *selection = NULL;
+
+    close_entry (jump);
+    if (window == NULL)
+    {
+        return;
+    }
+    if (split)
+    {
+        gtk_widget_activate_action (GTK_WIDGET (window), "win.split-right", NULL);
+    }
+    g_object_get (window, "active-slot", &slot, NULL);
+    if (slot == NULL)
+    {
+        return;
+    }
+    if (select != NULL)
+    {
+        selection = g_list_prepend (NULL, nautilus_file_get (select));
+    }
+    nautilus_window_slot_open_location_full (slot, keep, selection);
+    nautilus_file_list_free (selection);
+}
+
+static void
+open_file (NautilusJump *jump,
+           GFile        *file)
+{
+    g_autoptr (GtkFileLauncher) launcher = gtk_file_launcher_new (file);
+    GtkWindow *window = jump_window (jump);
+
+    close_entry (jump);
+    gtk_file_launcher_launch (launcher, window, NULL, NULL, NULL);
+}
+
+static void
+activate_row (NautilusJump    *jump,
+              GtkListBoxRow   *row,
+              GdkModifierType  mods)
 {
     RowKind kind = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (row), "kind"));
     guint index = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (row), "index"));
+    GFile *file = g_object_get_data (G_OBJECT (row), "file");
+
+    if ((kind == ROW_FOLDER || kind == ROW_FILE) && (mods & GDK_ALT_MASK))
+    {
+        copy_path (jump, file);
+        return;
+    }
 
     switch (kind)
     {
         case ROW_FOLDER:
         {
-            open_folder (jump, g_object_get_data (G_OBJECT (row), "file"), new_tab);
+            if (mods & GDK_SHIFT_MASK)
+            {
+                show_in (jump, file, NULL, TRUE);
+            }
+            else
+            {
+                open_folder (jump, file, (mods & GDK_CONTROL_MASK) != 0);
+            }
+        }
+        break;
+
+        case ROW_FILE:
+        {
+            if (mods & (GDK_SHIFT_MASK | GDK_CONTROL_MASK))
+            {
+                g_autoptr (GFile) parent = g_file_get_parent (file);
+
+                if (parent != NULL)
+                {
+                    show_in (jump, parent, file, (mods & GDK_SHIFT_MASK) != 0);
+                }
+            }
+            else
+            {
+                open_file (jump, file);
+            }
         }
         break;
 
@@ -1166,7 +1706,7 @@ on_row_activated (GtkListBox    *list,
                   GtkListBoxRow *row,
                   NautilusJump  *jump)
 {
-    activate_row (jump, row, FALSE);
+    activate_row (jump, row, 0);
 }
 
 
@@ -1224,49 +1764,19 @@ add_row (NautilusJump *jump,
 
 /* The folders for @query, best first, each once; borrowed from @list,
  * the current folder's and the index's. */
-static GPtrArray *
-pick_folders (NautilusJump *jump,
-              const char   *query,
-              GPtrArray    *list)
+static void
+sort_by_score (GPtrArray  *chosen,
+               const char *query,
+               gboolean    empty)
 {
-    gboolean empty = *query == '\0';
-    g_autoptr (GPtrArray) chosen = g_ptr_array_new ();
-    g_autoptr (GHashTable) seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
     g_autoptr (GArray) scores = g_array_new (FALSE, FALSE, sizeof (int));
-    GPtrArray *result = g_ptr_array_new ();
-
-    for (guint i = 0; i < list->len; i++)
-    {
-        Folder *folder = list->pdata[i];
-
-        if (empty || matches (query, folder->name))
-        {
-            g_ptr_array_add (chosen, folder);
-        }
-    }
-    if (!empty)
-    {
-        GPtrArray *here = folders_here (jump);
-
-        for (guint i = 0; here != NULL && i < here->len; i++)
-        {
-            if (matches (query, ((Folder *) here->pdata[i])->name))
-            {
-                g_ptr_array_add (chosen, here->pdata[i]);
-            }
-        }
-    }
-    if (!empty && jump->found != NULL && g_strcmp0 (jump->found_for, query) == 0)
-    {
-        for (guint i = 0; i < jump->found->len; i++)
-        {
-            g_ptr_array_add (chosen, jump->found->pdata[i]);
-        }
-    }
 
     for (guint i = 0; i < chosen->len; i++)
     {
-        int score = empty ? (int) i : folder_score (chosen->pdata[i], query);
+        Folder *folder = chosen->pdata[i];
+        /* Nothing typed: the folders in use, then the places. */
+        int score = !empty ? folder_score (folder, query)
+                    : folder->visited ? -(int) (frecency (folder->file) * 100) : 100000 + (int) i;
 
         g_array_append_val (scores, score);
     }
@@ -1283,6 +1793,15 @@ pick_folders (NautilusJump *jump,
             chosen->pdata[j - 1] = f;
         }
     }
+}
+
+/* Each once, in order. */
+static GPtrArray *
+unique (GPtrArray *chosen)
+{
+    g_autoptr (GHashTable) seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    GPtrArray *result = g_ptr_array_new ();
+
     for (guint i = 0; i < chosen->len; i++)
     {
         Folder *folder = chosen->pdata[i];
@@ -1296,6 +1815,76 @@ pick_folders (NautilusJump *jump,
     return result;
 }
 
+/* The folders for @query, best first, each once; borrowed from @list,
+ * @visited, the current folder's and the index's. */
+static GPtrArray *
+pick_folders (NautilusJump *jump,
+              const char   *query,
+              GPtrArray    *list,
+              GPtrArray    *visited)
+{
+    gboolean empty = *query == '\0';
+    g_autoptr (GPtrArray) chosen = g_ptr_array_new ();
+
+    for (guint i = 0; i < visited->len; i++)
+    {
+        Folder *folder = visited->pdata[i];
+
+        if (empty ? frecency (folder->file) >= 1.0 : matches_name (query, folder->name))
+        {
+            g_ptr_array_add (chosen, folder);
+        }
+    }
+    for (guint i = 0; i < list->len; i++)
+    {
+        Folder *folder = list->pdata[i];
+
+        if (empty || matches_name (query, folder->name))
+        {
+            g_ptr_array_add (chosen, folder);
+        }
+    }
+    if (!empty)
+    {
+        GPtrArray *here = folders_here (jump);
+
+        for (guint i = 0; here != NULL && i < here->len; i++)
+        {
+            if (matches_name (query, ((Folder *) here->pdata[i])->name))
+            {
+                g_ptr_array_add (chosen, here->pdata[i]);
+            }
+        }
+    }
+    if (!empty && jump->found != NULL && g_strcmp0 (jump->found_for, query) == 0)
+    {
+        for (guint i = 0; i < jump->found->len; i++)
+        {
+            g_ptr_array_add (chosen, jump->found->pdata[i]);
+        }
+    }
+
+    sort_by_score (chosen, query, empty);
+    return unique (chosen);
+}
+
+static GPtrArray *
+pick_files (NautilusJump *jump,
+            const char   *query)
+{
+    g_autoptr (GPtrArray) chosen = g_ptr_array_new ();
+
+    if (*query != '\0' && jump->found_files != NULL && g_strcmp0 (jump->files_for, query) == 0)
+    {
+        for (guint i = 0; i < jump->found_files->len; i++)
+        {
+            g_ptr_array_add (chosen, jump->found_files->pdata[i]);
+        }
+    }
+    sort_by_score (chosen, query, FALSE);
+    return unique (chosen);
+}
+
 /* Indexes of the commands (@commands) or settings that match, those whose
  * title starts with what is typed first. */
 static GArray *
@@ -1306,7 +1895,9 @@ pick (const char *query,
     guint n = commands ? nautilus_shortcuts_n_commands () : G_N_ELEMENTS (settings);
     GArray *result = g_array_new (FALSE, FALSE, sizeof (guint));
 
-    for (guint pass = 0; pass < 2; pass++)
+    /* Titles starting with what was typed, then any word matching, then
+     * titles with its letters in order ("ql" for Quick Look). */
+    for (guint pass = 0; pass < 3; pass++)
     {
         for (guint i = 0; i < n; i++)
         {
@@ -1315,10 +1906,11 @@ pick (const char *query,
                                                          commands ? nautilus_shortcuts_command_section (i)
                                                                   : settings[i].words);
             gboolean prefix = !empty && g_str_match_string (query, title, TRUE);
+            gboolean word = empty || matches (query, haystack);
+            guint wanted = empty || prefix ? 0 : word ? 1 : fuzzy (query, title) ? 2 : 3;
 
             if ((commands && g_str_has_prefix (nautilus_shortcuts_command_action (i), "toolbar.jump-")) ||
-                !(empty || matches (query, haystack)) ||
-                (pass == 0) != (empty || prefix))
+                wanted != pass)
             {
                 continue;
             }
@@ -1378,7 +1970,9 @@ rebuild (NautilusJump *jump)
     gboolean empty = *query == '\0';
     gboolean all = jump->scope == SCOPE_ALL;
     g_autoptr (GPtrArray) place_list = places ();
-    g_autoptr (GPtrArray) folders = pick_folders (jump, query, place_list);
+    g_autoptr (GPtrArray) visited = visited_folders ();
+    g_autoptr (GPtrArray) folders = pick_folders (jump, query, place_list, visited);
+    g_autoptr (GPtrArray) files = pick_files (jump, query);
     g_autoptr (GArray) commands = pick (query, TRUE);
     g_autoptr (GArray) found_settings = pick (query, FALSE);
     GtkWidget *child;
@@ -1390,18 +1984,30 @@ rebuild (NautilusJump *jump)
         gtk_list_box_remove (jump->list, child);
     }
 
-    set_count (jump, SCOPE_ALL, folders->len + commands->len + found_settings->len, !empty);
+    set_count (jump, SCOPE_ALL, folders->len + files->len + commands->len + found_settings->len, !empty);
     set_count (jump, SCOPE_FOLDERS, folders->len, !empty);
+    set_count (jump, SCOPE_FILES, files->len, !empty);
     set_count (jump, SCOPE_COMMANDS, commands->len, !empty);
     set_count (jump, SCOPE_SETTINGS, found_settings->len, !empty);
 
     if ((all || jump->scope == SCOPE_FOLDERS) && folders->len > 0)
     {
         limit = all ? 5 : 60;
-        heading_row (jump, _("Folders"), all && folders->len > limit ? folders->len - limit : 0);
+        heading_row (jump, empty ? _("Recent Folders and Places") : _("Folders"),
+                     all && folders->len > limit ? folders->len - limit : 0);
         for (guint i = 0; i < folders->len && i < limit; i++, shown++)
         {
             add_row (jump, folder_row (jump, folders->pdata[i], query));
+        }
+    }
+
+    if ((all || jump->scope == SCOPE_FILES) && files->len > 0)
+    {
+        limit = all ? 5 : 60;
+        heading_row (jump, _("Files"), all && files->len > limit ? files->len - limit : 0);
+        for (guint i = 0; i < files->len && i < limit; i++, shown++)
+        {
+            add_row (jump, file_row (jump, files->pdata[i], query));
         }
     }
 
@@ -1428,9 +2034,12 @@ rebuild (NautilusJump *jump)
     if (shown == 0)
     {
         GtkWidget *row = row_new (ROW_NONE);
-        gboolean looking = !empty && jump->scope == SCOPE_FOLDERS && g_strcmp0 (jump->found_for, query) != 0;
-        g_autofree char *text = looking ? g_strdup (_("Looking…"))
-                                        : g_strdup_printf (_("Nothing called “%s”."), query);
+        gboolean looking = !empty &&
+                           ((jump->scope == SCOPE_FOLDERS && g_strcmp0 (jump->found_for, query) != 0) ||
+                            (jump->scope == SCOPE_FILES && g_strcmp0 (jump->files_for, query) != 0));
+        g_autofree char *text = empty ? g_strdup (_("Type a name"))
+                                : looking ? g_strdup (_("Looking…"))
+                                : g_strdup_printf (_("Nothing called “%s”."), query);
         GtkWidget *label = gtk_label_new (text);
 
         gtk_widget_add_css_class (label, "dim-label");
@@ -1521,7 +2130,7 @@ NautilusJump *
 nautilus_jump_new (GtkWidget *entry,
                    GtkWidget *anchor)
 {
-    static const char *names[] = { N_("All"), N_("Folders"), N_("Commands"), N_("Settings") };
+    static const char *names[] = { N_("All"), N_("Folders"), N_("Files"), N_("Commands"), N_("Settings") };
     NautilusJump *jump = g_new0 (NautilusJump, 1);
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *bar = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
@@ -1529,10 +2138,11 @@ nautilus_jump_new (GtkWidget *entry,
     static const char *hints[][2] =
     {
         { "↑ ↓", N_("choose") },
-        { N_("Enter"), N_("open, run or switch") },
-        { N_("Tab"), N_("next group") },
+        { N_("Enter"), N_("open") },
         { N_("Ctrl+Enter"), N_("new tab") },
-        { N_("Esc"), N_("close") },
+        { N_("Shift+Enter"), N_("split") },
+        { N_("Alt+Enter"), N_("copy path") },
+        { N_("Tab"), N_("next group") },
     };
 
     jump->entry = entry;
@@ -1625,7 +2235,11 @@ nautilus_jump_free (NautilusJump *jump)
     g_cancellable_cancel (jump->cancellable);
     g_clear_object (&jump->cancellable);
     g_clear_object (&jump->statement);
+    g_clear_object (&jump->statement_files);
     g_clear_pointer (&jump->found, g_ptr_array_unref);
+    g_clear_pointer (&jump->found_files, g_ptr_array_unref);
+    g_free (jump->files_for);
+    g_free (jump->last_query);
     g_free (jump->found_for);
     g_free (jump->query);
     g_clear_weak_pointer (&jump->slot);
@@ -1646,6 +2260,13 @@ nautilus_jump_hide (NautilusJump *jump)
     g_clear_handle_id (&jump->search_timeout, g_source_remove);
     if (gtk_widget_get_visible (jump->popover))
     {
+        /* For next time. */
+        if (jump->query != NULL && *jump->query != '\0')
+        {
+            g_free (jump->last_query);
+            jump->last_query = g_strdup (jump->query);
+            jump->last_scope = jump->scope;
+        }
         gtk_popover_popdown (GTK_POPOVER (jump->popover));
     }
 }
@@ -1729,6 +2350,25 @@ nautilus_jump_update (NautilusJump *jump)
 }
 
 void
+nautilus_jump_restore (NautilusJump *jump)
+{
+    Scope scope = jump->last_scope;
+
+    if (jump->last_query == NULL)
+    {
+        return;
+    }
+    /* Selected, so typing starts afresh. */
+    gtk_editable_set_text (GTK_EDITABLE (jump->entry), jump->last_query);
+    gtk_editable_select_region (GTK_EDITABLE (jump->entry), 0, -1);
+    nautilus_jump_update (jump);
+    if (gtk_widget_get_visible (jump->popover) && scope != SCOPE_ALL)
+    {
+        set_scope (jump, scope);
+    }
+}
+
+void
 nautilus_jump_show_commands (NautilusJump *jump)
 {
     nautilus_jump_update (jump);
@@ -1798,7 +2438,7 @@ nautilus_jump_key (NautilusJump    *jump,
             {
                 return TRUE;
             }
-            activate_row (jump, selected, (mods & GDK_CONTROL_MASK) != 0);
+            activate_row (jump, selected, mods);
             return TRUE;
         }
 

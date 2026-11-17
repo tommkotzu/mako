@@ -25,6 +25,10 @@ void          nautilus_jump_set_slot (NautilusJump       *jump,
 
 /* Shows the menu for what is typed, or hides it for a path. */
 void          nautilus_jump_update   (NautilusJump *jump);
+/* Brings back what was typed when the menu last closed, selected. */
+void          nautilus_jump_restore  (NautilusJump *jump);
+/* Counts a visit to @location, to rank folders in use first. */
+void          nautilus_jump_note_visit (GFile *location);
 /* Shows the menu on its Commands tab. */
 void          nautilus_jump_show_commands (NautilusJump *jump);
 void          nautilus_jump_hide     (NautilusJump *jump);

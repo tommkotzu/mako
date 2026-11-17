@@ -650,6 +650,12 @@ works_in_text (GtkShortcutTrigger *trigger)
         guint key = gtk_keyval_trigger_get_keyval (GTK_KEYVAL_TRIGGER (trigger));
         GdkModifierType mods = gtk_keyval_trigger_get_modifiers (GTK_KEYVAL_TRIGGER (trigger));
 
+        /* Not Alt+Enter: in the path bar it copies a jump result's path. */
+        if (key == GDK_KEY_Return || key == GDK_KEY_KP_Enter || key == GDK_KEY_ISO_Enter)
+        {
+            return FALSE;
+        }
+
         return (mods & GDK_ALT_MASK) || (key >= GDK_KEY_F1 && key <= GDK_KEY_F12) ||
                key == GDK_KEY_grave;
     }
