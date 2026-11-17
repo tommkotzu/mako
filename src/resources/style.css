@@ -1017,3 +1017,13 @@ window.theme-clown, window.theme-clown.framed-panels { --mako-sidebar: #d62839; 
 /* The header bars aren't painted in the headerbar colour in Mako's layout
  * (they sit on the views), so Clown paints them itself. */
 window.theme-clown headerbar { background-color: #ffd23f; color: #1b1036; box-shadow: none; }
+
+/* Preferences: its pages as tabs at the top, text only, like the file
+ * manager's tabs (the shown one filled in the accent colour). */
+.preferences-tabs { padding: 6px 12px 4px; }
+button.preferences-tab {
+  min-height: 28px; padding: 0 14px; border-radius: 8px;
+  background: none; box-shadow: none; font-weight: normal;
+}
+button.preferences-tab:hover { background-color: color-mix(in srgb, currentColor 7%, transparent); }
+button.preferences-tab:checked { background-color: var(--accent-bg-color); color: var(--accent-fg-color); }

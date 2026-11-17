@@ -214,6 +214,119 @@ nautilus_preferences_dialog_show (GtkWidget *parent)
     nautilus_preferences_dialog_show_page (parent, NULL);
 }
 
+/* Tabs at the top, text only, like the file manager's tabs, instead of
+ * the dialog's own switcher (with icons, in the header when wide and at
+ * the bottom when narrow). The dialog doesn't offer that, so its own
+ * switchers are hidden and a strip of tabs goes above its pages. */
+static GtkWidget *
+find_widget (GtkWidget *root,
+             GType      type)
+{
+    if (G_TYPE_CHECK_INSTANCE_TYPE (root, type))
+    {
+        return root;
+    }
+    for (GtkWidget *child = gtk_widget_get_first_child (root); child != NULL;
+         child = gtk_widget_get_next_sibling (child))
+    {
+        GtkWidget *found = find_widget (child, type);
+
+        if (found != NULL)
+        {
+            return found;
+        }
+    }
+    return NULL;
+}
+
+static void
+on_tab_toggled (GtkToggleButton *button,
+                AdwViewStack    *stack)
+{
+    if (gtk_toggle_button_get_active (button))
+    {
+        adw_view_stack_set_visible_child_name (stack, g_object_get_data (G_OBJECT (button), "page"));
+    }
+}
+
+static void
+on_visible_page (AdwViewStack *stack,
+                 GParamSpec   *pspec,
+                 GtkWidget    *tabs)
+{
+    const char *name = adw_view_stack_get_visible_child_name (stack);
+
+    for (GtkWidget *tab = gtk_widget_get_first_child (tabs); tab != NULL; tab = gtk_widget_get_next_sibling (tab))
+    {
+        if (g_strcmp0 (g_object_get_data (G_OBJECT (tab), "page"), name) == 0)
+        {
+            gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (tab), TRUE);
+        }
+    }
+}
+
+static void
+add_text_tabs (AdwPreferencesDialog *dialog)
+{
+    GtkWidget *root = adw_dialog_get_child (ADW_DIALOG (dialog));
+    GtkWidget *stack, *switcher, *bar;
+    GtkWidget *toolbar, *tabs, *first = NULL;
+    g_autoptr (GListModel) pages = NULL;
+
+    if (root == NULL)
+    {
+        return;
+    }
+    stack = find_widget (root, ADW_TYPE_VIEW_STACK);
+    switcher = find_widget (root, ADW_TYPE_VIEW_SWITCHER);
+    bar = find_widget (root, ADW_TYPE_VIEW_SWITCHER_BAR);
+    if (stack == NULL || switcher == NULL || bar == NULL)
+    {
+        return;
+    }
+    toolbar = gtk_widget_get_ancestor (stack, ADW_TYPE_TOOLBAR_VIEW);
+    if (toolbar == NULL)
+    {
+        return;
+    }
+
+    gtk_widget_set_visible (switcher, FALSE);
+    gtk_widget_set_visible (bar, FALSE);
+
+    tabs = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+    gtk_widget_add_css_class (tabs, "preferences-tabs");
+    gtk_widget_set_halign (tabs, GTK_ALIGN_CENTER);
+    pages = G_LIST_MODEL (adw_view_stack_get_pages (ADW_VIEW_STACK (stack)));
+    for (guint i = 0; i < g_list_model_get_n_items (pages); i++)
+    {
+        g_autoptr (AdwViewStackPage) page = g_list_model_get_item (pages, i);
+        const char *name = adw_view_stack_page_get_name (page);
+        GtkWidget *tab;
+
+        if (name == NULL || !gtk_widget_get_visible (adw_view_stack_page_get_child (page)))
+        {
+            continue;
+        }
+        tab = gtk_toggle_button_new_with_label (adw_view_stack_page_get_title (page));
+        gtk_widget_add_css_class (tab, "preferences-tab");
+        gtk_widget_set_focus_on_click (tab, FALSE);
+        g_object_set_data_full (G_OBJECT (tab), "page", g_strdup (name), g_free);
+        if (first != NULL)
+        {
+            gtk_toggle_button_set_group (GTK_TOGGLE_BUTTON (tab), GTK_TOGGLE_BUTTON (first));
+        }
+        else
+        {
+            first = tab;
+        }
+        g_signal_connect_object (tab, "toggled", G_CALLBACK (on_tab_toggled), stack, 0);
+        gtk_box_append (GTK_BOX (tabs), tab);
+    }
+    adw_toolbar_view_add_top_bar (ADW_TOOLBAR_VIEW (toolbar), tabs);
+    g_signal_connect_object (stack, "notify::visible-child-name", G_CALLBACK (on_visible_page), tabs, 0);
+    on_visible_page (ADW_VIEW_STACK (stack), NULL, tabs);
+}
+
 void
 nautilus_preferences_dialog_show_page (GtkWidget  *parent,
                                        const char *page)
@@ -252,6 +365,8 @@ nautilus_preferences_dialog_show_page (GtkWidget  *parent,
                                                ADW_PREFERENCES_PAGE (shortcuts));
         adw_preferences_dialog_add (preferences_dialog, ADW_PREFERENCES_PAGE (shortcuts));
     }
+
+    add_text_tabs (preferences_dialog);
 
     if (page != NULL)
     {
