@@ -12,6 +12,7 @@
 
 #include "nautilus-jump.h"
 
+#include <adwaita.h>
 #include <glib/gi18n.h>
 
 #include "nautilus-application.h"
@@ -49,6 +50,7 @@ enum
 typedef struct
 {
     const char *title;
+    const char *section;
     const char *words;   /* more to find it by */
     int schema;
     const char *key;     /* NULL: opens the Preferences */
@@ -60,47 +62,47 @@ typedef struct
 
 static const Setting settings[] =
 {
-    { N_("Show Hidden Files"), "dot files", SCHEMA_CHOOSER, "show-hidden", NULL },
-    { N_("Folders Before Files"), "sort first", SCHEMA_CHOOSER, "sort-directories-first", NULL },
-    { N_("Click to Open"), "single double mouse", SCHEMA_NAUTILUS, "click-policy", N_("single=Single|double=Double") },
-    { N_("Density"), "rows icons size compact", SCHEMA_FLIER, "density", DENSITY },
-    { N_("Sidebar Density"), "rows size compact", SCHEMA_FLIER, "sidebar-density", DENSITY },
-    { N_("Inspector"), "details panel info", SCHEMA_FLIER, "inspector-visible", NULL },
-    { N_("Inspector Density"), "details compact", SCHEMA_FLIER, "inspector-density",
+    { N_("Show Hidden Files"), N_("View"), "dot files", SCHEMA_CHOOSER, "show-hidden", NULL },
+    { N_("Folders Before Files"), N_("View"), "sort first", SCHEMA_CHOOSER, "sort-directories-first", NULL },
+    { N_("Click to Open"), N_("Files"), "single double mouse", SCHEMA_NAUTILUS, "click-policy", N_("single=Single|double=Double") },
+    { N_("Density"), N_("View"), "rows icons size compact", SCHEMA_FLIER, "density", DENSITY },
+    { N_("Sidebar Density"), N_("Sidebar"), "rows size compact", SCHEMA_FLIER, "sidebar-density", DENSITY },
+    { N_("Inspector"), N_("Inspector"), "details panel info", SCHEMA_FLIER, "inspector-visible", NULL },
+    { N_("Inspector Density"), N_("Inspector"), "details compact", SCHEMA_FLIER, "inspector-density",
       N_("comfortable=Comfortable|compact=Compact|dense=Dense") },
-    { N_("Inspector Side"), "details dock panel", SCHEMA_FLIER, "inspector-side",
+    { N_("Inspector Side"), N_("Inspector"), "details dock panel", SCHEMA_FLIER, "inspector-side",
       N_("left=Left|right=Right|top=Top|bottom=Bottom|window=Window") },
-    { N_("Bottom Bar"), "filter status", SCHEMA_FLIER, "bottom-bar", NULL },
-    { N_("Columns View"), "miller", SCHEMA_FLIER, "columns-view", NULL },
-    { N_("Tree View for New Tabs"), "expand list", SCHEMA_FLIER, "tree-view", NULL },
-    { N_("Ratings"), "stars", SCHEMA_FLIER, "ratings", NULL },
-    { N_("Tags"), "labels", SCHEMA_FLIER, "tags", NULL },
-    { N_("Ratings and Tags on Grid Items"), "stars tiles", SCHEMA_FLIER, "marks-on-tiles", NULL },
-    { N_("Stars in Columns"), "ratings miller", SCHEMA_FLIER, "columns-stars", NULL },
-    { N_("Folder Colors"), "colours", SCHEMA_FLIER, "folder-colors", NULL },
-    { N_("Folder Color Scheme"), "colours palette", SCHEMA_FLIER, "folder-color-scheme",
+    { N_("Bottom Bar"), N_("View"), "filter status", SCHEMA_FLIER, "bottom-bar", NULL },
+    { N_("Columns View"), N_("View"), "miller", SCHEMA_FLIER, "columns-view", NULL },
+    { N_("Tree View for New Tabs"), N_("View"), "expand list", SCHEMA_FLIER, "tree-view", NULL },
+    { N_("Ratings"), N_("Rate and Tag"), "stars", SCHEMA_FLIER, "ratings", NULL },
+    { N_("Tags"), N_("Rate and Tag"), "labels", SCHEMA_FLIER, "tags", NULL },
+    { N_("Ratings and Tags on Grid Items"), N_("Rate and Tag"), "stars tiles", SCHEMA_FLIER, "marks-on-tiles", NULL },
+    { N_("Stars in Columns"), N_("Rate and Tag"), "ratings miller", SCHEMA_FLIER, "columns-stars", NULL },
+    { N_("Folder Colors"), N_("Appearance"), "colours", SCHEMA_FLIER, "folder-colors", NULL },
+    { N_("Folder Color Scheme"), N_("Appearance"), "colours palette", SCHEMA_FLIER, "folder-color-scheme",
       N_("pastel=Pastel|vibrant=Vibrant|earth=Earth|ocean=Ocean|mono=Mono") },
-    { N_("Window Opacity"), "transparent transparency blur", SCHEMA_FLIER, "window-opacity", NULL },
-    { N_("Built-in Quick Look"), "preview", SCHEMA_FLIER, "own-quick-look", NULL },
-    { N_("Quick Look Names"), "preview", SCHEMA_FLIER, "quick-look-names", NULL },
-    { N_("Quick Look Ratings and Tags"), "preview stars", SCHEMA_FLIER, "quick-look-marks", NULL },
-    { N_("Thumbnails"), "previews images", SCHEMA_NAUTILUS, "show-image-thumbnails", SPEED },
-    { N_("Folder Item Counts"), "count size", SCHEMA_NAUTILUS, "show-directory-item-counts", SPEED },
-    { N_("Search in Subfolders"), "recursive", SCHEMA_NAUTILUS, "recursive-search", SPEED },
-    { N_("Dates"), "time format detailed", SCHEMA_NAUTILUS, "date-time-format",
+    { N_("Window Opacity"), N_("Appearance"), "transparent transparency blur", SCHEMA_FLIER, "window-opacity", NULL },
+    { N_("Built-in Quick Look"), N_("Quick Look"), "preview", SCHEMA_FLIER, "own-quick-look", NULL },
+    { N_("Quick Look Names"), N_("Quick Look"), "preview", SCHEMA_FLIER, "quick-look-names", NULL },
+    { N_("Quick Look Ratings and Tags"), N_("Quick Look"), "preview stars", SCHEMA_FLIER, "quick-look-marks", NULL },
+    { N_("Thumbnails"), N_("Files"), "previews images", SCHEMA_NAUTILUS, "show-image-thumbnails", SPEED },
+    { N_("Folder Item Counts"), N_("Files"), "count size", SCHEMA_NAUTILUS, "show-directory-item-counts", SPEED },
+    { N_("Search in Subfolders"), N_("Search"), "recursive", SCHEMA_NAUTILUS, "recursive-search", SPEED },
+    { N_("Dates"), N_("Files"), "time format detailed", SCHEMA_NAUTILUS, "date-time-format",
       N_("simple=Simple|detailed=Detailed") },
-    { N_("Sidebar Groups"), "sections fold", SCHEMA_FLIER, "sidebar-groups", NULL },
-    { N_("Storage Usage in the Sidebar"), "disk drive space", SCHEMA_FLIER, "sidebar-storage-usage", NULL },
-    { N_("Progress Panel"), "copy move", SCHEMA_FLIER, "progress-popup", NULL },
-    { N_("Progress Panel in Its Own Window"), "copy move popup", SCHEMA_FLIER, "progress-popup-window", NULL },
-    { N_("Copy One After Another"), "queue move", SCHEMA_FLIER, "queue-transfers", NULL },
-    { N_("Delete Permanently in Menus"), "trash", SCHEMA_NAUTILUS, "show-delete-permanently", NULL },
-    { N_("Create Link in Menus"), "symlink", SCHEMA_NAUTILUS, "show-create-link", NULL },
-    { N_("Open Folders While Dragging"), "drag drop hover", SCHEMA_NAUTILUS, "open-folder-on-dnd-hover", NULL },
-    { N_("Shortcuts in Menus"), "keys", SCHEMA_FLIER, "menu-shortcuts", NULL },
-    { N_("Shortcut Hints"), "keys", SCHEMA_FLIER, "shortcut-hints", NULL },
-    { N_("Run in the Background"), "startup start", SCHEMA_FLIER, "run-in-background", NULL },
-    { N_("All Preferences"), "settings options", 0, NULL, NULL },
+    { N_("Sidebar Groups"), N_("Sidebar"), "sections fold", SCHEMA_FLIER, "sidebar-groups", NULL },
+    { N_("Storage Usage in the Sidebar"), N_("Sidebar"), "disk drive space", SCHEMA_FLIER, "sidebar-storage-usage", NULL },
+    { N_("Progress Panel"), N_("Copying"), "copy move", SCHEMA_FLIER, "progress-popup", NULL },
+    { N_("Progress Panel in Its Own Window"), N_("Copying"), "copy move popup", SCHEMA_FLIER, "progress-popup-window", NULL },
+    { N_("Copy One After Another"), N_("Copying"), "queue move", SCHEMA_FLIER, "queue-transfers", NULL },
+    { N_("Delete Permanently in Menus"), N_("Menus"), "trash", SCHEMA_NAUTILUS, "show-delete-permanently", NULL },
+    { N_("Create Link in Menus"), N_("Menus"), "symlink", SCHEMA_NAUTILUS, "show-create-link", NULL },
+    { N_("Open Folders While Dragging"), N_("Files"), "drag drop hover", SCHEMA_NAUTILUS, "open-folder-on-dnd-hover", NULL },
+    { N_("Shortcuts in Menus"), N_("Keyboard"), "keys", SCHEMA_FLIER, "menu-shortcuts", NULL },
+    { N_("Shortcut Hints"), N_("Keyboard"), "keys", SCHEMA_FLIER, "shortcut-hints", NULL },
+    { N_("Run in the Background"), N_("Startup"), "startup start", SCHEMA_FLIER, "run-in-background", NULL },
+    { N_("All Preferences"), N_("Opens the Preferences window"), "settings options", 0, NULL, NULL },
 };
 
 typedef struct
@@ -117,6 +119,7 @@ struct _NautilusJump
     GtkWidget *anchor;
     GtkWidget *popover;
     GtkWidget *scopes[N_SCOPES];
+    GtkWidget *counts[N_SCOPES];
     GtkListBox *list;
     GtkScrolledWindow *scroller;
     NautilusWindowSlot *slot;
@@ -541,17 +544,136 @@ crumb_button (NautilusJump *jump,
 }
 
 /* The folders above @file, each a button: "~ › Documents › Work". */
+
+
 static GtkWidget *
-crumbs (NautilusJump *jump,
-        GFile        *file)
+row_new (RowKind kind)
+{
+    GtkWidget *row = gtk_list_box_row_new ();
+
+    gtk_widget_set_focusable (row, FALSE);
+    gtk_widget_add_css_class (row, "jump-row");
+    g_object_set_data (G_OBJECT (row), "kind", GINT_TO_POINTER (kind));
+    return row;
+}
+
+/* @text, with where @query (or its first word) is in it in the accent
+ * color, as markup. */
+static char *
+highlight (const char *text,
+           const char *query)
+{
+    g_autofree char *lower = g_utf8_strdown (text, -1);
+    g_autofree char *whole = g_utf8_strdown (query != NULL ? query : "", -1);
+    g_auto (GStrv) words = NULL;
+    const char *tries[2];
+    AdwStyleManager *style = adw_style_manager_get_default ();
+    GdkRGBA rgba;
+
+    g_strstrip (whole);
+    words = g_strsplit (whole, " ", 2);
+    tries[0] = whole;
+    tries[1] = words[0];
+
+    /* Byte offsets of the lowered text only fit if it kept its length. */
+    if (strlen (lower) != strlen (text))
+    {
+        return g_markup_escape_text (text, -1);
+    }
+
+    for (guint t = 0; t < 2; t++)
+    {
+        const char *at = tries[t] != NULL && *tries[t] != '\0' ? strstr (lower, tries[t]) : NULL;
+
+        if (at != NULL)
+        {
+            gsize start = at - lower;
+            gsize len = strlen (tries[t]);
+            g_autofree char *before = g_markup_escape_text (text, start);
+            g_autofree char *match = g_markup_escape_text (text + start, len);
+            g_autofree char *after = g_markup_escape_text (text + start + len, -1);
+
+            /* The accent the selection is tinted with, lighter on dark. */
+            g_autoptr (GdkRGBA) accent = adw_style_manager_get_accent_color_rgba (style);
+            double lift = adw_style_manager_get_dark (style) ? 0.35 : 0.0;
+
+            rgba.red = accent->red + (1 - accent->red) * lift;
+            rgba.green = accent->green + (1 - accent->green) * lift;
+            rgba.blue = accent->blue + (1 - accent->blue) * lift;
+            return g_strdup_printf ("%s<span foreground=\"#%02x%02x%02x\" weight=\"bold\">%s</span>%s",
+                                    before, (int) (rgba.red * 255), (int) (rgba.green * 255),
+                                    (int) (rgba.blue * 255), match, after);
+        }
+    }
+
+    return g_markup_escape_text (text, -1);
+}
+
+static GtkWidget *
+markup_label (const char *markup,
+              const char *css_class)
+{
+    GtkWidget *label = gtk_label_new (NULL);
+
+    gtk_label_set_markup (GTK_LABEL (label), markup);
+    gtk_label_set_xalign (GTK_LABEL (label), 0);
+    gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+    if (css_class != NULL)
+    {
+        gtk_widget_add_css_class (label, css_class);
+    }
+    return label;
+}
+
+/* Title over a dim line. */
+static GtkWidget *
+two_lines (const char *title_markup,
+           const char *sub)
+{
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    g_autofree char *escaped = g_markup_escape_text (sub, -1);
+
+    gtk_box_append (GTK_BOX (box), markup_label (title_markup, NULL));
+    gtk_box_append (GTK_BOX (box), markup_label (escaped, "jump-sub"));
+    gtk_widget_set_hexpand (box, TRUE);
+    gtk_widget_set_valign (box, GTK_ALIGN_CENTER);
+    return box;
+}
+
+static GtkWidget *
+row_icon (const char *name,
+          gboolean    dim)
+{
+    GtkWidget *icon = gtk_image_new_from_icon_name (name);
+
+    gtk_image_set_pixel_size (GTK_IMAGE (icon), dim ? 16 : 20);
+    gtk_widget_set_size_request (icon, 22, -1);
+    if (dim)
+    {
+        gtk_widget_add_css_class (icon, "jump-dim-icon");
+    }
+    return icon;
+}
+
+/* The path as one line: "Home / Documents / Downloads", every folder above
+ * a button that goes there, the folder itself in bold. */
+static GtkWidget *
+path_line (NautilusJump *jump,
+           Folder       *folder,
+           const char   *query)
 {
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
     g_autoptr (GFile) home = g_file_new_for_path (g_get_home_dir ());
-    g_autoptr (GFile) root = g_file_new_for_path ("/");
     g_autoptr (GPtrArray) chain = g_ptr_array_new_with_free_func (g_object_unref);
-    g_autoptr (GFile) at = g_file_get_parent (file);
+    g_autoptr (GFile) at = g_file_get_parent (folder->file);
+    g_autofree char *last = highlight (folder->name, query);
     gboolean cut = FALSE;
+    GtkWidget *name;
 
+    if (g_file_equal (folder->file, home))
+    {
+        at = NULL;
+    }
     while (at != NULL)
     {
         GFile *parent = g_file_get_parent (at);
@@ -565,73 +687,49 @@ crumbs (NautilusJump *jump,
         at = parent;
     }
 
-    /* The nearest few, after where they start. */
+    /* Where it starts and the nearest few. */
     if (chain->len > 5)
     {
         g_ptr_array_remove_range (chain, 1, chain->len - 4);
         cut = TRUE;
     }
 
-    gtk_widget_add_css_class (box, "jump-crumbs");
+    gtk_widget_add_css_class (box, "jump-path");
     for (guint i = 0; i < chain->len; i++)
     {
         GFile *step = chain->pdata[i];
-        g_autofree char *name = NULL;
+        g_autofree char *label = NULL;
+        g_autofree char *path = g_file_get_path (step);
+        gboolean root = path != NULL && g_str_equal (path, "/");
 
-        if (g_file_equal (step, home))
+        label = g_file_equal (step, home) ? g_strdup (_("Home"))
+                : root ? g_strdup (_("Computer")) : g_file_get_basename (step);
+        gtk_box_append (GTK_BOX (box), crumb_button (jump, step, label));
+        gtk_box_append (GTK_BOX (box), markup_label ("/", "jump-crumb-sep"));
+        if (cut && i == 0)
         {
-            name = g_strdup ("~");
+            gtk_box_append (GTK_BOX (box), markup_label ("…", "jump-crumb-sep"));
+            gtk_box_append (GTK_BOX (box), markup_label ("/", "jump-crumb-sep"));
         }
-        else if (g_file_equal (step, root))
-        {
-            name = g_strdup ("/");
-        }
-        else
-        {
-            name = g_file_get_basename (step);
-        }
-
-        if (i > 0)
-        {
-            GtkWidget *sep = gtk_label_new (cut && i == 1 ? "› … ›" : "›");
-
-            gtk_widget_add_css_class (sep, "jump-crumb-sep");
-            gtk_box_append (GTK_BOX (box), sep);
-        }
-        gtk_box_append (GTK_BOX (box), crumb_button (jump, step, name));
     }
+    name = markup_label (last, "jump-last");
+    gtk_box_append (GTK_BOX (box), name);
+    gtk_widget_set_hexpand (box, TRUE);
 
     return box;
 }
 
 static GtkWidget *
-row_new (RowKind kind)
-{
-    GtkWidget *row = gtk_list_box_row_new ();
-
-    gtk_widget_set_focusable (row, FALSE);
-    gtk_widget_add_css_class (row, "jump-row");
-    g_object_set_data (G_OBJECT (row), "kind", GINT_TO_POINTER (kind));
-    return row;
-}
-
-static GtkWidget *
 folder_row (NautilusJump *jump,
-            Folder       *folder)
+            Folder       *folder,
+            const char   *query)
 {
     GtkWidget *row = row_new (ROW_FOLDER);
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
-    GtkWidget *text = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
-    GtkWidget *name = gtk_label_new (folder->name);
 
-    gtk_box_append (GTK_BOX (box), gtk_image_new_from_icon_name (folder->icon));
-    gtk_label_set_xalign (GTK_LABEL (name), 0);
-    gtk_label_set_ellipsize (GTK_LABEL (name), PANGO_ELLIPSIZE_END);
-    gtk_widget_add_css_class (name, "jump-name");
-    gtk_box_append (GTK_BOX (text), name);
-    gtk_box_append (GTK_BOX (text), crumbs (jump, folder->file));
-    gtk_widget_set_hexpand (text, TRUE);
-    gtk_box_append (GTK_BOX (box), text);
+    gtk_box_append (GTK_BOX (box), row_icon (g_str_has_prefix (folder->icon, "user-home") ? "user-home" : "folder",
+                                             FALSE));
+    gtk_box_append (GTK_BOX (box), path_line (jump, folder, query));
 
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
     gtk_widget_set_tooltip_text (row, _("Enter opens it, Ctrl+Enter in a new tab"));
@@ -639,28 +737,67 @@ folder_row (NautilusJump *jump,
     return row;
 }
 
+static void
+on_add_key (GtkButton    *button,
+            NautilusJump *jump)
+{
+    GtkWindow *window = jump_window (jump);
+
+    close_entry (jump);
+    if (window != NULL)
+    {
+        gtk_widget_activate_action (GTK_WIDGET (window), "win.keyboard-shortcuts", NULL);
+    }
+}
+
 static GtkWidget *
-command_row (guint i)
+key_chip (const char *accel)
+{
+    guint key = 0;
+    GdkModifierType mods = 0;
+    g_autofree char *text = NULL;
+    GtkWidget *label;
+
+    gtk_accelerator_parse (accel, &key, &mods);
+    text = gtk_accelerator_get_label (key, mods);
+    label = gtk_label_new (text);
+    gtk_widget_add_css_class (label, "jump-kbd");
+    gtk_widget_set_valign (label, GTK_ALIGN_CENTER);
+    return label;
+}
+
+static GtkWidget *
+command_row (NautilusJump *jump,
+             guint         i,
+             const char   *query)
 {
     GtkWidget *row = row_new (ROW_COMMAND);
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
-    GtkWidget *title = gtk_label_new (nautilus_shortcuts_command_title (i));
-    GtkWidget *section = gtk_label_new (nautilus_shortcuts_command_section (i));
+    GtkWidget *keys_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+    g_autofree char *title = highlight (nautilus_shortcuts_command_title (i), query);
     g_auto (GStrv) keys = nautilus_shortcuts_command_keys (i);
 
-    gtk_box_append (GTK_BOX (box), gtk_image_new_from_icon_name ("system-run-symbolic"));
-    gtk_label_set_xalign (GTK_LABEL (title), 0);
-    gtk_label_set_ellipsize (GTK_LABEL (title), PANGO_ELLIPSIZE_END);
-    gtk_box_append (GTK_BOX (box), title);
-    gtk_label_set_xalign (GTK_LABEL (section), 0);
-    gtk_widget_set_hexpand (section, TRUE);
-    gtk_widget_add_css_class (section, "dim-label");
-    gtk_widget_add_css_class (section, "caption");
-    gtk_box_append (GTK_BOX (box), section);
-    if (keys[0] != NULL)
+    gtk_box_append (GTK_BOX (box), row_icon ("utilities-terminal-symbolic", TRUE));
+    gtk_box_append (GTK_BOX (box), two_lines (title, nautilus_shortcuts_command_section (i)));
+    for (guint k = 0; keys[k] != NULL && k < 3; k++)
     {
-        gtk_box_append (GTK_BOX (box), gtk_shortcut_label_new (keys[0]));
+        gtk_box_append (GTK_BOX (keys_box), key_chip (keys[k]));
     }
+    if (keys[0] == NULL)
+    {
+        GtkWidget *add = gtk_button_new_with_label (_("Add key"));
+
+        gtk_widget_add_css_class (add, "flat");
+        gtk_widget_add_css_class (add, "jump-kbd");
+        gtk_widget_add_css_class (add, "jump-add");
+        gtk_widget_set_valign (add, GTK_ALIGN_CENTER);
+        gtk_widget_set_focusable (add, FALSE);
+        gtk_widget_set_focus_on_click (add, FALSE);
+        gtk_widget_set_tooltip_text (add, _("Opens the command list, where keys are set"));
+        g_signal_connect (add, "clicked", G_CALLBACK (on_add_key), jump);
+        gtk_box_append (GTK_BOX (keys_box), add);
+    }
+    gtk_box_append (GTK_BOX (box), keys_box);
 
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
     g_object_set_data (G_OBJECT (row), "index", GUINT_TO_POINTER (i));
@@ -755,7 +892,6 @@ setting_control (const Setting *setting)
         g_autofree char *signal = g_strconcat ("changed::", setting->key, NULL);
         GtkWidget *first = NULL;
 
-        gtk_widget_add_css_class (box, "linked");
         gtk_widget_add_css_class (box, "jump-choices");
         gtk_widget_set_valign (box, GTK_ALIGN_CENTER);
         for (guint i = 0; choices[i] != NULL; i++)
@@ -793,17 +929,15 @@ setting_control (const Setting *setting)
 }
 
 static GtkWidget *
-setting_row (guint i)
+setting_row (guint       i,
+             const char *query)
 {
     GtkWidget *row = row_new (ROW_SETTING);
     GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
-    GtkWidget *title = gtk_label_new (_(settings[i].title));
+    g_autofree char *title = highlight (_(settings[i].title), query);
 
-    gtk_box_append (GTK_BOX (box), gtk_image_new_from_icon_name ("emblem-system-symbolic"));
-    gtk_label_set_xalign (GTK_LABEL (title), 0);
-    gtk_label_set_ellipsize (GTK_LABEL (title), PANGO_ELLIPSIZE_END);
-    gtk_widget_set_hexpand (title, TRUE);
-    gtk_box_append (GTK_BOX (box), title);
+    gtk_box_append (GTK_BOX (box), row_icon ("emblem-system-symbolic", TRUE));
+    gtk_box_append (GTK_BOX (box), two_lines (title, _(settings[i].section)));
     gtk_box_append (GTK_BOX (box), setting_control (&settings[i]));
 
     gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
@@ -922,29 +1056,7 @@ on_row_activated (GtkListBox    *list,
     activate_row (jump, row, FALSE);
 }
 
-static void
-header_func (GtkListBoxRow *row,
-             GtkListBoxRow *before,
-             gpointer       user_data)
-{
-    NautilusJump *jump = user_data;
-    RowKind kind = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (row), "kind"));
-    RowKind previous = before != NULL ? GPOINTER_TO_INT (g_object_get_data (G_OBJECT (before), "kind")) : 0;
-    const char *title = NULL;
-    GtkWidget *label;
 
-    if (jump->scope != SCOPE_ALL || kind == previous || kind == ROW_NONE)
-    {
-        gtk_list_box_row_set_header (row, NULL);
-        return;
-    }
-
-    title = kind == ROW_FOLDER ? _("Folders") : kind == ROW_COMMAND ? _("Commands") : _("Settings");
-    label = gtk_label_new (title);
-    gtk_label_set_xalign (GTK_LABEL (label), 0);
-    gtk_widget_add_css_class (label, "jump-heading");
-    gtk_list_box_row_set_header (row, label);
-}
 
 static void
 scroll_to (NautilusJump  *jump,
@@ -997,138 +1109,206 @@ add_row (NautilusJump *jump,
     gtk_list_box_append (jump->list, row);
 }
 
+/* The folders for @query, best first, each once; borrowed from @list,
+ * the current folder's and the index's. */
+static GPtrArray *
+pick_folders (NautilusJump *jump,
+              const char   *query,
+              GPtrArray    *list)
+{
+    gboolean empty = *query == '\0';
+    g_autoptr (GPtrArray) chosen = g_ptr_array_new ();
+    g_autoptr (GHashTable) seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    g_autoptr (GArray) scores = g_array_new (FALSE, FALSE, sizeof (int));
+    GPtrArray *result = g_ptr_array_new ();
+
+    for (guint i = 0; i < list->len; i++)
+    {
+        Folder *folder = list->pdata[i];
+
+        if (empty || matches (query, folder->name))
+        {
+            g_ptr_array_add (chosen, folder);
+        }
+    }
+    if (!empty)
+    {
+        GPtrArray *here = folders_here (jump);
+
+        for (guint i = 0; here != NULL && i < here->len; i++)
+        {
+            if (matches (query, ((Folder *) here->pdata[i])->name))
+            {
+                g_ptr_array_add (chosen, here->pdata[i]);
+            }
+        }
+    }
+    if (!empty && jump->found != NULL && g_strcmp0 (jump->found_for, query) == 0)
+    {
+        for (guint i = 0; i < jump->found->len; i++)
+        {
+            g_ptr_array_add (chosen, jump->found->pdata[i]);
+        }
+    }
+
+    for (guint i = 0; i < chosen->len; i++)
+    {
+        int score = empty ? (int) i : folder_score (chosen->pdata[i], query);
+
+        g_array_append_val (scores, score);
+    }
+    for (guint i = 1; i < chosen->len; i++)
+    {
+        for (guint j = i; j > 0 && g_array_index (scores, int, j) < g_array_index (scores, int, j - 1); j--)
+        {
+            int s = g_array_index (scores, int, j);
+            gpointer f = chosen->pdata[j];
+
+            g_array_index (scores, int, j) = g_array_index (scores, int, j - 1);
+            g_array_index (scores, int, j - 1) = s;
+            chosen->pdata[j] = chosen->pdata[j - 1];
+            chosen->pdata[j - 1] = f;
+        }
+    }
+    for (guint i = 0; i < chosen->len; i++)
+    {
+        Folder *folder = chosen->pdata[i];
+
+        if (g_hash_table_add (seen, g_file_get_uri (folder->file)))
+        {
+            g_ptr_array_add (result, folder);
+        }
+    }
+
+    return result;
+}
+
+/* Indexes of the commands (@commands) or settings that match, those whose
+ * title starts with what is typed first. */
+static GArray *
+pick (const char *query,
+      gboolean    commands)
+{
+    gboolean empty = *query == '\0';
+    guint n = commands ? nautilus_shortcuts_n_commands () : G_N_ELEMENTS (settings);
+    GArray *result = g_array_new (FALSE, FALSE, sizeof (guint));
+
+    for (guint pass = 0; pass < 2; pass++)
+    {
+        for (guint i = 0; i < n; i++)
+        {
+            const char *title = commands ? nautilus_shortcuts_command_title (i) : _(settings[i].title);
+            g_autofree char *haystack = g_strdup_printf ("%s %s", title,
+                                                         commands ? nautilus_shortcuts_command_section (i)
+                                                                  : settings[i].words);
+            gboolean prefix = !empty && g_str_match_string (query, title, TRUE);
+
+            if ((commands && g_str_equal (nautilus_shortcuts_command_action (i), "toolbar.jump-to")) ||
+                !(empty || matches (query, haystack)) ||
+                (pass == 0) != (empty || prefix))
+            {
+                continue;
+            }
+            g_array_append_val (result, i);
+        }
+    }
+
+    return result;
+}
+
+static void
+heading_row (NautilusJump *jump,
+             const char   *title,
+             guint         more)
+{
+    GtkWidget *row = row_new (ROW_NONE);
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+    g_autofree char *upper = g_utf8_strup (title, -1);
+    GtkWidget *label = gtk_label_new (upper);
+
+    gtk_widget_remove_css_class (row, "jump-row");
+    gtk_widget_add_css_class (row, "jump-heading-row");
+    gtk_label_set_xalign (GTK_LABEL (label), 0);
+    gtk_widget_set_hexpand (label, TRUE);
+    gtk_widget_add_css_class (label, "jump-heading");
+    gtk_box_append (GTK_BOX (box), label);
+    if (more > 0)
+    {
+        g_autofree char *text = g_strdup_printf (_("%u more · Tab"), more);
+        GtkWidget *rest = gtk_label_new (text);
+
+        gtk_widget_add_css_class (rest, "jump-heading");
+        gtk_box_append (GTK_BOX (box), rest);
+    }
+    gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), box);
+    gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+    gtk_list_box_row_set_selectable (GTK_LIST_BOX_ROW (row), FALSE);
+    add_row (jump, row);
+}
+
+static void
+set_count (NautilusJump *jump,
+           Scope         scope,
+           guint         count,
+           gboolean      show)
+{
+    g_autofree char *text = g_strdup_printf ("%u", count);
+
+    gtk_label_set_text (GTK_LABEL (jump->counts[scope]), text);
+    gtk_widget_set_visible (jump->counts[scope], show);
+}
+
 static void
 rebuild (NautilusJump *jump)
 {
     const char *query = jump->query != NULL ? jump->query : "";
     gboolean empty = *query == '\0';
     gboolean all = jump->scope == SCOPE_ALL;
+    g_autoptr (GPtrArray) place_list = places ();
+    g_autoptr (GPtrArray) folders = pick_folders (jump, query, place_list);
+    g_autoptr (GArray) commands = pick (query, TRUE);
+    g_autoptr (GArray) found_settings = pick (query, FALSE);
     GtkWidget *child;
     guint shown = 0;
+    guint limit;
 
     while ((child = gtk_widget_get_first_child (GTK_WIDGET (jump->list))) != NULL)
     {
         gtk_list_box_remove (jump->list, child);
     }
 
-    if (all || jump->scope == SCOPE_FOLDERS)
+    set_count (jump, SCOPE_ALL, folders->len + commands->len + found_settings->len, !empty);
+    set_count (jump, SCOPE_FOLDERS, folders->len, !empty);
+    set_count (jump, SCOPE_COMMANDS, commands->len, !empty);
+    set_count (jump, SCOPE_SETTINGS, found_settings->len, !empty);
+
+    if ((all || jump->scope == SCOPE_FOLDERS) && folders->len > 0)
     {
-        g_autoptr (GPtrArray) list = places ();
-        g_autoptr (GPtrArray) chosen = g_ptr_array_new ();
-        g_autoptr (GHashTable) seen = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-        g_autoptr (GArray) scores = g_array_new (FALSE, FALSE, sizeof (int));
-        guint limit = all ? (empty ? 8 : 6) : 60;
-
-        for (guint i = 0; i < list->len; i++)
+        limit = all ? 5 : 60;
+        heading_row (jump, _("Folders"), all && folders->len > limit ? folders->len - limit : 0);
+        for (guint i = 0; i < folders->len && i < limit; i++, shown++)
         {
-            Folder *folder = list->pdata[i];
-
-            if (empty || matches (query, folder->name))
-            {
-                g_ptr_array_add (chosen, folder);
-            }
-        }
-        if (!empty)
-        {
-            GPtrArray *here = folders_here (jump);
-
-            for (guint i = 0; here != NULL && i < here->len; i++)
-            {
-                if (matches (query, ((Folder *) here->pdata[i])->name))
-                {
-                    g_ptr_array_add (chosen, here->pdata[i]);
-                }
-            }
-        }
-        if (!empty && jump->found != NULL && g_strcmp0 (jump->found_for, query) == 0)
-        {
-            for (guint i = 0; i < jump->found->len; i++)
-            {
-                g_ptr_array_add (chosen, jump->found->pdata[i]);
-            }
-        }
-
-        /* Best first, each folder once. */
-        for (guint i = 0; i < chosen->len; i++)
-        {
-            int score = empty ? (int) i : folder_score (chosen->pdata[i], query);
-
-            g_array_append_val (scores, score);
-        }
-        for (guint i = 1; i < chosen->len; i++)
-        {
-            for (guint j = i; j > 0 && g_array_index (scores, int, j) < g_array_index (scores, int, j - 1); j--)
-            {
-                int s = g_array_index (scores, int, j);
-                gpointer f = chosen->pdata[j];
-
-                g_array_index (scores, int, j) = g_array_index (scores, int, j - 1);
-                g_array_index (scores, int, j - 1) = s;
-                chosen->pdata[j] = chosen->pdata[j - 1];
-                chosen->pdata[j - 1] = f;
-            }
-        }
-        for (guint i = 0, n = 0; i < chosen->len && n < limit; i++)
-        {
-            Folder *folder = chosen->pdata[i];
-            char *uri = g_file_get_uri (folder->file);
-
-            if (!g_hash_table_add (seen, uri))
-            {
-                continue;
-            }
-            add_row (jump, folder_row (jump, folder));
-            n++;
-            shown++;
+            add_row (jump, folder_row (jump, folders->pdata[i], query));
         }
     }
 
-    if ((all && !empty) || jump->scope == SCOPE_COMMANDS)
+    if ((all || jump->scope == SCOPE_COMMANDS) && commands->len > 0)
     {
-        guint limit = all ? 4 : G_MAXUINT;
-
-        for (guint pass = 0; pass < 2; pass++)
+        limit = all ? (empty ? 4 : 5) : G_MAXUINT;
+        heading_row (jump, _("Commands"), all && commands->len > limit ? commands->len - limit : 0);
+        for (guint i = 0; i < commands->len && i < limit; i++, shown++)
         {
-            for (guint i = 0; i < nautilus_shortcuts_n_commands () && limit > 0; i++)
-            {
-                const char *title = nautilus_shortcuts_command_title (i);
-                g_autofree char *haystack = g_strdup_printf ("%s %s", title,
-                                                             nautilus_shortcuts_command_section (i));
-                gboolean prefix = !empty && g_str_match_string (query, title, TRUE);
-
-                if (g_str_equal (nautilus_shortcuts_command_action (i), "toolbar.jump-to") ||
-                    !(empty || matches (query, haystack)) ||
-                    (pass == 0) != (empty || prefix))
-                {
-                    continue;
-                }
-                add_row (jump, command_row (i));
-                limit--;
-                shown++;
-            }
+            add_row (jump, command_row (jump, g_array_index (commands, guint, i), query));
         }
     }
 
-    if ((all && !empty) || jump->scope == SCOPE_SETTINGS)
+    if ((all || jump->scope == SCOPE_SETTINGS) && found_settings->len > 0)
     {
-        guint limit = all ? 4 : G_MAXUINT;
-
-        for (guint pass = 0; pass < 2; pass++)
+        limit = all ? (empty ? 3 : 5) : G_MAXUINT;
+        heading_row (jump, _("Settings"), all && found_settings->len > limit ? found_settings->len - limit : 0);
+        for (guint i = 0; i < found_settings->len && i < limit; i++, shown++)
         {
-            for (guint i = 0; i < G_N_ELEMENTS (settings) && limit > 0; i++)
-            {
-                const char *title = _(settings[i].title);
-                g_autofree char *haystack = g_strdup_printf ("%s %s", title, settings[i].words);
-                gboolean prefix = !empty && g_str_match_string (query, title, TRUE);
-
-                if (!(empty || matches (query, haystack)) || (pass == 0) != (empty || prefix))
-                {
-                    continue;
-                }
-                add_row (jump, setting_row (i));
-                limit--;
-                shown++;
-            }
+            add_row (jump, setting_row (g_array_index (found_settings, guint, i), query));
         }
     }
 
@@ -1136,18 +1316,20 @@ rebuild (NautilusJump *jump)
     {
         GtkWidget *row = row_new (ROW_NONE);
         gboolean looking = !empty && jump->scope == SCOPE_FOLDERS && g_strcmp0 (jump->found_for, query) != 0;
-        GtkWidget *label = gtk_label_new (looking ? _("Looking…") : _("Nothing found"));
+        g_autofree char *text = looking ? g_strdup (_("Looking…"))
+                                        : g_strdup_printf (_("Nothing called “%s”."), query);
+        GtkWidget *label = gtk_label_new (text);
 
         gtk_widget_add_css_class (label, "dim-label");
-        gtk_widget_set_margin_top (label, 12);
-        gtk_widget_set_margin_bottom (label, 12);
+        gtk_label_set_xalign (GTK_LABEL (label), 0);
+        gtk_widget_set_margin_top (label, 8);
+        gtk_widget_set_margin_bottom (label, 8);
         gtk_list_box_row_set_child (GTK_LIST_BOX_ROW (row), label);
         gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
         gtk_list_box_row_set_selectable (GTK_LIST_BOX_ROW (row), FALSE);
         add_row (jump, row);
     }
 
-    gtk_list_box_invalidate_headers (jump->list);
     {
         GtkListBoxRow *first = step_row (jump, NULL, TRUE);
 
@@ -1193,16 +1375,32 @@ nautilus_jump_new (GtkWidget *entry,
 {
     static const char *names[] = { N_("All"), N_("Folders"), N_("Commands"), N_("Settings") };
     NautilusJump *jump = g_new0 (NautilusJump, 1);
-    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+    GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     GtkWidget *bar = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-    GtkWidget *hint = gtk_label_new (_("Tab switches"));
+    GtkWidget *hint = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 16);
+    static const char *hints[][2] =
+    {
+        { "↑ ↓", N_("choose") },
+        { N_("Enter"), N_("open, run or switch") },
+        { N_("Tab"), N_("next group") },
+        { N_("Ctrl+Enter"), N_("new tab") },
+        { N_("Esc"), N_("close") },
+    };
 
     jump->entry = entry;
     jump->anchor = anchor;
 
     for (int i = 0; i < N_SCOPES; i++)
     {
-        jump->scopes[i] = gtk_toggle_button_new_with_label (_(names[i]));
+        GtkWidget *content = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+
+        gtk_box_append (GTK_BOX (content), gtk_label_new (_(names[i])));
+        jump->counts[i] = gtk_label_new (NULL);
+        gtk_widget_add_css_class (jump->counts[i], "jump-count");
+        gtk_widget_set_visible (jump->counts[i], FALSE);
+        gtk_box_append (GTK_BOX (content), jump->counts[i]);
+        jump->scopes[i] = gtk_toggle_button_new ();
+        gtk_button_set_child (GTK_BUTTON (jump->scopes[i]), content);
         gtk_widget_set_focusable (jump->scopes[i], FALSE);
         gtk_widget_set_focus_on_click (jump->scopes[i], FALSE);
         gtk_widget_add_css_class (jump->scopes[i], "flat");
@@ -1212,11 +1410,6 @@ nautilus_jump_new (GtkWidget *entry,
         g_signal_connect (jump->scopes[i], "toggled", G_CALLBACK (on_scope_toggled), jump);
         gtk_box_append (GTK_BOX (bar), jump->scopes[i]);
     }
-    gtk_widget_set_hexpand (hint, TRUE);
-    gtk_label_set_xalign (GTK_LABEL (hint), 1);
-    gtk_widget_add_css_class (hint, "dim-label");
-    gtk_widget_add_css_class (hint, "caption");
-    gtk_box_append (GTK_BOX (bar), hint);
     gtk_widget_add_css_class (bar, "jump-scopes");
     gtk_box_append (GTK_BOX (box), bar);
 
@@ -1224,7 +1417,6 @@ nautilus_jump_new (GtkWidget *entry,
     gtk_widget_set_focusable (GTK_WIDGET (jump->list), FALSE);
     gtk_list_box_set_selection_mode (jump->list, GTK_SELECTION_SINGLE);
     gtk_list_box_set_activate_on_single_click (jump->list, TRUE);
-    gtk_list_box_set_header_func (jump->list, header_func, jump, NULL);
     gtk_widget_add_css_class (GTK_WIDGET (jump->list), "jump-list");
     g_signal_connect (jump->list, "row-activated", G_CALLBACK (on_row_activated), jump);
 
@@ -1234,6 +1426,26 @@ nautilus_jump_new (GtkWidget *entry,
     gtk_scrolled_window_set_max_content_height (jump->scroller, 460);
     gtk_scrolled_window_set_child (jump->scroller, GTK_WIDGET (jump->list));
     gtk_box_append (GTK_BOX (box), GTK_WIDGET (jump->scroller));
+
+    for (guint i = 0; i < G_N_ELEMENTS (hints); i++)
+    {
+        GtkWidget *pair = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 5);
+        GtkWidget *what = gtk_label_new (_(hints[i][1]));
+        g_auto (GStrv) keys = g_strsplit (_(hints[i][0]), " ", -1);
+
+        for (guint k = 0; keys[k] != NULL; k++)
+        {
+            GtkWidget *kbd = gtk_label_new (keys[k]);
+
+            gtk_widget_add_css_class (kbd, "jump-kbd");
+            gtk_box_append (GTK_BOX (pair), kbd);
+        }
+        gtk_widget_add_css_class (what, "jump-hint-text");
+        gtk_box_append (GTK_BOX (pair), what);
+        gtk_box_append (GTK_BOX (hint), pair);
+    }
+    gtk_widget_add_css_class (hint, "jump-hint");
+    gtk_box_append (GTK_BOX (box), hint);
 
     jump->popover = gtk_popover_new ();
     gtk_popover_set_autohide (GTK_POPOVER (jump->popover), FALSE);
@@ -1286,7 +1498,7 @@ static void
 size_popover (NautilusJump *jump)
 {
     gtk_widget_set_size_request (gtk_popover_get_child (GTK_POPOVER (jump->popover)),
-                                 MAX (gtk_widget_get_width (jump->anchor) - 12, 420), -1);
+                                 MAX (gtk_widget_get_width (jump->anchor) - 2, 560), -1);
 }
 
 static gboolean

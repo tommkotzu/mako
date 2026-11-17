@@ -386,6 +386,8 @@ nautilus_toolbar_init (NautilusToolbar *self)
      * the whole title widget. */
     gtk_editable_set_max_width_chars (GTK_EDITABLE (self->location_entry), 88);
     gtk_entry_set_placeholder_text (GTK_ENTRY (self->location_entry), _("Folder, command or setting…"));
+    gtk_entry_set_icon_from_icon_name (GTK_ENTRY (self->location_entry), GTK_ENTRY_ICON_PRIMARY,
+                                       "system-search-symbolic");
 
     /* The jump menu, under the entry and its Cancel button. */
     self->jump = nautilus_jump_new (self->location_entry, gtk_widget_get_parent (self->location_entry));
