@@ -3689,7 +3689,7 @@ apply_color_theme (NautilusWindow *window)
     static const char *classes[] = { NULL, "theme-uniform", "theme-classic", "theme-graphite",
                                      "theme-deep-sea", "theme-synthwave", "theme-matcha",
                                      "theme-nord", "theme-dracula", "theme-gruvbox", "theme-catppuccin",
-                                     "theme-solarized", "theme-clown" };
+                                     "theme-solarized", "theme-kids", "theme-fog" };
     int theme = g_settings_get_enum (nautilus_flier_settings (), "color-theme");
     g_autofree char *custom = g_settings_get_string (nautilus_flier_settings (), "custom-theme");
     const char *old_custom = g_object_get_data (G_OBJECT (window), "custom-theme-class");
@@ -3708,6 +3708,11 @@ apply_color_theme (NautilusWindow *window)
         g_object_set_data_full (G_OBJECT (window), "custom-theme-class", class, g_free);
         theme = 0;
     }
+
+    /* Fog is only light: libadwaita's dark parts would clash with it. The
+     * whole app then is light, as there is one theme for all windows. */
+    adw_style_manager_set_color_scheme (adw_style_manager_get_default (),
+                                        theme == 13 ? ADW_COLOR_SCHEME_FORCE_LIGHT : ADW_COLOR_SCHEME_DEFAULT);
 
     for (int i = 1; i < (int) G_N_ELEMENTS (classes); i++)
     {

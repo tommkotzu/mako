@@ -604,16 +604,17 @@ on_sidebar_density_changed (GSettings   *settings,
 /* The colour theme picker: a small window in each theme's colours. */
 static const struct
 {
+    int value;          /* in the ColorTheme enum */
     const char *nick;
     const char *title;
 } color_themes[] =
 {
-    /* In the order of the ColorTheme enum. */
-    { "mako", N_("Mako") }, { "uniform", N_("Uniform") }, { "classic", N_("Classic") },
-    { "graphite", N_("Graphite") }, { "deep-sea", N_("Deep Sea") }, { "synthwave", N_("Synthwave") },
-    { "matcha", N_("Matcha") }, { "nord", N_("Nord") }, { "dracula", N_("Dracula") },
-    { "gruvbox", N_("Gruvbox") }, { "catppuccin", N_("Catppuccin") }, { "solarized", N_("Solarized") },
-    { "clown", N_("Clown") },
+    /* As shown: the GNOME-style ones first. */
+    { 0, "mako", N_("Mako") }, { 1, "uniform", N_("Uniform") }, { 2, "classic", N_("Classic") },
+    { 3, "graphite", N_("Graphite") }, { 13, "fog", N_("Fog") }, { 4, "deep-sea", N_("Deep Sea") },
+    { 5, "synthwave", N_("Synthwave") }, { 6, "matcha", N_("Matcha") }, { 7, "nord", N_("Nord") },
+    { 8, "dracula", N_("Dracula") }, { 9, "gruvbox", N_("Gruvbox") }, { 10, "catppuccin", N_("Catppuccin") },
+    { 11, "solarized", N_("Solarized") }, { 12, "kids", N_("Kids") },
 };
 
 static void
@@ -777,7 +778,7 @@ fill_theme_picker (GtkWidget *picker)
                                               _(color_themes[i].title), first);
 
         first = first != NULL ? first : button;
-        g_object_set_data (G_OBJECT (button), "theme", GINT_TO_POINTER (i));
+        g_object_set_data (G_OBJECT (button), "theme", GINT_TO_POINTER (color_themes[i].value));
         gtk_flow_box_append (GTK_FLOW_BOX (picker), button);
     }
     for (guint i = 0; i < custom->len; i++)
@@ -934,7 +935,7 @@ nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
     group = adw_preferences_group_new ();
     adw_preferences_group_set_title (ADW_PREFERENCES_GROUP (group), _("Color Theme"));
     adw_preferences_group_set_description (ADW_PREFERENCES_GROUP (group),
-                                           _("The first four keep to GNOME, the rest are for fun. Each follows light and dark. Your own themes come after them."));
+                                           _("The first five keep to GNOME, the rest are for fun. Each follows light and dark. Your own themes come after them."));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_picker_new ());
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), theme_buttons_new ());
     adw_preferences_page_add (ADW_PREFERENCES_PAGE (page), ADW_PREFERENCES_GROUP (group));

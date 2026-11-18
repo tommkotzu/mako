@@ -904,7 +904,7 @@ window.alternate-rows.density-extra-dense nautilus-columns .miller-column > row.
 }
 
 /* More fun themes, after well-known palettes (Nord, Dracula, Gruvbox,
- * Catppuccin, Solarized) and one that is just loud (Clown). */
+ * Catppuccin, Solarized) and one in every colour (Kids). */
 /* Nord: arctic blue-grey, frost accent */
 window.theme-nord, .theme-preview.theme-nord {
   --window-bg-color: #272c36; --view-bg-color: #2e3440; --headerbar-bg-color: #272c36;
@@ -1015,30 +1015,67 @@ window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.the
   window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.theme-solarized { --mako-sidebar: #eee8d5; }
 }
 
-/* Clown: big top. Red sidebar, yellow header, blue accent */
-window.theme-clown, .theme-preview.theme-clown {
-  --window-bg-color: #2a1856; --view-bg-color: #1b1036; --headerbar-bg-color: #ffd23f;
-  --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #d62839; --sidebar-backdrop-color: #d62839;
-  --card-bg-color: #2a1856; --popover-bg-color: #2a1856; --dialog-bg-color: #2a1856;
-  --window-fg-color: #fff4e0; --view-fg-color: #fff4e0; --headerbar-fg-color: #1b1036;
-  --sidebar-fg-color: #ffffff; --card-fg-color: #fff4e0; --popover-fg-color: #fff4e0; --dialog-fg-color: #fff4e0;
-  --accent-bg-color: #1e90ff; --accent-color: #4fc3ff; --accent-fg-color: #ffffff;
+/* Kids: every part its own colour. A red sidebar, yellow header bar,
+ * mint around the panels, orange bottom bar, sky-blue inspector, purple
+ * selection, pink menus, and each tab a colour of the rainbow. */
+window.theme-kids, .theme-preview.theme-kids {
+  --window-bg-color: #12b5a5; --view-bg-color: #2a1052; --headerbar-bg-color: #ffd60a;
+  --headerbar-backdrop-color: #ffd60a; --sidebar-bg-color: #ff3d6e; --sidebar-backdrop-color: #ff3d6e;
+  --card-bg-color: #3b1670; --popover-bg-color: #b0185f; --dialog-bg-color: #3b1670;
+  --window-fg-color: #ffffff; --view-fg-color: #fff6d6; --headerbar-fg-color: #2a1052;
+  --sidebar-fg-color: #ffffff; --card-fg-color: #ffffff; --popover-fg-color: #ffffff; --dialog-fg-color: #ffffff;
+  --accent-bg-color: #9b4dff; --accent-color: #c49bff; --accent-fg-color: #ffffff;
+  --kids-bottom: #ff8a00; --kids-inspector: #0d5f9e; --kids-scroll: #ff8a00;
 }
-window.theme-clown, window.theme-clown.framed-panels, .theme-preview.theme-clown { --mako-sidebar: #d62839; }
+window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #ff3d6e; }
+window.theme-kids.framed-panels { --mako-tile-bg: #2a1052; }
 @media (prefers-color-scheme: light) {
-  window.theme-clown, .theme-preview.theme-clown {
-    --window-bg-color: #ffe680; --view-bg-color: #fffdf3; --headerbar-bg-color: #ffd23f;
-    --headerbar-backdrop-color: #ffd23f; --sidebar-bg-color: #e63946; --sidebar-backdrop-color: #e63946;
-    --card-bg-color: #ffffff; --popover-bg-color: #ffffff; --dialog-bg-color: #ffffff;
-    --window-fg-color: #1b1036; --view-fg-color: #1b1036; --headerbar-fg-color: #1b1036;
-    --sidebar-fg-color: #ffffff; --card-fg-color: #1b1036; --popover-fg-color: #1b1036; --dialog-fg-color: #1b1036;
-    --accent-bg-color: #1e6fff; --accent-color: #1555c9; --accent-fg-color: #ffffff;
+  window.theme-kids, .theme-preview.theme-kids {
+    --window-bg-color: #3ddcc8; --view-bg-color: #fff8e1; --headerbar-bg-color: #ffd60a;
+    --headerbar-backdrop-color: #ffd60a; --sidebar-bg-color: #ff4d7d; --sidebar-backdrop-color: #ff4d7d;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffd1e8; --dialog-bg-color: #e8fbff;
+    --window-fg-color: #2a1052; --view-fg-color: #2a1052; --headerbar-fg-color: #2a1052;
+    --sidebar-fg-color: #ffffff; --card-fg-color: #2a1052; --popover-fg-color: #2a1052; --dialog-fg-color: #2a1052;
+    --accent-bg-color: #8a2be2; --accent-color: #7019c4; --accent-fg-color: #ffffff;
+    --kids-bottom: #ffa62b; --kids-inspector: #a6e4ff; --kids-scroll: #ff8a00;
   }
-  window.theme-clown, window.theme-clown.framed-panels, .theme-preview.theme-clown { --mako-sidebar: #e63946; }
+  window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #ff4d7d; }
+  window.theme-kids.framed-panels { --mako-tile-bg: #fff8e1; }
 }
-/* The header bars aren't painted in the headerbar colour in Mako's layout
- * (they sit on the views), so Clown paints them itself. */
-window.theme-clown headerbar { background-color: #ffd23f; color: #1b1036; box-shadow: none; }
+/* The header bars sit on the views in Mako's layout, so Kids paints them. */
+window.theme-kids headerbar { background-color: var(--headerbar-bg-color); color: var(--headerbar-fg-color); box-shadow: none; }
+window.theme-kids nautilus-bottom-bar { background-color: var(--kids-bottom); color: #2a1052; border-top: none; }
+window.theme-kids nautilus-inspector { background-color: var(--kids-inspector); color: var(--window-fg-color); }
+@media (prefers-color-scheme: light) {
+  window.theme-kids nautilus-inspector { color: #0b3a5c; }
+}
+window.theme-kids scrollbar slider { background-color: var(--kids-scroll); }
+/* With framed panels: mint in the gaps between them (behind them is
+ * otherwise the views' colour). */
+window.theme-kids.framed-panels nautilus-tile-layout { background-color: var(--window-bg-color); }
+/* A rainbow of tabs; the open one keeps its colour, with a white edge.
+ * In the tab box each tab's tabboxchild follows a separator, so they sit
+ * at the even places. */
+window.theme-kids tabbar tabboxchild:nth-child(12n+2) > tab { background-color: #ff595e; color: #ffffff; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+4) > tab { background-color: #ff924c; color: #2a1052; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+6) > tab { background-color: #8ac926; color: #1d2b05; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+8) > tab { background-color: #1982c4; color: #ffffff; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+10) > tab { background-color: #6a4c93; color: #ffffff; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+12) > tab { background-color: #ff70a6; color: #2a1052; }
+window.theme-kids tabbar tab:selected { box-shadow: inset 0 0 0 2px #ffffff; font-weight: bold; }
+
+/* Fog: light grey all over and soft, low-contrast text; always light
+ * (the window asks libadwaita for light while it's chosen). */
+window.theme-fog, .theme-preview.theme-fog {
+  --window-bg-color: #dcdcdf; --view-bg-color: #e6e6e8; --headerbar-bg-color: #dcdcdf;
+  --headerbar-backdrop-color: #dcdcdf; --sidebar-bg-color: #e0e0e3; --sidebar-backdrop-color: #e0e0e3;
+  --card-bg-color: #ebebed; --popover-bg-color: #ebebed; --dialog-bg-color: #e3e3e6;
+  --window-fg-color: #77777d; --view-fg-color: #77777d; --headerbar-fg-color: #77777d;
+  --sidebar-fg-color: #7d7d83; --card-fg-color: #77777d; --popover-fg-color: #77777d; --dialog-fg-color: #77777d;
+  --accent-bg-color: #a9b0bb; --accent-color: #8a929e; --accent-fg-color: #f7f7f8;
+}
+window.theme-fog, window.theme-fog.framed-panels, .theme-preview.theme-fog { --mako-sidebar: #e0e0e3; }
+window.theme-fog.framed-panels { --mako-tile-bg: #e6e6e8; }
 
 /* Preferences: its pages as tabs at the top, text only, like the file
  * manager's tabs (the shown one filled in the accent colour). */

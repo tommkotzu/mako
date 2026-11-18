@@ -1,6 +1,6 @@
 # Mako colour themes
 
-Mako comes with 13 colour themes (Preferences → Appearance → Color Theme).
+Mako comes with 14 colour themes (Preferences → Appearance → Color Theme).
 You can make your own too: a theme is one small CSS file.
 
 ## Make a theme
