@@ -1015,54 +1015,60 @@ window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.the
   window.theme-solarized, window.theme-solarized.framed-panels, .theme-preview.theme-solarized { --mako-sidebar: #eee8d5; }
 }
 
-/* Kids: every part its own colour. A red sidebar, yellow header bar,
- * mint around the panels, orange bottom bar, sky-blue inspector, purple
- * selection, pink menus, and each tab a colour of the rainbow. */
+/* Kids: every part its own colour, in soft pastels. A rose sidebar,
+ * butter header bar, mint around the panels, apricot bottom bar, sky-blue
+ * inspector, lavender selection, pink menus, and each tab a colour of a
+ * pale rainbow. */
 window.theme-kids, .theme-preview.theme-kids {
-  --window-bg-color: #12b5a5; --view-bg-color: #2a1052; --headerbar-bg-color: #ffd60a;
-  --headerbar-backdrop-color: #ffd60a; --sidebar-bg-color: #ff3d6e; --sidebar-backdrop-color: #ff3d6e;
-  --card-bg-color: #3b1670; --popover-bg-color: #b0185f; --dialog-bg-color: #3b1670;
-  --window-fg-color: #ffffff; --view-fg-color: #fff6d6; --headerbar-fg-color: #2a1052;
+  --window-bg-color: #5fb8ae; --view-bg-color: #2c2540; --headerbar-bg-color: #ecd27a;
+  --headerbar-backdrop-color: #ecd27a; --sidebar-bg-color: #d97a92; --sidebar-backdrop-color: #d97a92;
+  --card-bg-color: #3a3152; --popover-bg-color: #8e4f6c; --dialog-bg-color: #3a3152;
+  --window-fg-color: #ffffff; --view-fg-color: #f6f0ff; --headerbar-fg-color: #2b1d3d;
   --sidebar-fg-color: #ffffff; --card-fg-color: #ffffff; --popover-fg-color: #ffffff; --dialog-fg-color: #ffffff;
-  --accent-bg-color: #9b4dff; --accent-color: #c49bff; --accent-fg-color: #ffffff;
-  --kids-bottom: #ff8a00; --kids-inspector: #0d5f9e; --kids-scroll: #ff8a00;
+  --accent-bg-color: #9d86d6; --accent-color: #c4b3f0; --accent-fg-color: #ffffff;
+  --kids-bottom: #e9a86c; --kids-inspector: #3c6a8f; --kids-scroll: #e9a86c;
 }
-window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #ff3d6e; }
-window.theme-kids.framed-panels { --mako-tile-bg: #2a1052; }
+window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #d97a92; }
+window.theme-kids.framed-panels { --mako-tile-bg: #2c2540; }
 @media (prefers-color-scheme: light) {
   window.theme-kids, .theme-preview.theme-kids {
-    --window-bg-color: #3ddcc8; --view-bg-color: #fff8e1; --headerbar-bg-color: #ffd60a;
-    --headerbar-backdrop-color: #ffd60a; --sidebar-bg-color: #ff4d7d; --sidebar-backdrop-color: #ff4d7d;
-    --card-bg-color: #ffffff; --popover-bg-color: #ffd1e8; --dialog-bg-color: #e8fbff;
-    --window-fg-color: #2a1052; --view-fg-color: #2a1052; --headerbar-fg-color: #2a1052;
-    --sidebar-fg-color: #ffffff; --card-fg-color: #2a1052; --popover-fg-color: #2a1052; --dialog-fg-color: #2a1052;
-    --accent-bg-color: #8a2be2; --accent-color: #7019c4; --accent-fg-color: #ffffff;
-    --kids-bottom: #ffa62b; --kids-inspector: #a6e4ff; --kids-scroll: #ff8a00;
+    --window-bg-color: #a8e3da; --view-bg-color: #fffaf0; --headerbar-bg-color: #fbe7a1;
+    --headerbar-backdrop-color: #fbe7a1; --sidebar-bg-color: #f6a9bb; --sidebar-backdrop-color: #f6a9bb;
+    --card-bg-color: #ffffff; --popover-bg-color: #ffe3ef; --dialog-bg-color: #eefaff;
+    --window-fg-color: #3a2c52; --view-fg-color: #3a2c52; --headerbar-fg-color: #3a2c52;
+    --sidebar-fg-color: #3a2c52; --card-fg-color: #3a2c52; --popover-fg-color: #3a2c52; --dialog-fg-color: #3a2c52;
+    --accent-bg-color: #a58fe0; --accent-color: #6f55b8; --accent-fg-color: #ffffff;
+    --kids-bottom: #ffd2a6; --kids-inspector: #cdeaf9; --kids-scroll: #f3b27a;
   }
-  window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #ff4d7d; }
-  window.theme-kids.framed-panels { --mako-tile-bg: #fff8e1; }
+  window.theme-kids, window.theme-kids.framed-panels, .theme-preview.theme-kids { --mako-sidebar: #f6a9bb; }
+  window.theme-kids.framed-panels { --mako-tile-bg: #fffaf0; }
 }
 /* The header bars sit on the views in Mako's layout, so Kids paints them. */
 window.theme-kids headerbar { background-color: var(--headerbar-bg-color); color: var(--headerbar-fg-color); box-shadow: none; }
-window.theme-kids nautilus-bottom-bar { background-color: var(--kids-bottom); color: #2a1052; border-top: none; }
+window.theme-kids nautilus-bottom-bar { background-color: var(--kids-bottom); color: #3a2c52; border-top: none; }
 window.theme-kids nautilus-inspector { background-color: var(--kids-inspector); color: var(--window-fg-color); }
-@media (prefers-color-scheme: light) {
-  window.theme-kids nautilus-inspector { color: #0b3a5c; }
-}
 window.theme-kids scrollbar slider { background-color: var(--kids-scroll); }
 /* With framed panels: mint in the gaps between them (behind them is
  * otherwise the views' colour). */
 window.theme-kids.framed-panels nautilus-tile-layout { background-color: var(--window-bg-color); }
-/* A rainbow of tabs; the open one keeps its colour, with a white edge.
- * In the tab box each tab's tabboxchild follows a separator, so they sit
- * at the even places. */
-window.theme-kids tabbar tabboxchild:nth-child(12n+2) > tab { background-color: #ff595e; color: #ffffff; }
-window.theme-kids tabbar tabboxchild:nth-child(12n+4) > tab { background-color: #ff924c; color: #2a1052; }
-window.theme-kids tabbar tabboxchild:nth-child(12n+6) > tab { background-color: #8ac926; color: #1d2b05; }
-window.theme-kids tabbar tabboxchild:nth-child(12n+8) > tab { background-color: #1982c4; color: #ffffff; }
-window.theme-kids tabbar tabboxchild:nth-child(12n+10) > tab { background-color: #6a4c93; color: #ffffff; }
-window.theme-kids tabbar tabboxchild:nth-child(12n+12) > tab { background-color: #ff70a6; color: #2a1052; }
+/* A pale rainbow of tabs; the open one keeps its colour, with a white
+ * edge. In the tab box each tab's tabboxchild follows a separator, so
+ * they sit at the even places. */
+window.theme-kids tabbar tabboxchild:nth-child(12n+2) > tab { background-color: #e88a8f; color: #2b1d3d; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+4) > tab { background-color: #eeb07c; color: #2b1d3d; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+6) > tab { background-color: #a3cf7a; color: #2b1d3d; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+8) > tab { background-color: #7fb2d9; color: #2b1d3d; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+10) > tab { background-color: #a593cc; color: #2b1d3d; }
+window.theme-kids tabbar tabboxchild:nth-child(12n+12) > tab { background-color: #e99bbd; color: #2b1d3d; }
 window.theme-kids tabbar tab:selected { box-shadow: inset 0 0 0 2px #ffffff; font-weight: bold; }
+@media (prefers-color-scheme: light) {
+  window.theme-kids tabbar tabboxchild:nth-child(12n+2) > tab { background-color: #ffb3b3; }
+  window.theme-kids tabbar tabboxchild:nth-child(12n+4) > tab { background-color: #ffd3a8; }
+  window.theme-kids tabbar tabboxchild:nth-child(12n+6) > tab { background-color: #cdeeb4; }
+  window.theme-kids tabbar tabboxchild:nth-child(12n+8) > tab { background-color: #b5ddf5; }
+  window.theme-kids tabbar tabboxchild:nth-child(12n+10) > tab { background-color: #d2c6f2; }
+  window.theme-kids tabbar tabboxchild:nth-child(12n+12) > tab { background-color: #ffc4de; }
+}
 
 /* Fog: light grey all over and soft, low-contrast text; always light
  * (the window asks libadwaita for light while it's chosen). */
