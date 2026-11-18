@@ -95,7 +95,8 @@ def start_app(location, prep=None):
                XDG_DATA_HOME=HOME + '/.local/share', XDG_CACHE_HOME=HOME + '/.cache',
                GSETTINGS_BACKEND='memory', GSETTINGS_SCHEMA_DIR=REPO + '/_build/data',
                FLIER_CAPTURE='1', FLIER_CAPTURE_PRESET='1', FLIER_CAPTURE_ANIMATE='1',
-               FLIER_CAPTURE_ICON_THEME=os.environ.get('PRESENT_ICONS') or 'Adwaita')
+               FLIER_CAPTURE_ICON_THEME=os.environ.get('PRESENT_ICONS') or 'Adwaita',
+               FLIER_CAPTURE_SCHEME=os.environ.get('PRESENT_SCHEME', ''))
     app_proc = subprocess.Popen([REPO + '/_build/src/nautilus', '--new-window', location], env=env,
                                 cwd=HOME, stdout=open(WORK + '/app.log', 'a'), stderr=subprocess.STDOUT)
     for _ in range(80):
