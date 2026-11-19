@@ -347,6 +347,14 @@ groups_on (void)
     return g_settings_get_boolean (nautilus_flier_settings (), "sidebar-groups");
 }
 
+/* Group titles shown (setting sidebar-titles). Without them a group's
+ * header is only a small gap, and nothing can be folded away. */
+static gboolean
+titles_on (void)
+{
+    return g_settings_get_boolean (nautilus_flier_settings (), "sidebar-titles");
+}
+
 static const char *
 group_id (NautilusSidebarSectionType section)
 {
@@ -751,7 +759,7 @@ list_box_filter_func (GtkListBoxRow *row,
         return TRUE;
     }
 
-    return place_type == NAUTILUS_SIDEBAR_ROW_GROUP_HEADER || !group_collapsed (section);
+    return place_type == NAUTILUS_SIDEBAR_ROW_GROUP_HEADER || !titles_on () || !group_collapsed (section);
 }
 
 static void
@@ -1332,6 +1340,14 @@ add_flier_rows (NautilusSidebar *sidebar)
                                            NULL, 0, NULL);
 
             gtk_widget_add_css_class (header, "sidebar-group-header");
+            if (!titles_on ())
+            {
+                /* A gap between groups: no title, nothing to click. */
+                gtk_widget_add_css_class (header, "sidebar-group-gap");
+                gtk_widget_set_visible (gtk_list_box_row_get_child (GTK_LIST_BOX_ROW (header)), FALSE);
+                gtk_widget_set_can_target (header, FALSE);
+                gtk_widget_set_can_focus (header, FALSE);
+            }
 
             GtkDragSource *drag = gtk_drag_source_new ();
             GtkDropTarget *drop = gtk_drop_target_new (G_TYPE_STRING, GDK_ACTION_MOVE);
@@ -4955,6 +4971,8 @@ nautilus_sidebar_init (NautilusSidebar *sidebar)
     g_signal_connect_object (nautilus_flier_settings (), "changed::sidebar-hidden-places",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
     g_signal_connect_object (nautilus_flier_settings (), "changed::sidebar-groups",
+                             G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
+    g_signal_connect_object (nautilus_flier_settings (), "changed::sidebar-titles",
                              G_CALLBACK (update_places), sidebar, G_CONNECT_SWAPPED);
     g_signal_connect_object (nautilus_labels_get (), "tags-changed",
                              G_CALLBACK (on_tags_changed), sidebar, G_CONNECT_SWAPPED);

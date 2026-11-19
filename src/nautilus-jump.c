@@ -102,6 +102,7 @@ static const Setting settings[] =
     { N_("Dates"), N_("Files"), "time format detailed", SCHEMA_NAUTILUS, "date-time-format",
       N_("simple=Simple|detailed=Detailed") },
     { N_("Sidebar Groups"), N_("Sidebar"), "sections fold", SCHEMA_FLIER, "sidebar-groups", NULL },
+    { N_("Sidebar Group Titles"), N_("Sidebar"), "sections headers names hide", SCHEMA_FLIER, "sidebar-titles", NULL },
     { N_("Storage Usage in the Sidebar"), N_("Sidebar"), "disk drive space", SCHEMA_FLIER, "sidebar-storage-usage", NULL },
     { N_("Progress Panel"), N_("Copying"), "copy move", SCHEMA_FLIER, "progress-popup", NULL },
     { N_("Progress Panel in Its Own Window"), N_("Copying"), "copy move popup", SCHEMA_FLIER, "progress-popup-window", NULL },

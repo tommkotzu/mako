@@ -1137,6 +1137,10 @@ nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
                                                _("Bookmarks, Places, Storage, Recent and Tags as groups that fold away"),
                                                "sidebar-groups"));
     adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                               switch_row_new (_("Group _Titles"),
+                                               _("Bookmarks, Places, Tags and the others named above their group; without them a small gap sets the groups apart"),
+                                               "sidebar-titles"));
+    adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                switch_row_new (_("Storage _Usage"),
                                                _("A thin bar under each drive shows how full it is"),
                                                "sidebar-storage-usage"));
