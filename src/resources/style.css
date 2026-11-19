@@ -548,6 +548,9 @@ nautilus-bottom-bar .bottom-filter > image { opacity: 0.6; }
 /* Sidebar groups (the sidebar-groups setting), like File Flier's: a header
  * row with the group's icon, its name in bold and an arrow. */
 .navigation-sidebar row.sidebar-group-header { margin-top: 2px; }
+/* Group titles hidden (sidebar-titles): the header is only a gap. */
+.navigation-sidebar row.sidebar-group-gap { min-height: 10px; padding: 0; margin: 0; background: none; }
+.navigation-sidebar row.sidebar-group-gap:first-child { min-height: 2px; }
 .navigation-sidebar row.sidebar-group-header label { font-weight: bold; }
 .navigation-sidebar row.sidebar-group-header box > image:first-child { opacity: 0.7; }
 /* Ctrl+Up/Down resting on a group header. */
@@ -799,6 +802,17 @@ window.theme-uniform.framed-panels { --mako-sidebar: var(--mako-tile-bg); }
 window.theme-classic,
 window.theme-classic.framed-panels { --mako-sidebar: var(--sidebar-bg-color); }
 window.theme-classic.framed-panels { --mako-tile-bg: var(--view-bg-color); }
+/* Behind the panels is otherwise the views' colour, the panels' own here:
+ * the window's colour around them, as GNOME draws it. */
+window.theme-classic.framed-panels { --mako-gap: var(--sidebar-bg-color); }
+window.theme-fog.framed-panels { --mako-gap: #d2d2d7; }
+/* Behind the panels is otherwise the views' colour, the panels' own here:
+ * the gaps and the header bar in GNOME's sidebar grey, so the panels read
+ * as cards. */
+window.theme-classic.framed-panels nautilus-tile-layout,
+window.theme-fog.framed-panels nautilus-tile-layout,
+window.theme-classic.framed-panels headerbar,
+window.theme-fog.framed-panels headerbar { background-color: var(--mako-gap); box-shadow: none; }
 
 /* Graphite: deeper, with more contrast between the parts. */
 window.theme-graphite, .theme-preview.theme-graphite {
@@ -1081,7 +1095,7 @@ window.theme-fog, .theme-preview.theme-fog {
   --accent-bg-color: #a9b0bb; --accent-color: #8a929e; --accent-fg-color: #f7f7f8;
 }
 window.theme-fog, window.theme-fog.framed-panels, .theme-preview.theme-fog { --mako-sidebar: #e0e0e3; }
-window.theme-fog.framed-panels { --mako-tile-bg: #e6e6e8; }
+window.theme-fog.framed-panels { --mako-tile-bg: #eeeef0; }
 
 /* Preferences: its pages as tabs at the top, text only, like the file
  * manager's tabs (the shown one filled in the accent colour). */
