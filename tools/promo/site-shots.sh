@@ -53,4 +53,4 @@ dbus-run-session --config-file="$PROMO/headless-bus.conf" -- bash -c '
   for i in $(seq 1 60); do [ -S "$XDG_RUNTIME_DIR/mako-present" ] && break; sleep 0.25; done
   sleep 2
   WAYLAND_DISPLAY=mako-present GDK_BACKEND=wayland XCURSOR_SIZE=32 python3 -I "$0" "$@"; rc=$?
-  kill $SHELL_PID; wait $SHELL_PID 2>/dev/null; exit $rc' /home/tommboo/.claude/jobs/f8ce5de9/tmp/qt/qt41.py "$@"
+  kill $SHELL_PID; wait $SHELL_PID 2>/dev/null; exit $rc' "$PROMO/site-shots.py" "$@"

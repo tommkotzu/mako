@@ -776,8 +776,8 @@ window.framed-panels nautilus-inspector.docked-left { margin: 0 0 6px 6px; }
 window.framed-panels nautilus-inspector.docked-top,
 window.framed-panels nautilus-inspector.docked-bottom { margin: 0 6px 6px 6px; }
 window.framed-panels nautilus-inspector .inspector-header { border-top: none; }
-/* Classic: the inspector in the sidebar's grey, its preview in a darker frame. */
-window.theme-classic.framed-panels nautilus-inspector { background-color: var(--sidebar-bg-color); }
+/* Classic: the inspector a card like the tiles, its preview in a darker frame. */
+window.theme-classic.framed-panels nautilus-inspector { background-color: var(--mako-tile-bg); }
 window.theme-classic.framed-panels nautilus-inspector .inspector-preview { background-color: color-mix(in srgb, black 22%, transparent); box-shadow: none; }
 window.framed-panels paned.inspector-paned > separator { min-width: 0; min-height: 0; }
 
@@ -803,12 +803,13 @@ window.theme-classic,
 window.theme-classic.framed-panels { --mako-sidebar: var(--sidebar-bg-color); }
 window.theme-classic.framed-panels { --mako-tile-bg: var(--view-bg-color); }
 /* Behind the panels is otherwise the views' colour, the panels' own here:
- * the window's colour around them, as GNOME draws it. */
+ * the gaps and the header bar in GNOME's sidebar grey, so the panels read
+ * as cards. The inspector sits beside the tiles, not in them, so the paned
+ * holding both is painted too (else its rounded corners show dark). */
 window.theme-classic.framed-panels { --mako-gap: var(--sidebar-bg-color); }
 window.theme-fog.framed-panels { --mako-gap: #d2d2d7; }
-/* Behind the panels is otherwise the views' colour, the panels' own here:
- * the gaps and the header bar in GNOME's sidebar grey, so the panels read
- * as cards. */
+window.theme-classic.framed-panels paned.inspector-paned,
+window.theme-fog.framed-panels paned.inspector-paned,
 window.theme-classic.framed-panels nautilus-tile-layout,
 window.theme-fog.framed-panels nautilus-tile-layout,
 window.theme-classic.framed-panels headerbar,
