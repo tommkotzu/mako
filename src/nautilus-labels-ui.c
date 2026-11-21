@@ -180,8 +180,10 @@ swatch_new (int         slot,
     GtkWidget *button = gtk_button_new ();
     GtkWidget *area = gtk_drawing_area_new ();
 
-    gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (area), 16);
-    gtk_drawing_area_set_content_height (GTK_DRAWING_AREA (area), 16);
+    gtk_drawing_area_set_content_width (GTK_DRAWING_AREA (area), 18);
+    gtk_drawing_area_set_content_height (GTK_DRAWING_AREA (area), 18);
+    gtk_widget_set_halign (area, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign (area, GTK_ALIGN_CENTER);
     gtk_drawing_area_set_draw_func (GTK_DRAWING_AREA (area), draw_swatch, GINT_TO_POINTER (slot), NULL);
     gtk_button_set_child (GTK_BUTTON (button), area);
     gtk_widget_add_css_class (button, "flat");
