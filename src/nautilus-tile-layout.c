@@ -219,6 +219,11 @@ struct _NautilusTileLayout
 
     gboolean has_drop_zone;
     graphene_rect_t drop_zone;
+
+    /* Middle-button drag on a border: every divider moves at once. */
+    GHashTable *drag_start;    /* GtkPaned -> where its divider began (double *) */
+    graphene_rect_t drag_area; /* the panes' outer edges */
+    double anchor_x, anchor_y; /* the grabbed spot, snapped to the divider(s) under it */
 };
 
 G_DEFINE_FINAL_TYPE (NautilusTileLayout, nautilus_tile_layout, ADW_TYPE_BIN)
@@ -530,12 +535,241 @@ nautilus_tile_layout_snapshot (GtkWidget   *widget,
                                 (GdkRGBA[4]) { accent, accent, accent, accent });
 }
 
+/* ------------------------------------------- Middle-drag: all dividers */
+
+/* Where @paned's divider starts, in layout coordinates, along its axis;
+ * and the divider's thickness. */
+static gboolean
+divider_of (NautilusTileLayout *self,
+            GtkPaned           *paned,
+            double             *start,
+            double             *size)
+{
+    graphene_rect_t b;
+    gboolean horizontal = gtk_orientable_get_orientation (GTK_ORIENTABLE (paned)) == GTK_ORIENTATION_HORIZONTAL;
+    GtkWidget *a = gtk_paned_get_start_child (paned);
+    GtkWidget *z = gtk_paned_get_end_child (paned);
+    graphene_rect_t ab, zb;
+
+    if (a == NULL || z == NULL ||
+        !gtk_widget_compute_bounds (a, GTK_WIDGET (self), &ab) ||
+        !gtk_widget_compute_bounds (z, GTK_WIDGET (self), &zb) ||
+        !gtk_widget_compute_bounds (GTK_WIDGET (paned), GTK_WIDGET (self), &b))
+    {
+        return FALSE;
+    }
+
+    if (horizontal)
+    {
+        *start = ab.origin.x + ab.size.width;
+        *size = zb.origin.x - *start;
+    }
+    else
+    {
+        *start = ab.origin.y + ab.size.height;
+        *size = zb.origin.y - *start;
+    }
+    return TRUE;
+}
+
+static void
+collect_paneds (GtkWidget  *widget,
+                GPtrArray  *out)
+{
+    if (GTK_IS_PANED (widget))
+    {
+        g_ptr_array_add (out, widget);
+        collect_paneds (gtk_paned_get_start_child (GTK_PANED (widget)), out);
+        collect_paneds (gtk_paned_get_end_child (GTK_PANED (widget)), out);
+    }
+}
+
+/* Old coordinate @s on one axis, the grab moved from @a0 to @a1, within
+ * [@lo, @hi]: both sides of the grab stretch or shrink evenly. */
+static double
+remap (double s,
+       double a0,
+       double a1,
+       double lo,
+       double hi)
+{
+    if (s <= a0)
+    {
+        return a0 - lo > 1 ? lo + (s - lo) * (a1 - lo) / (a0 - lo) : s;
+    }
+    return hi - a0 > 1 ? a1 + (s - a0) * (hi - a1) / (hi - a0) : s;
+}
+
+/* Lays out @widget in @r: each paned's divider at its remapped place,
+ * computed top-down so nested panes follow their parents at once. */
+static void
+apply_dividers (NautilusTileLayout    *self,
+                GtkWidget             *widget,
+                const graphene_rect_t *r,
+                double                 x1,
+                double                 y1)
+{
+    if (!GTK_IS_PANED (widget))
+    {
+        return;
+    }
+
+    GtkPaned *paned = GTK_PANED (widget);
+    double *orig = g_hash_table_lookup (self->drag_start, paned);
+    GtkWidget *a = gtk_paned_get_start_child (paned);
+    GtkWidget *z = gtk_paned_get_end_child (paned);
+    gboolean horizontal = gtk_orientable_get_orientation (GTK_ORIENTABLE (paned)) == GTK_ORIENTATION_HORIZONTAL;
+    GtkOrientation axis = horizontal ? GTK_ORIENTATION_HORIZONTAL : GTK_ORIENTATION_VERTICAL;
+    double origin = horizontal ? r->origin.x : r->origin.y;
+    double length = horizontal ? r->size.width : r->size.height;
+    graphene_rect_t ra = *r, rz = *r;
+    int min_a = 0, min_z = 0;
+
+    if (orig == NULL || a == NULL || z == NULL)
+    {
+        return;
+    }
+
+    double target = horizontal
+                    ? remap (orig[0], self->anchor_x, x1, self->drag_area.origin.x,
+                             self->drag_area.origin.x + self->drag_area.size.width)
+                    : remap (orig[0], self->anchor_y, y1, self->drag_area.origin.y,
+                             self->drag_area.origin.y + self->drag_area.size.height);
+    double handle = orig[1];
+
+    gtk_widget_measure (a, axis, -1, &min_a, NULL, NULL, NULL);
+    gtk_widget_measure (z, axis, -1, &min_z, NULL, NULL, NULL);
+
+    int pos = (int) round (target - origin);
+    pos = CLAMP (pos, min_a, MAX (min_a, (int) (length - handle) - min_z));
+    gtk_paned_set_position (paned, pos);
+
+    if (horizontal)
+    {
+        ra.size.width = pos;
+        rz.origin.x = origin + pos + handle;
+        rz.size.width = length - pos - handle;
+    }
+    else
+    {
+        ra.size.height = pos;
+        rz.origin.y = origin + pos + handle;
+        rz.size.height = length - pos - handle;
+    }
+    apply_dividers (self, a, &ra, x1, y1);
+    apply_dividers (self, z, &rz, x1, y1);
+}
+
+#define GRAB_SLOP 6
+
+static void
+on_middle_drag_begin (GtkGestureDrag     *gesture,
+                      double              x,
+                      double              y,
+                      NautilusTileLayout *self)
+{
+    GtkWidget *root = adw_bin_get_child (ADW_BIN (self));
+    g_autoptr (GPtrArray) paneds = g_ptr_array_new ();
+    gboolean on_divider = FALSE;
+
+    if (root == NULL || !GTK_IS_PANED (root) ||
+        !gtk_widget_compute_bounds (root, GTK_WIDGET (self), &self->drag_area))
+    {
+        gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_DENIED);
+        return;
+    }
+
+    collect_paneds (root, paneds);
+    g_clear_pointer (&self->drag_start, g_hash_table_unref);
+    self->drag_start = g_hash_table_new_full (NULL, NULL, NULL, g_free);
+    self->anchor_x = x;
+    self->anchor_y = y;
+
+    for (guint i = 0; i < paneds->len; i++)
+    {
+        GtkPaned *paned = paneds->pdata[i];
+        double start, size;
+        graphene_rect_t b;
+
+        if (!divider_of (self, paned, &start, &size) ||
+            !gtk_widget_compute_bounds (GTK_WIDGET (paned), GTK_WIDGET (self), &b))
+        {
+            continue;
+        }
+
+        double *orig = g_new (double, 2);
+        orig[0] = start;
+        orig[1] = size;
+        g_hash_table_insert (self->drag_start, paned, orig);
+
+        /* Is the press on this divider? Then the divider is what follows
+         * the pointer on its axis. */
+        if (gtk_orientable_get_orientation (GTK_ORIENTABLE (paned)) == GTK_ORIENTATION_HORIZONTAL)
+        {
+            if (x >= start - GRAB_SLOP && x <= start + size + GRAB_SLOP &&
+                y >= b.origin.y && y <= b.origin.y + b.size.height)
+            {
+                self->anchor_x = start;
+                on_divider = TRUE;
+            }
+        }
+        else if (y >= start - GRAB_SLOP && y <= start + size + GRAB_SLOP &&
+                 x >= b.origin.x && x <= b.origin.x + b.size.width)
+        {
+            self->anchor_y = start;
+            on_divider = TRUE;
+        }
+    }
+
+    if (!on_divider)
+    {
+        g_clear_pointer (&self->drag_start, g_hash_table_unref);
+        gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_DENIED);
+        return;
+    }
+
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+    gtk_widget_set_cursor_from_name (GTK_WIDGET (self), "move");
+}
+
+static void
+on_middle_drag_update (GtkGestureDrag     *gesture,
+                       double              dx,
+                       double              dy,
+                       NautilusTileLayout *self)
+{
+    GtkWidget *root = adw_bin_get_child (ADW_BIN (self));
+    const graphene_rect_t *area = &self->drag_area;
+
+    if (self->drag_start == NULL || root == NULL)
+    {
+        return;
+    }
+
+    /* Keep the grab inside, short of the edges. */
+    double x1 = CLAMP (self->anchor_x + dx, area->origin.x + 40, area->origin.x + area->size.width - 40);
+    double y1 = CLAMP (self->anchor_y + dy, area->origin.y + 40, area->origin.y + area->size.height - 40);
+
+    apply_dividers (self, root, area, x1, y1);
+}
+
+static void
+on_middle_drag_end (GtkGestureDrag     *gesture,
+                    double              dx,
+                    double              dy,
+                    NautilusTileLayout *self)
+{
+    g_clear_pointer (&self->drag_start, g_hash_table_unref);
+    gtk_widget_set_cursor (GTK_WIDGET (self), NULL);
+}
+
 static void
 nautilus_tile_layout_dispose (GObject *object)
 {
     NautilusTileLayout *self = NAUTILUS_TILE_LAYOUT (object);
 
     g_clear_pointer (&self->tiles, g_list_free);
+    g_clear_pointer (&self->drag_start, g_hash_table_unref);
 
     G_OBJECT_CLASS (nautilus_tile_layout_parent_class)->dispose (object);
 }
@@ -551,4 +785,16 @@ nautilus_tile_layout_class_init (NautilusTileLayoutClass *klass)
 static void
 nautilus_tile_layout_init (NautilusTileLayout *self)
 {
+    /* Middle-drag on any border between tiles moves all the dividers:
+     * the grabbed one follows the pointer, the others stretch evenly on
+     * either side, on both axes at once. */
+    GtkGesture *drag = gtk_gesture_drag_new ();
+
+    gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (drag), GDK_BUTTON_MIDDLE);
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (drag), GTK_PHASE_CAPTURE);
+    g_signal_connect (drag, "drag-begin", G_CALLBACK (on_middle_drag_begin), self);
+    g_signal_connect (drag, "drag-update", G_CALLBACK (on_middle_drag_update), self);
+    g_signal_connect (drag, "drag-end", G_CALLBACK (on_middle_drag_end), self);
+    g_signal_connect (drag, "cancel", G_CALLBACK (on_middle_drag_end), self);
+    gtk_widget_add_controller (GTK_WIDGET (self), GTK_EVENT_CONTROLLER (drag));
 }
