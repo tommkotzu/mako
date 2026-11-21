@@ -66,6 +66,7 @@ struct _NautilusInspector
 G_DEFINE_TYPE (NautilusInspector, nautilus_inspector, GTK_TYPE_WIDGET)
 
 static void schedule_update (NautilusInspector *self);
+static void refresh_text (NautilusInspector *self);
 
 /* ------------------------------------------------------------ Details */
 
@@ -164,9 +165,19 @@ show_file_details (NautilusInspector *self,
     int width = 0, height = 0;
 
     nautilus_ql_canvas_get_picture_size (self->canvas, &width, &height);
+    if ((width <= 0 || height <= 0) &&
+        gtk_stack_get_visible_child (self->preview) == GTK_WIDGET (self->video) &&
+        gtk_video_get_media_stream (self->video) != NULL)
+    {
+        /* A video's frame size, once it is ready. */
+        GdkPaintable *stream = GDK_PAINTABLE (gtk_video_get_media_stream (self->video));
+
+        width = gdk_paintable_get_intrinsic_width (stream);
+        height = gdk_paintable_get_intrinsic_height (stream);
+    }
     if (width > 0 && height > 0)
     {
-        g_autofree char *dimensions = g_strdup_printf ("%d × %d", width, height);
+        g_autofree char *dimensions = g_strdup_printf ("%d × %d px", width, height);
 
         add_detail (self, _("Dimensions"), dimensions);
     }
@@ -343,6 +354,12 @@ show_preview (NautilusInspector *self,
         nautilus_ql_canvas_set_files (self->canvas, NULL);
         gtk_video_set_file (self->video, location);
         gtk_stack_set_visible_child (self->preview, GTK_WIDGET (self->video));
+        if (gtk_video_get_media_stream (self->video) != NULL)
+        {
+            /* The details again once the video knows its size. */
+            g_signal_connect_object (gtk_video_get_media_stream (self->video), "invalidate-size",
+                                     G_CALLBACK (refresh_text), self, G_CONNECT_SWAPPED);
+        }
     }
     else if (regular && nautilus_text_preview_handles (mime))
     {

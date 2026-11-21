@@ -49,6 +49,7 @@ typedef struct
     NautilusFile *file;
     GtkWidget *image;          /* NautilusImage, the thumbnail */
     GdkTexture *full;          /* the whole picture, once loaded */
+    guint width, height;       /* its size in pixels, known before it is decoded */
     GCancellable *loading;
     gboolean is_picture;
     gboolean full_failed;
@@ -774,6 +775,22 @@ on_image_loaded (GObject      *source,
         return;
     }
 
+    /* The size is in the header: say it before the picture is decoded. */
+    {
+        g_autoptr (NautilusQlCanvas) self = g_weak_ref_get (&data->canvas);
+        Item *item = self != NULL ? item_for_load (self, data->cancellable) : NULL;
+
+        if (item != NULL)
+        {
+            item->width = gly_image_get_width (image);
+            item->height = gly_image_get_height (image);
+            if (is_single (self))
+            {
+                g_signal_emit (self, signals[PICTURE_LOADED], 0);
+            }
+        }
+    }
+
     gly_image_next_frame_async (image, data->cancellable, on_frame_loaded, data);
 }
 
@@ -1393,8 +1410,10 @@ nautilus_ql_canvas_get_picture_size (NautilusQlCanvas *self,
 {
     Item *item = is_single (self) ? get_item (self, 0) : NULL;
 
-    *width = item != NULL && item->full != NULL ? gdk_texture_get_width (item->full) : 0;
-    *height = item != NULL && item->full != NULL ? gdk_texture_get_height (item->full) : 0;
+    *width = item == NULL ? 0 : item->width > 0 ? (int) item->width
+             : item->full != NULL ? gdk_texture_get_width (item->full) : 0;
+    *height = item == NULL ? 0 : item->height > 0 ? (int) item->height
+              : item->full != NULL ? gdk_texture_get_height (item->full) : 0;
 }
 
 GtkWidget *

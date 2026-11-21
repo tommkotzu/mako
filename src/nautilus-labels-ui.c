@@ -1009,6 +1009,10 @@ nautilus_labels_add_preferences_pages (AdwPreferencesDialog *dialog,
             adw_preferences_group_add (ADW_PREFERENCES_GROUP (group), row);
         }
         adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
+                                   switch_row_new (_("_Selection Status"),
+                                                   _("What is selected, at the bottom right of each panel"),
+                                                   "selection-status"));
+        adw_preferences_group_add (ADW_PREFERENCES_GROUP (group),
                                    switch_row_new (_("_Alternating Row Colors"),
                                                    _("Every other row a shade apart in the list, the expandable list and columns"),
                                                    "alternate-rows"));

@@ -163,6 +163,11 @@
       <summary>Color theme</summary>
       <description>The window's colors: “mako” (the sidebar a little brighter than the views), “uniform” (one color), “classic” (GNOME's sidebar grey), “graphite” (deeper, more contrast), “fog” (light grey, low contrast; always light), or the playful “deep-sea”, “synthwave”, “matcha”, “nord”, “dracula”, “gruvbox”, “catppuccin”, “solarized” and “kids” (every part a different colour). Each has a light and a dark version.</description>
     </key>
+    <key type="b" name="selection-status">
+      <default>true</default>
+      <summary>Selection status</summary>
+      <description>Show what is selected (names, count, size) in a small label at the bottom right of each panel. The “Loading…” label shows either way.</description>
+    </key>
     <key type="b" name="alternate-rows">
       <default>false</default>
       <summary>Alternating row colors</summary>

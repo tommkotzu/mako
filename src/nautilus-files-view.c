@@ -429,6 +429,13 @@ real_floating_bar_set_short_status (NautilusFilesView *self,
     nautilus_floating_bar_set_show_stop (NAUTILUS_FLOATING_BAR (self->floating_bar),
                                          FALSE);
 
+    /* The selection label is optional (setting selection-status). */
+    if (!g_settings_get_boolean (nautilus_flier_settings (), "selection-status"))
+    {
+        primary_status = NULL;
+        detail_status = NULL;
+    }
+
     if (primary_status == NULL && detail_status == NULL)
     {
         gtk_widget_set_visible (self->floating_bar, FALSE);
@@ -9716,6 +9723,9 @@ nautilus_files_view_init (NautilusFilesView *self)
     GtkShortcut *shortcut;
     gchar *templates_uri;
     GdkClipboard *clipboard;
+
+    g_signal_connect_object (nautilus_flier_settings (), "changed::selection-status",
+                             G_CALLBACK (schedule_update_status), self, G_CONNECT_SWAPPED);
 
     /* Own a reference to keep the status page alive even if reparented while
      * switching view modes. */
