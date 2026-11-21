@@ -29,7 +29,7 @@ gboolean nautilus_quick_look_is_visible (void);
 /* Whether it is up in @window, where it takes the keys. */
 gboolean nautilus_quick_look_has_keys   (GtkWindow         *window);
 /* Gives @window the overlay Quick Look shows in. Once, when it's built. */
-void     nautilus_quick_look_attach     (AdwApplicationWindow *window);
+void     nautilus_quick_look_attach     (GtkWindow *window);
 void     nautilus_quick_look_close      (void);
 
 G_END_DECLS

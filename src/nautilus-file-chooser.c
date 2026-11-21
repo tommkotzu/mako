@@ -20,6 +20,7 @@
 #include "nautilus-filename-utilities.h"
 #include "nautilus-filename-validator.h"
 #include "nautilus-global-preferences.h"
+#include "nautilus-quick-look.h"
 #include "nautilus-scheme.h"
 #include "nautilus-shortcut-manager.h"
 #include "nautilus-sidebar.h"
@@ -518,6 +519,11 @@ on_key_pressed_bubble (GtkEventControllerKey *controller,
 {
     NautilusFileChooser *self = NAUTILUS_FILE_CHOOSER (user_data);
 
+    /* Quick Look's keys stay in Quick Look: no search behind it. */
+    if (nautilus_quick_look_has_keys (GTK_WINDOW (self)))
+    {
+        return GDK_EVENT_PROPAGATE;
+    }
     if (self->slot != NULL &&
         nautilus_window_slot_handle_event (self->slot, controller, keyval, state))
     {
@@ -806,6 +812,8 @@ nautilus_file_chooser_init (NautilusFileChooser *self)
     g_type_ensure (NAUTILUS_TYPE_PLACES_SIDEBAR);
     g_type_ensure (NAUTILUS_TYPE_SHORTCUT_MANAGER);
     gtk_widget_init_template (GTK_WIDGET (self));
+    /* Space previews here too, in Quick Look over the dialog. */
+    nautilus_quick_look_attach (GTK_WINDOW (self));
 
     /* Give the dialog its own window group. Otherwise all such dialogs would
      * belong to the same default window group, acting like a stack of modals.

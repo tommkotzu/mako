@@ -1354,13 +1354,24 @@ nautilus_quick_look_close (void)
 }
 
 void
-nautilus_quick_look_attach (AdwApplicationWindow *window)
+nautilus_quick_look_attach (GtkWindow *window)
 {
-    GtkWidget *content = adw_application_window_get_content (window);
+    /* The file windows, and the open/save dialogs (an AdwWindow). */
+    gboolean app_window = ADW_IS_APPLICATION_WINDOW (window);
+    GtkWidget *content = app_window
+                         ? adw_application_window_get_content (ADW_APPLICATION_WINDOW (window))
+                         : adw_window_get_content (ADW_WINDOW (window));
     GtkWidget *overlay = gtk_overlay_new ();
 
     g_object_ref (content);
-    adw_application_window_set_content (window, overlay);
+    if (app_window)
+    {
+        adw_application_window_set_content (ADW_APPLICATION_WINDOW (window), overlay);
+    }
+    else
+    {
+        adw_window_set_content (ADW_WINDOW (window), overlay);
+    }
     gtk_overlay_set_child (GTK_OVERLAY (overlay), content);
     g_object_unref (content);
 

@@ -4251,7 +4251,7 @@ nautilus_window_init (NautilusWindow *window)
     g_signal_connect (window, "notify::is-active",
                       G_CALLBACK (on_window_active_changed), NULL);
 
-    nautilus_quick_look_attach (ADW_APPLICATION_WINDOW (window));
+    nautilus_quick_look_attach (GTK_WINDOW (window));
     nautilus_shortcuts_attach (GTK_WINDOW (window));
     setup_inspector (window);
     g_signal_connect_object (nautilus_flier_settings (), "changed::framed-panels",
