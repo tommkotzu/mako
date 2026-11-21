@@ -7,7 +7,10 @@
     { self, nixpkgs }:
     let
       lib = nixpkgs.lib;
-      systems = [ "x86_64-linux" "aarch64-linux" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
       forAllSystems = f: lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
 
       # The source without the README media and promo tooling.
@@ -36,14 +39,16 @@
       overlays.default = final: prev: { mako-files = build final; };
 
       nixosModules.default = import ./nix/nixos-module.nix self;
-      homeManagerModules.default = import ./nix/hm-module.nix self;
-      # Newer Home Manager reads this name.
-      homeModules.default = self.homeManagerModules.default;
+      homeModules.default = import ./nix/hm-module.nix self;
 
       apps = forAllSystems (pkgs: {
         default = {
           type = "app";
           program = "${self.packages.${pkgs.stdenv.hostPlatform.system}.default}/bin/nautilus";
+          meta = {
+            description = "Mako file manager";
+            mainProgram = "nautilus";
+          };
         };
       });
 
@@ -54,6 +59,6 @@
         };
       });
 
-      formatter = forAllSystems (pkgs: pkgs.nixfmt-rfc-style);
+      formatter = forAllSystems (pkgs: pkgs.nixfmt);
     };
 }

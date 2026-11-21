@@ -10,7 +10,12 @@ self:
 
 let
   cfg = config.programs.mako-files;
-  inherit (lib) mkEnableOption mkIf mkOption types;
+  inherit (lib)
+    mkEnableOption
+    mkIf
+    mkOption
+    types
+    ;
 in
 {
   options.programs.mako-files = {
@@ -58,6 +63,20 @@ in
         data/org.gnome.nautilus.flier.gschema.xml for every key.
       '';
     };
+
+    recursiveSearch = mkOption {
+      type = types.enum [
+        "always"
+        "local-only"
+        "never"
+      ];
+      default = "always";
+      description = ''
+        Whether to search subfolders recursively. "always" searches all
+        subfolders (like ripgrep); "local-only" limits recursion to local
+        filesystems; "never" searches only the current folder.
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -79,12 +98,27 @@ in
     xdg.portal = mkIf cfg.fileChooser {
       enable = true;
       extraPortals = [ cfg.package ];
-      config.common."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [ "mako" "gnome" "gtk" ];
-      config.gnome."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [ "mako" "gnome" ];
+      config.common."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [
+        "mako"
+        "gnome"
+        "gtk"
+      ];
+      config.gnome."org.freedesktop.impl.portal.FileChooser" = lib.mkDefault [
+        "mako"
+        "gnome"
+      ];
     };
 
-    programs.dconf.profiles.user.databases = mkIf (cfg.settings != { }) [
-      { settings."org/gnome/nautilus/flier" = cfg.settings; }
-    ];
+    programs.dconf.profiles.user.databases =
+      lib.optionals (cfg.settings != { }) [
+        { settings."org/gnome/nautilus/flier" = cfg.settings; }
+      ]
+      ++ [
+        {
+          settings."org/gnome/nautilus/preferences" = {
+            recursive-search = cfg.recursiveSearch;
+          };
+        }
+      ];
   };
 }
