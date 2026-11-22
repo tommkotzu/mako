@@ -186,6 +186,11 @@ body.no-keys .keyrow, body.no-keys .vtabs kbd, body.no-keys h2 .k, body.no-keys 
 .cmd { display: flex; align-items: center; gap: 10px; margin: 16px 26px 0; padding: 10px 12px; border-radius: 10px; background: var(--sunk); font: 500 13.5px var(--mono); }
 .cmd code { flex: 1; overflow-x: auto; white-space: nowrap; }
 .cmd button { border: 0; background: var(--raised); color: var(--fg); border-radius: 7px; padding: 4px 10px; font: 700 12px var(--font); cursor: pointer; }
+/* Install: the command box is outlined in the accent, with sudo and the Copy button in it too. */
+#install .cmd { margin-top: 22px; padding: 14px 14px 14px 18px; font-size: 14.5px; box-shadow: inset 0 0 0 1.5px var(--accent-bg); }
+#install .cmd .su { color: var(--accent); }
+#install .cmd button { background: var(--accent-bg); color: var(--on-accent); padding: 6px 14px; }
+#install .cmd button:hover { filter: brightness(1.12); }
 .small { display: flex; gap: 18px; flex-wrap: wrap; padding: 14px 26px 22px; margin-top: auto; font-size: 13.5px; }
 
 .foot { margin-top: 26px; color: var(--faint); font-size: 13.5px; display: grid; gap: 6px; }
@@ -520,13 +525,15 @@ body { font-family: "Geist", var(--font); letter-spacing: -.01em;
 .h1icon { display: inline-block; width: .9em; height: .9em; margin-left: .18em; vertical-align: -.08em; }
 .hx .cta .btn.primary { background: none; color: var(--accent); padding: 0 6px; }
 .hx .cta .btn.primary:hover { filter: none; text-decoration: underline; text-underline-offset: 4px; }
-/* GitHub links: an outlined pill in the nav, a bright pill in the hero. */
+/* GitHub links: purple outlined buttons in the nav and the hero. */
 .btn .ghi { width: 16px; height: 16px; flex: none; }
 .btn.lg .ghi { width: 19px; height: 19px; }
 .nav .btn.gh { margin-right: 8px; }
+:root .nav .btn.ghost.gh { background: transparent; color: var(--fg); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--fg) 45%, transparent); }
+:root .nav .btn.ghost.gh:hover { background: color-mix(in srgb, var(--fg) 8%, transparent); }
 .hx .cta { align-items: center; }
-.hx .cta .btn.ghhero { background: var(--fg); color: var(--bg); }
-.hx .cta .btn.ghhero:hover { background: var(--fg); filter: brightness(.9); }
+.hx .cta .btn.ghhero { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent-bg); }
+.hx .cta .btn.ghhero:hover { background: var(--accent-soft); }
 /* Hero floaters: folders and files drifting beside the headline, nearer ones bigger, sharper and quicker to follow the mouse. */
 .hfloat { position: absolute; z-index: -1; left: 50%; top: 0; width: min(1440px, 100vw); height: 700px; transform: translateX(-50%); pointer-events: none; overflow: hidden; --mx: 0; --my: 0;
   mask-image: linear-gradient(transparent, #000 18%, #000 92%, transparent); }
@@ -586,7 +593,7 @@ body { font-family: "Geist", var(--font); letter-spacing: -.01em;
 
   <section class="hx"><div class="hxlines" aria-hidden="true"></div><div class="hfloat" id="hfloat" aria-hidden="true"></div>
     <h1><span>Mako</span><img class="h1icon" src="media/mako.png" alt=""><br>your last file browser</h1>
-    <p>Mako is a fork of GNOME Files with tiles that have their own tabs, four views and a menu that finds anything. Keyboard or mouse, it shows you the key either way.</p>
+    <p>Mako is a fork of GNOME Files and a left-hand, hotkey-first file manager.</p>
     <div class="cta"><a class="btn gh lg ghhero" href="https://github.com/tommkotzu/mako"><svg class="ghi" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>Star Mako on GitHub</a><a class="btn primary lg" href="https://github.com/tommkotzu/mako/releases/latest">Download for Ubuntu</a></div>
     <div class="stack" id="stack" aria-label="Mako screenshots">
       <figure data-l="Tabs"><video src="media/site/hero/tabs.mp4" poster="media/site/hero/tabs.jpg" muted playsinline preload="metadata"></video></figure>
@@ -792,7 +799,7 @@ body { font-family: "Geist", var(--font); letter-spacing: -.01em;
     <!-- Install -->
     <section class="card win feat c3 r2" id="install">
       <div class="head"><div class="eyebrow">Install</div><h2>Ubuntu 26.04: get the .deb, then</h2></div>
-      <div class="cmd"><code>sudo apt install ./mako_*_amd64.deb</code><button id="copy">Copy</button></div>
+      <div class="cmd"><code><span class="su">sudo</span> apt install ./mako_*_amd64.deb</code><button id="copy">Copy</button></div>
       <div class="small"><a href="https://github.com/tommkotzu/mako/releases/latest">Latest release</a><a href="https://github.com/tommkotzu/mako#nixos-and-home-manager">Nix flake</a><a href="https://github.com/tommkotzu/mako#build-and-install">Build from source</a></div>
     </section>
     </div>
