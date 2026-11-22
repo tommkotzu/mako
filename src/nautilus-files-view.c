@@ -295,6 +295,7 @@ static void on_clipboard_owner_changed (GdkClipboard *clipboard,
 static void     schedule_update_context_menus (NautilusFilesView *view);
 static void     remove_update_context_menus_timeout_callback (NautilusFilesView *view);
 static void     schedule_update_status (NautilusFilesView *view);
+static GtkShortcutAction *view_shortcut_action (const char *detailed_action);
 static void     remove_update_status_idle_callback (NautilusFilesView *view);
 static void     reset_update_interval (NautilusFilesView *view);
 static void     schedule_idle_display_of_pending_files (NautilusFilesView *view);
@@ -5400,7 +5401,7 @@ add_script_to_scripts_menus (NautilusFilesView *self,
     {
         gtk_shortcut_controller_add_shortcut (self->shortcuts,
                                               gtk_shortcut_new (gtk_shortcut_trigger_parse_string (shortcut),
-                                                                gtk_named_action_new (detailed_action_name)));
+                                                                view_shortcut_action (detailed_action_name)));
     }
 
     g_free (action_name);
@@ -9713,6 +9714,28 @@ nautilus_files_view_class_init (NautilusFilesViewClass *klass)
     gtk_widget_class_add_binding_action (widget_class, GDK_KEY_c, GDK_CONTROL_MASK, "view.copy-network-address", NULL);
 }
 
+/* The view's keys are the window's (managed scope), and every panel has a
+ * view: only the active one may take them, or the first panel would. */
+static gboolean
+run_view_shortcut (GtkWidget *widget,
+                   GVariant  *args,
+                   gpointer   user_data)
+{
+    NautilusFilesView *self = NAUTILUS_FILES_VIEW (widget);
+
+    if (!self->active)
+    {
+        return FALSE;
+    }
+    return gtk_widget_activate_action_variant (widget, user_data, args);
+}
+
+static GtkShortcutAction *
+view_shortcut_action (const char *detailed_action)
+{
+    return gtk_callback_action_new (run_view_shortcut, g_strdup (detailed_action), g_free);
+}
+
 static void
 nautilus_files_view_init (NautilusFilesView *self)
 {
@@ -9839,7 +9862,7 @@ nautilus_files_view_init (NautilusFilesView *self)
 #define ADD_SHORTCUT_FOR_ACTION(controller, action, trigger) \
         (gtk_shortcut_controller_add_shortcut ((controller), \
                                                gtk_shortcut_new (gtk_shortcut_trigger_parse_string ((trigger)), \
-                                                                 gtk_named_action_new ((action)))))
+                                                                 view_shortcut_action ((action)))))
 
     self->shortcuts = GTK_SHORTCUT_CONTROLLER (gtk_shortcut_controller_new ());
 
