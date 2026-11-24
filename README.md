@@ -11,6 +11,8 @@ It keeps the native GNOME look (GTK 4 and libadwaita) and stays close to
 upstream, so it is easy to follow new Nautilus releases. It is based on
 Nautilus **50.2.2**.
 
+**Website:** [tommkotzu.github.io/mako](https://tommkotzu.github.io/mako/)
+
 https://github.com/user-attachments/assets/1a1a578e-7426-485a-a1e6-026c1ab35ce3
 
 
